@@ -8,7 +8,7 @@ _(Placeholder for a new screenshot of the application interface)_
 
 ## Overview
 
-`acto` is an AI-powered interactive storytelling application. Users can start with an initial scenario (either chosen or generated) and make choices that influence the direction of the narrative. The application uses Google's Gemini AI models to generate story passages, subsequent choices, and relevant imagery based on the user's input and the story's history.
+`acto` is an AI-powered interactive storytelling application. Users can start with an initial scenario (either chosen or generated) and make choices that influence the direction of the narrative. The application uses Google's Gemini AI models to generate story passages, subsequent choices, and relevant imagery based on the user's input and the story's history. It also features Text-to-Speech (TTS) capabilities to read passages aloud.
 
 ## Features
 
@@ -16,6 +16,7 @@ _(Placeholder for a new screenshot of the application interface)_
 - **Dynamic Choices**: AI generates relevant choices for the user at each step, influencing the story progression.
 - **Starting Scenarios**: Generates diverse starting points for new stories across different genres.
 - **AI-Generated Images**: Images created based on the narrative using Imagen via the Gemini API.
+- **Text-to-Speech (TTS)**: Reads story passages aloud using Google Cloud TTS.
 - **Stateful Interaction**: The application maintains the story history to provide context for the AI.
 - **User Authentication**: (Optional) Secure login via GitHub, Google, and Discord OAuth using NextAuth.
 - **Data Persistence**: (Likely, uses SQLite) Store user data or potentially story progress.
@@ -35,13 +36,14 @@ _(Placeholder for a new screenshot of the application interface)_
 - **Tailwind CSS**: Utility-first CSS framework
 - **TypeScript**: Strong typing for code quality
 - **next-auth**: Authentication (GitHub, Google, Discord) _(Optional)_
-- **Google Generative AI SDK**: Gemini model integration
-- **Google Cloud Client Libraries**: (e.g., `@google-cloud/text-to-speech` if re-enabled)
-- **SQLite**: `better-sqlite3` likely for database storage (user data, rate limits?)
+- **Google Generative AI SDK (`@google/genai`)**: Gemini model integration (Text/Image Generation)
+- **Google Cloud Client Libraries (`@google-cloud/text-to-speech`)**: Cloud Text-to-Speech
+- **SQLite**: `better-sqlite3` likely for database storage (user data, rate limits)
 - **Zod**: Schema validation (especially for AI responses)
-- **zustand**: Client-side state management
+- **zustand / immer**: Client-side state management
+- **@ducanh2912/next-pwa**: Progressive Web App features
 - **@sentry/nextjs**: Error tracking
-- **Playwright**: End-to-end testing
+- **Playwright**: End-to-end testing (typically run locally)
 - **Jest / React Testing Library**: Unit/Integration testing
 - **ESLint / Prettier**: Linting & Formatting
 - **Husky / lint-staged**: Git hooks
@@ -68,8 +70,7 @@ acto implements strategies to manage AI API costs:
   - Default limits are defined in `lib/rateLimitSqlite.ts` (e.g., 10 text requests/min, 5 image requests/hour).
   - Adjust limits directly in `lib/rateLimitSqlite.ts` or consider moving them to environment variables for easier configuration.
   - Exceeding the limit returns an error to the user and logs details to the console and Sentry (if configured).
-- **Database Caching**: _(Review if applicable)_
-  - Previous implementation cached language exercises. It's unclear if game states or AI responses are currently cached. Caching might be less applicable to a dynamic adventure but could be implemented for specific scenarios.
+- **Database Caching**: _(Not currently implemented for adventure game state. Previous caching mechanisms for other features may have been removed.)_
 
 ## Setup and Running
 
@@ -93,7 +94,7 @@ acto implements strategies to manage AI API costs:
     npm install
     ```
 
-    This command also runs the `prepare` script, which may download browser binaries for Playwright tests.
+    This command also runs the `prepare` script, which installs Git hooks and may download browser binaries for Playwright tests (skipped in CI environments).
 
 3.  **Configure Environment Variables:**
 
@@ -102,8 +103,8 @@ acto implements strategies to manage AI API costs:
 
     **Required for Core Functionality:**
 
-    - `GOOGLE_AI_API_KEY`: For Google AI (Gemini text generation & Imagen image generation via Gemini API).
-    - `GOOGLE_APPLICATION_CREDENTIALS` (or `GOOGLE_APP_CREDS_JSON` secret): For Google Cloud services like Cloud TTS. See Deployment section.
+    - `GOOGLE_AI_API_KEY`: For Google AI (Gemini text generation & Imagen image generation via Gemini API). Get from [Google AI Studio](https://aistudio.google.com/app/apikey).
+    - `GOOGLE_APPLICATION_CREDENTIALS` (or `GOOGLE_APP_CREDS_JSON` secret): Path to (or JSON content of) your Google Cloud service account key file. Required for Google Cloud services like Cloud Text-to-Speech. See [Google Cloud Authentication Docs](https://cloud.google.com/docs/authentication/provide-credentials-adc#local-dev).
 
     **Required for Authentication (if used):**
 
@@ -174,10 +175,12 @@ The following commands will guide you through the initial setup. Run them in you
     - **Other Secrets:** Create a `.env.production` file locally (copy from `.env.example`, **DO NOT COMMIT**). Fill in all other required production keys/tokens (`GOOGLE_AI_API_KEY`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_SENTRY_DSN`, `AUTH_SECRET`, `NEXTAUTH_URL=https://acto.fly.dev`). Then import them:
       ```bash
       # Ensure .env.production is populated with production values!
+      # Required: GOOGLE_AI_API_KEY, SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT, NEXT_PUBLIC_SENTRY_DSN
+      # Required if using Auth: AUTH_SECRET, NEXTAUTH_URL=https://<your-fly-app-name>.fly.dev, Provider secrets
       fly secrets import --app acto < .env.production
       ```
-    - **Important `NEXTAUTH_URL` Note:** For OAuth providers (Google, GitHub, Discord) to work correctly in production, the `NEXTAUTH_URL` secret **must** be set to the full base URL of your deployed application (e.g., `https://your-app-name.fly.dev`). If this is missing or incorrect, OAuth redirects will likely fail.
-    - **Verify Secrets:** Check required secrets are listed (run `fly secrets list --app acto`). Ensure `GOOGLE_AI_API_KEY`, `GOOGLE_APP_CREDS_JSON`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_SENTRY_DSN`, `AUTH_SECRET` (if using auth), `NEXTAUTH_URL` (if using auth) are present.
+    - **Important `NEXTAUTH_URL` Note:** For OAuth providers (Google, GitHub, Discord) to work correctly in production, the `NEXTAUTH_URL` secret **must** be set to the full base URL of your deployed application (e.g., `https://acto.fly.dev`). This is crucial for OAuth redirects.
+    - **Verify Secrets:** Check required secrets are listed (run `fly secrets list --app acto`). Ensure `GOOGLE_AI_API_KEY`, `GOOGLE_APP_CREDS_JSON`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_SENTRY_DSN` are present. Also check `AUTH_SECRET` and `NEXTAUTH_URL` if using authentication.
 
 5.  **Deploy the Application:**
 
@@ -246,7 +249,7 @@ npm run nuke
 - **End-to-End**: Playwright (`npm run test:e2e`) checks full user flows through the adventure game. See E2E Authentication Setup below if testing authenticated features.
 - **Git Hooks**: Husky and lint-staged automatically run checks:
   - **Pre-commit**: Formats staged files (`prettier`) and runs related Jest tests (`test:quick`).
-  - **Pre-push**: Runs `npm run verify` (full format check, lint, build checks). _(Verify exact hook configuration in `.husky/`)_
+  - **Pre-push**: Runs `npm run preview-build` to ensure a preview build succeeds before pushing. _(See `.husky/pre-push`)_
 
 ## Production Considerations
 
