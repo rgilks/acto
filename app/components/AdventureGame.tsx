@@ -35,7 +35,6 @@ const AdventureGame = () => {
     isLoading: isNodeLoading,
     error: nodeError,
     storyHistory,
-    fetchAdventureNode,
     makeChoice,
     resetAdventure: resetStore,
     isSpeaking,

@@ -97,7 +97,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         const isInitialCall = currentHistory.length === 0;
 
         // Prepare history for the action call
-        let historyForAction = [...currentHistory];
+        const historyForAction = [...currentHistory];
         if (choiceText && !isInitialCall) {
           // Add choice text to the *last* passage in the history we send
           historyForAction[historyForAction.length - 1] = {

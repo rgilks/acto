@@ -192,7 +192,10 @@ async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Pro
 }
 
 async function generateImageWithGemini(
-  imagePrompt: string
+  imagePrompt: string,
+  visualStyle?: string | null,
+  genre?: string | null,
+  tone?: string | null
 ): Promise<
   | { dataUri: string; error: undefined }
   | { dataUri: undefined; error: string; rateLimitResetTimestamp?: number }
@@ -209,7 +212,17 @@ async function generateImageWithGemini(
     };
   }
 
-  const finalImagePrompt = `Digital painting, detailed, atmospheric illustration. ${imagePrompt}`;
+  // Construct the final prompt using the visual style, genre, and tone if provided
+  let stylePrefix = visualStyle ? visualStyle + ' style. ' : 'Detailed, atmospheric illustration. ';
+  if (genre) {
+    stylePrefix += `Genre: ${genre}. `;
+  }
+  if (tone) {
+    stylePrefix += `Tone: ${tone}. `;
+  }
+
+  const finalImagePrompt = `${stylePrefix}${imagePrompt}`;
+
   console.log('[Adventure Image] Sending final prompt to Imagen API:', finalImagePrompt);
 
   try {
@@ -337,7 +350,7 @@ export const generateAdventureNodeAction = async (
     }
 
     const validatedNode = validationResult.data;
-    const imagePrompt = validatedNode.imagePrompt;
+    const imagePromptFromAI = validatedNode.imagePrompt;
     const passage = validatedNode.passage;
     const updatedSummary = validatedNode.updatedSummary;
 
@@ -349,8 +362,8 @@ export const generateAdventureNodeAction = async (
 
     const promisesToSettle = [];
 
-    if (imagePrompt) {
-      promisesToSettle.push(generateImageWithGemini(imagePrompt));
+    if (imagePromptFromAI) {
+      promisesToSettle.push(generateImageWithGemini(imagePromptFromAI, visualStyle, genre, tone));
     } else {
       console.warn('[Adventure Action] Skipping image generation: no prompt.');
       promisesToSettle.push(Promise.resolve({ dataUri: undefined, error: undefined }));
