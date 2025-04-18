@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import Image from 'next/image';
 import useAdventureStore from '@/store/adventureStore';
-import { AdventureChoiceSchema } from '@/lib/domain/schemas';
+import { AdventureChoiceSchema, AdventureNode } from '@/lib/domain/schemas';
 import { z } from 'zod';
 import { ArrowPathIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from '@heroicons/react/24/solid';
 import { generateStartingScenariosAction } from '../actions/adventure';
@@ -49,6 +49,8 @@ const AdventureGame = () => {
   const [gamePhase, setGamePhase] = useState<GamePhase>('loading_scenarios');
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [isUnauthorized, setIsUnauthorized] = useState(false);
+  const [displayNode, setDisplayNode] = useState<AdventureNode | null>(null);
+  const [isCurrentImageLoading, setIsCurrentImageLoading] = useState<boolean>(true);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const ttsAudioRef = useRef<HTMLAudioElement>(null);
@@ -134,34 +136,48 @@ const AdventureGame = () => {
     setScenarios([]);
     setIsUnauthorized(false);
     setClickedChoiceIndex(null);
+    setDisplayNode(null);
+    setIsCurrentImageLoading(true);
     // Reset game phase and fetch scenarios again
     setGamePhase('loading_scenarios');
     void fetchScenarios();
   }, [resetStore, fetchScenarios]);
 
-  const handleImageLoad = useCallback(() => {
-    console.log('[ImageLoad] Image loaded.');
-    if (hasUserInteracted && currentAudioData && ttsAudioRef.current && !isSpeaking) {
-      console.log('[ImageLoad] Conditions met, attempting to play pre-fetched audio.');
-      const audioSrc = `data:audio/mp3;base64,${currentAudioData}`;
-      ttsAudioRef.current.src = audioSrc;
-      ttsAudioRef.current
-        .play()
-        .then(() => {
-          console.log('[ImageLoad] Audio playback started successfully.');
-          setSpeaking(true);
-        })
-        .catch((err) => {
-          console.error('[ImageLoad] Error playing audio:', err);
-          setTTSError('Failed to auto-play audio after image load.');
-          setSpeaking(false);
-        });
-    } else {
-      console.log(
-        `[ImageLoad] Conditions not met: interacted=${hasUserInteracted}, hasAudio=${!!currentAudioData}, isSpeaking=${isSpeaking}`
-      );
-    }
-  }, [hasUserInteracted, currentAudioData, setSpeaking, setTTSError, isSpeaking]);
+  const handleImageLoad = useCallback(
+    (loadedImageUrl?: string) => {
+      console.log('[ImageLoad] Image load event fired for:', loadedImageUrl);
+      if (displayNode?.imageUrl && loadedImageUrl === displayNode.imageUrl) {
+        console.log('[ImageLoad] Matching image loaded. Setting loading state to false.');
+        setIsCurrentImageLoading(false);
+
+        if (hasUserInteracted && currentAudioData && ttsAudioRef.current && !isSpeaking) {
+          console.log('[ImageLoad] Conditions met, attempting to play pre-fetched audio.');
+          const audioSrc = `data:audio/mp3;base64,${currentAudioData}`;
+          ttsAudioRef.current.src = audioSrc;
+          ttsAudioRef.current
+            .play()
+            .then(() => {
+              console.log('[ImageLoad] Audio playback started successfully.');
+              setSpeaking(true);
+            })
+            .catch((err) => {
+              console.error('[ImageLoad] Error playing audio:', err);
+              setTTSError('Failed to auto-play audio after image load.');
+              setSpeaking(false);
+            });
+        } else {
+          console.log(
+            `[ImageLoad] Conditions not met for audio auto-play: interacted=${hasUserInteracted}, hasAudio=${!!currentAudioData}, isSpeaking=${isSpeaking}`
+          );
+        }
+      } else {
+        console.log(
+          `[ImageLoad] Mismatch or no display node URL. Loaded: ${loadedImageUrl}, Display Node URL: ${displayNode?.imageUrl}`
+        );
+      }
+    },
+    [displayNode, hasUserInteracted, currentAudioData, setSpeaking, setTTSError, isSpeaking]
+  );
 
   const stopTTSSpeech = useCallback(() => {
     const audioElement = ttsAudioRef.current;
@@ -213,26 +229,51 @@ const AdventureGame = () => {
     return () => audioElement.removeEventListener('ended', handleAudioEnd);
   }, [stopTTSSpeech]);
 
-  const previousPassageRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    const currentPassage = gamePhase === 'playing' ? currentNode?.passage : null;
-    const audioData = gamePhase === 'playing' ? currentNode?.audioBase64 : null;
+    const newlyFetchedNode = gamePhase === 'playing' ? currentNode : null;
 
     console.log(
-      '[Node Update Effect] New node received, passage changed:',
-      currentPassage !== previousPassageRef.current
+      '[Display Node Effect] Checking for node update. Current displayNode:',
+      displayNode?.passage?.substring(0, 30),
+      'Newly fetched node:',
+      newlyFetchedNode?.passage?.substring(0, 30)
     );
-    console.log('[Node Update Effect] Audio data available:', !!audioData);
 
-    setCurrentAudioData(audioData ?? null);
+    if (newlyFetchedNode && newlyFetchedNode.passage !== displayNode?.passage) {
+      console.log(
+        '[Display Node Effect] New node detected. TTS Available:',
+        !!newlyFetchedNode.audioBase64
+      );
 
-    if (currentPassage !== previousPassageRef.current && isSpeaking) {
-      console.log('[Node Update Effect] Passage changed, stopping current speech.');
-      stopTTSSpeech();
+      if (newlyFetchedNode.audioBase64 !== undefined) {
+        console.log('[Display Node Effect] TTS ready or not required. Updating displayNode.');
+        if (isSpeaking) {
+          console.log('[Display Node Effect] New passage, stopping current speech.');
+          stopTTSSpeech();
+        }
+
+        setDisplayNode(newlyFetchedNode);
+        setCurrentAudioData(newlyFetchedNode.audioBase64 ?? null);
+
+        if (newlyFetchedNode.imageUrl) {
+          console.log(
+            '[Display Node Effect] New image URL detected. Setting image loading to true.'
+          );
+          setIsCurrentImageLoading(true);
+        } else {
+          setIsCurrentImageLoading(false);
+        }
+      } else {
+        console.log('[Display Node Effect] TTS data not yet available for new node. Waiting...');
+      }
+    } else if (!newlyFetchedNode && displayNode) {
+      console.log('[Display Node Effect] Clearing display node.');
+      setDisplayNode(null);
+      setIsCurrentImageLoading(true);
+      setCurrentAudioData(null);
+      if (isSpeaking) stopTTSSpeech();
     }
-
-    previousPassageRef.current = currentPassage ?? undefined;
-  }, [currentNode, gamePhase, isSpeaking, stopTTSSpeech]);
+  }, [currentNode, gamePhase, displayNode, isSpeaking, stopTTSSpeech]);
 
   useEffect(() => {
     const audioElement = audioRef.current;
@@ -383,26 +424,36 @@ const AdventureGame = () => {
 
             {gamePhase === 'playing' && !nodeError && (
               <>
-                {isNodeLoading && !currentNode && (
+                {isNodeLoading && !displayNode && (
                   <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80 rounded-lg z-20">
                     <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin" />
                   </div>
                 )}
 
-                {currentNode && (
+                {displayNode && (
                   <>
                     <div className="flex flex-col md:flex-row md:items-start md:gap-6 lg:gap-8 mb-6">
-                      {currentNode.imageUrl && (
+                      {displayNode.imageUrl && (
                         <div className="w-full md:w-1/2 lg:w-5/12 flex-shrink-0 mb-4 md:mb-0">
                           <div className="aspect-[16/10] bg-slate-700 rounded overflow-hidden shadow-md mb-4 relative">
+                            {isCurrentImageLoading && (
+                              <div className="absolute inset-0 bg-slate-600 flex items-center justify-center z-10">
+                                <ArrowPathIcon className="h-8 w-8 text-slate-400 animate-spin" />
+                              </div>
+                            )}
                             <Image
-                              src={currentNode.imageUrl}
+                              key={displayNode.imageUrl}
+                              src={displayNode.imageUrl}
                               alt="Adventure scene"
                               fill
-                              className="object-cover"
+                              className={`object-cover transition-opacity duration-500 ${isCurrentImageLoading ? 'opacity-0' : 'opacity-100'}`}
                               priority
                               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw"
-                              onLoad={handleImageLoad}
+                              onLoad={() => handleImageLoad(displayNode.imageUrl)}
+                              onError={() => {
+                                console.error('Image failed to load:', displayNode.imageUrl);
+                                setIsCurrentImageLoading(false);
+                              }}
                             />
                           </div>
                           <div className="flex items-center justify-center space-x-4 w-full">
@@ -446,23 +497,28 @@ const AdventureGame = () => {
                         </div>
                       )}
 
-                      <div className={`${!currentNode.imageUrl ? 'w-full' : 'md:w-1/2 lg:w-7/12'}`}>
+                      <div className={`${!displayNode.imageUrl ? 'w-full' : 'md:w-1/2 lg:w-7/12'}`}>
                         <div className="mb-4 text-xl leading-relaxed text-left w-full text-gray-300 relative">
-                          <p style={{ whiteSpace: 'pre-wrap' }}>{currentNode.passage}</p>
+                          {displayNode.passage ? (
+                            <p style={{ whiteSpace: 'pre-wrap' }}>{displayNode.passage}</p>
+                          ) : (
+                            <p className="text-gray-500 italic">Loading passage...</p>
+                          )}
                         </div>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
-                      {currentNode.choices.map((choice, index) => {
+                      {displayNode.choices.map((choice, index) => {
                         const isClicked = index === clickedChoiceIndex;
+                        const isDisabled = isNodeLoading;
                         const isLoadingChoice = isNodeLoading && isClicked;
                         return (
                           <button
                             key={index}
                             onClick={() => handleChoiceClick(choice, index)}
-                            className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isNodeLoading ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
-                            disabled={isNodeLoading}
+                            className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
+                            disabled={isDisabled}
                             data-testid={`choice-button-${index}`}
                           >
                             <span>{choice.text}</span>
@@ -475,7 +531,7 @@ const AdventureGame = () => {
                     </div>
                   </>
                 )}
-                {!currentNode && !isNodeLoading && gamePhase === 'playing' && (
+                {!displayNode && !isNodeLoading && gamePhase === 'playing' && (
                   <div className="flex-grow flex flex-col items-center justify-center">
                     <p className="text-gray-400">Generating your adventure...</p>
                   </div>
