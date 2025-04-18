@@ -175,6 +175,7 @@ The following commands will guide you through the initial setup. Run them in you
       # Ensure .env.production is populated with production values!
       fly secrets import --app acto < .env.production
       ```
+    - **Important `NEXTAUTH_URL` Note:** For OAuth providers (Google, GitHub, Discord) to work correctly in production, the `NEXTAUTH_URL` secret **must** be set to the full base URL of your deployed application (e.g., `https://your-app-name.fly.dev`). If this is missing or incorrect, OAuth redirects will likely fail.
     - **Verify Secrets:** Check required secrets are listed (run `fly secrets list --app acto`). Ensure `GOOGLE_AI_API_KEY`, `GOOGLE_APP_CREDS_JSON`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_SENTRY_DSN`, `AUTH_SECRET` (if using auth), `NEXTAUTH_URL` (if using auth) are present.
 
 5.  **Deploy the Application:**
