@@ -21,12 +21,22 @@ interface RateLimitError {
 // Type for the error state, which can be a string or a structured rate limit error
 type ErrorState = string | { rateLimitError: RateLimitError } | null;
 
+// Type for the metadata to be stored and passed
+interface AdventureMetadata {
+  genre?: string | null;
+  tone?: string | null;
+  visualStyle?: string | null;
+}
+
 // Simplified State
 interface AdventureState {
   currentNode: AdventureNode | null; // Node containing current passage, choices, image
   storyHistory: StoryHistoryItem[];
   isLoading: boolean;
   error: ErrorState; // Use the new ErrorState type
+  currentGenre: string | null; // Store current genre
+  currentTone: string | null; // Store current tone
+  currentVisualStyle: string | null; // Store current visual style
 
   // --- TTS State --- (Keep)
   isSpeaking: boolean;
@@ -36,13 +46,14 @@ interface AdventureState {
 }
 
 interface AdventureActions {
-  fetchAdventureNode: (choiceText?: string) => Promise<void>;
+  fetchAdventureNode: (choiceText?: string, metadata?: AdventureMetadata) => Promise<void>;
+  setCurrentMetadata: (metadata: AdventureMetadata) => void;
   // TTS Actions (Keep)
   stopSpeaking: () => void;
   setSpeaking: (isSpeaking: boolean) => void;
   setTTSError: (error: string | null) => void;
   setTTSVolume: (volume: number) => void;
-  makeChoice: (choice: z.infer<typeof AdventureChoiceSchema>) => void;
+  makeChoice: (choice: z.infer<typeof AdventureChoiceSchema>) => void; // Takes full choice object now
   resetAdventure: () => void;
 }
 
@@ -52,6 +63,9 @@ const initialState: AdventureState = {
   storyHistory: [],
   isLoading: false,
   error: null,
+  currentGenre: null, // Initialize metadata
+  currentTone: null,
+  currentVisualStyle: null,
 
   // --- Initial TTS State --- (Keep)
   isSpeaking: false,
@@ -64,36 +78,72 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
   immer((set, get) => ({
     ...initialState,
 
-    fetchAdventureNode: async (choiceText) => {
+    setCurrentMetadata: (metadata) => {
+      set((state) => {
+        state.currentGenre = metadata.genre ?? null;
+        state.currentTone = metadata.tone ?? null;
+        state.currentVisualStyle = metadata.visualStyle ?? null;
+      });
+    },
+
+    fetchAdventureNode: async (choiceText, metadata) => {
       set((state) => {
         state.isLoading = true;
         state.error = null;
       });
 
       try {
-        const history = [...get().storyHistory];
+        const currentHistory = get().storyHistory; // Get current history
+        const isInitialCall = currentHistory.length === 0;
 
-        if (choiceText && history.length > 0) {
-          history[history.length - 1] = {
-            ...history[history.length - 1],
+        // Prepare history for the action call
+        let historyForAction = [...currentHistory];
+        if (choiceText && !isInitialCall) {
+          // Add choice text to the *last* passage in the history we send
+          historyForAction[historyForAction.length - 1] = {
+            ...historyForAction[historyForAction.length - 1],
             choiceText: choiceText,
           };
         }
 
         const storyContextForAction = {
-          history,
-          // Temporary shim for old action signature:
-          currentRoomId: 'room1', // Use valid RoomId placeholder
-          playerHealth: 0, // Placeholder
-          playerWounds: [], // Placeholder
-          ogreHealth: 0, // Placeholder
-          ogreRoomId: null, // Placeholder
-          isPlayerDead: false, // Placeholder
+          history: historyForAction,
         };
 
-        console.log('Sending context to action:', storyContextForAction);
+        // Determine metadata to send
+        let metadataToSend: AdventureMetadata = {};
+        if (isInitialCall && metadata) {
+          // If first call, use provided metadata and store it
+          get().setCurrentMetadata(metadata); // Store the metadata
+          metadataToSend = metadata;
+          console.log('Initial call. Storing and sending metadata:', metadata);
+        } else if (!isInitialCall) {
+          // For subsequent calls, retrieve stored metadata
+          metadataToSend = {
+            genre: get().currentGenre,
+            tone: get().currentTone,
+            visualStyle: get().currentVisualStyle,
+          };
+          console.log('Subsequent call. Sending stored metadata:', metadataToSend);
+        }
 
-        const result = await generateAdventureNodeAction({ storyContext: storyContextForAction });
+        // Prepare parameters for the action
+        const actionParams: Parameters<typeof generateAdventureNodeAction>[0] = {
+          storyContext: storyContextForAction,
+          genre: metadataToSend.genre ?? undefined,
+          tone: metadataToSend.tone ?? undefined,
+          visualStyle: metadataToSend.visualStyle ?? undefined,
+        };
+
+        // Add initial scenario text only on the first call
+        if (isInitialCall && choiceText) {
+          actionParams.initialScenarioText = choiceText;
+          console.log('Sending initial scenario text to action:', choiceText);
+        } else if (!isInitialCall) {
+          console.log('Sending context to action:', storyContextForAction);
+        }
+
+        const result = await generateAdventureNodeAction(actionParams);
 
         if (result.rateLimitError) {
           console.warn('Rate limit hit:', result.rateLimitError);
@@ -113,8 +163,11 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
 
         const newNode = result.adventureNode;
 
+        // Always push the new node's passage to the history
         set((state) => {
-          state.storyHistory.push({ passage: newNode.passage });
+          // Store the new passage, along with its summary (if provided by AI)
+          // The choiceText for *this* new passage will be added on the *next* call
+          state.storyHistory.push({ passage: newNode.passage, summary: newNode.updatedSummary });
           state.currentNode = newNode;
           state.isLoading = false;
           state.error = null;
@@ -128,15 +181,30 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
       }
     },
 
-    makeChoice: (choice: z.infer<typeof AdventureChoiceSchema>) => {
-      const { isLoading, stopSpeaking } = get();
+    makeChoice: (choice) => {
+      // Expects the full choice object
+      const { isLoading, stopSpeaking, storyHistory } = get();
       if (isLoading) return;
       stopSpeaking();
-      void get().fetchAdventureNode(choice.text);
+
+      const isInitialChoice = storyHistory.length === 0;
+      let metadataToPass: AdventureMetadata | undefined = undefined;
+
+      if (isInitialChoice) {
+        // Extract metadata from the initial scenario choice
+        metadataToPass = {
+          genre: choice.genre,
+          tone: choice.tone,
+          visualStyle: choice.visualStyle,
+        };
+      }
+
+      // Call fetchAdventureNode, passing choice text and metadata (if initial)
+      void get().fetchAdventureNode(choice.text, metadataToPass);
     },
 
     resetAdventure: () => {
-      set(initialState);
+      set(initialState); // This now correctly resets metadata to null
     },
 
     // TTS Actions (Unchanged)

@@ -118,17 +118,14 @@ const AdventureGame = () => {
 
   const handleScenarioSelect = useCallback(
     (scenario: Scenario) => {
-      console.log('Selected scenario:', scenario.text);
+      console.log('Selected scenario:', scenario);
       setGamePhase('playing');
-      setHasUserInteracted(true);
-      useAdventureStore.setState({
-        storyHistory: [{ passage: scenario.text }],
-        currentNode: null,
-        error: null,
-      });
-      void fetchAdventureNode();
+      if (!hasUserInteracted) {
+        setHasUserInteracted(true);
+      }
+      makeChoice(scenario);
     },
-    [fetchAdventureNode]
+    [makeChoice, hasUserInteracted]
   );
 
   const handleReset = useCallback(() => {
@@ -416,6 +413,13 @@ const AdventureGame = () => {
                       disabled={isNodeLoading}
                     >
                       <span>{scenario.text}</span>
+                      <div className="text-xs mt-1 text-amber-200/50">
+                        {scenario.genre && <span>Genre: {scenario.genre}</span>}
+                        {scenario.tone && <span className="ml-2">Tone: {scenario.tone}</span>}
+                        {scenario.visualStyle && (
+                          <span className="ml-2">Style: {scenario.visualStyle}</span>
+                        )}
+                      </div>
                     </button>
                   ))}
                 </div>

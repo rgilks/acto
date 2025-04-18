@@ -29,6 +29,10 @@ const GenerateAdventureNodeParamsSchema = z.object({
   storyContext: z.object({
     history: z.array(StoryHistoryItemSchema),
   }),
+  initialScenarioText: z.string().optional(),
+  genre: z.string().optional(),
+  tone: z.string().optional(),
+  visualStyle: z.string().optional(),
 });
 
 type GenerateAdventureNodeParams = z.infer<typeof GenerateAdventureNodeParamsSchema>;
@@ -43,54 +47,118 @@ type GenerateAdventureNodeResult = {
   };
 };
 
-function buildAdventurePrompt(context: StoryContext | undefined): string {
+function buildAdventurePrompt(
+  context: StoryContext | undefined,
+  initialScenarioText?: string | null,
+  genre?: string | null,
+  tone?: string | null,
+  visualStyle?: string | null
+): string {
   const history = context?.history ?? [];
   const maxHistoryItems = 3; // Number of recent steps to include text for
 
   // Get the summary from the *very last* history item
   const latestSummary = history.length > 0 ? history[history.length - 1]?.summary : null;
 
-  const jsonStructure = `{
-  "passage": "(string) Next part of the adventure, describing outcome of last choice and current situation.",
-  "choices": [ /* Array of 3-4 { "text": string } objects for player choices. */ ],
-  "imagePrompt": "(string) Concise visual prompt (max 50 words) based ONLY on the \"passage\". E.g., \"Dim spaceship corridor\"",
-  "updatedSummary": "(string) A brief (1-2 sentence) summary encompassing the entire story so far, updated with the events of this new 'passage'."
-}`;
+  // Determine the initial context: use provided text if history is empty, else use first passage
+  const initialContextText =
+    history.length === 0 && initialScenarioText
+      ? initialScenarioText
+      : history.length > 0
+        ? history[0]?.passage
+        : null;
+
+  const jsonStructure = `{\n  \"passage\": \"(string) Next part of the adventure, describing outcome of last choice and current situation.\",\n  \"choices\": [ /* Array of 3-4 { \"text\": string } objects for player choices. */ ],\n  \"imagePrompt\": \"(string) Concise visual prompt (max 50 words) based ONLY on the \\\"passage\\\" but strongly reflecting the specified Adventure Style (Genre: ${genre ?? 'any'}, Tone: ${tone ?? 'any'}, Visual Style: ${visualStyle ?? 'any'}). E.g., for sci-fi/mysterious/digital painting: \\\"Dim alien spaceship corridor, digital painting\\\"\",\n  \"updatedSummary\": \"(string) A brief (1-2 sentence) summary encompassing the entire story so far, updated with the events of this new \'passage\'.\"\n}`;
+
+  // Build the initial scenario context section
+  const initialContextSection = initialContextText
+    ? `Initial Scenario Context:\\n${initialContextText}`
+    : 'No initial scenario provided.';
+
+  // Build the Adventure Style section
+  let adventureStyleSection = 'Adventure Style:\\n';
+  let styleDefined = false;
+  if (genre) {
+    adventureStyleSection += `Genre: ${genre}\\n`;
+    styleDefined = true;
+  }
+  if (tone) {
+    adventureStyleSection += `Tone: ${tone}\\n`;
+    styleDefined = true;
+  }
+  if (visualStyle) {
+    adventureStyleSection += `Visual Style (for image prompts): ${visualStyle}\\n`;
+    styleDefined = true;
+  }
+  if (!styleDefined) {
+    adventureStyleSection += '(Not specified)\\n';
+  }
 
   // Build the recent history text section
-  let recentHistoryText = 'Most Recent Steps:\n';
+  let recentHistoryText = 'Most Recent Steps:\\n';
   if (history.length === 0) {
-    recentHistoryText += 'The adventure begins...';
+    // If history is empty, the initial context is handled above. No recent steps yet.
+    recentHistoryText += '(No steps taken yet. Refer to Initial Scenario Context.)\\n';
   } else {
-    const recentHistory = history.slice(-maxHistoryItems);
-    recentHistory.forEach((item, index) => {
-      const stepNum = history.length - recentHistory.length + index + 1;
-      recentHistoryText += `Step ${stepNum} Passage: ${item.passage}\n`;
-      if (item.choiceText) {
-        recentHistoryText += `Step ${stepNum} Choice: ${item.choiceText}\n`;
+    // Exclude the initial passage if it's the only one for recent steps display
+    const recentHistory = history.length <= 1 ? [] : history.slice(-maxHistoryItems);
+    if (recentHistory.length > 0) {
+      recentHistory.forEach((item, index) => {
+        // Adjust step numbering if the initial passage is part of the 'recent' slice
+        const isInitialPassageIncludedInRecent =
+          history.length <= maxHistoryItems && history.length > 1;
+        const stepNum = isInitialPassageIncludedInRecent
+          ? index + 1 // Starts from 1 if initial is included
+          : history.length - recentHistory.length + index + 1; // Regular calculation
+
+        // Don't repeat the initial passage text here if it was already shown
+        if (index === 0 && isInitialPassageIncludedInRecent && stepNum === 1) {
+          // If the first item in recent history is the actual first step (history[0])
+          // And we've already displayed it as initial context, just show the choice
+          recentHistoryText += `Step 1 Choice: ${item.choiceText ?? '(Choice made)'}\\n`;
+        } else {
+          // Add passage/choice for subsequent steps
+          recentHistoryText += `Step ${stepNum} Passage: ${item.passage}\\n`;
+          if (item.choiceText) {
+            recentHistoryText += `Step ${stepNum} Choice: ${item.choiceText}\\n`;
+          } else {
+            // Indicate a choice was made leading to this passage, even if text isn't stored/needed here
+            recentHistoryText += `Step ${stepNum} (Result of previous choice)\\n`;
+          }
+        }
+      });
+      if (history.length > maxHistoryItems) {
+        recentHistoryText = `(Older steps summarized below)\\n` + recentHistoryText;
       }
-    });
-    if (history.length > maxHistoryItems) {
-      recentHistoryText = `(Older steps summarized below)\n` + recentHistoryText;
+    } else if (history.length === 1 && history[0].choiceText) {
+      // Handle the case where only the initial passage and its choice exist
+      // The initial passage itself is covered by initialContextSection
+      recentHistoryText += `Step 1 Choice: ${history[0].choiceText}\\n`;
+    } else if (history.length === 1) {
+      // Only the first passage exists, no choice made *after* it yet.
+      recentHistoryText += '(First passage generated. Awaiting first choice.)\\n';
+    } else {
+      // Should not happen if history.length > 0
+      recentHistoryText += '(Processing history...)\\n';
     }
   }
 
   const storySummarySection = latestSummary
-    ? `Summary of story before recent steps:\n${latestSummary}`
+    ? `Summary of story before recent steps:\\n${latestSummary}`
     : 'No summary yet.';
 
-  // Prompt includes both summary and recent steps
-  const basePrompt = `You are a storyteller for an interactive text adventure. Continue the story based on the provided Summary and Most Recent Steps. Respond ONLY with a valid JSON object matching this structure:
+  // Updated base prompt reinforcing image prompt requirements
+  const basePrompt = `You are a storyteller for an interactive text adventure. Adhere strictly to the specified Adventure Style (Genre, Tone, Visual Style). Maintain the tone and details from the Initial Scenario Context. Continue the story based on the provided Summary and Most Recent Steps. Respond ONLY with a valid JSON object matching this structure:
 ${jsonStructure}
-Output only the JSON object. Provide an 'updatedSummary' reflecting the entire story including the new 'passage'.`;
+Output only the JSON object. Provide an \'updatedSummary\' reflecting the entire story including the new \'passage\'. **Crucially, ensure the 'imagePrompt' is based on the current passage and strongly reflects the required Genre, Tone, and Visual Style.**`;
 
+  // Assemble the final prompt
   return `${basePrompt}
-
-${storySummarySection}
-
-${recentHistoryText}
-
-Generate the next JSON step, considering both summary and recent steps, and ensure 'updatedSummary' is included.`;
+\n${adventureStyleSection}
+\n${initialContextSection}
+\n${storySummarySection}
+\n${recentHistoryText}
+\nGenerate the next JSON step, adhering to the Adventure Style, Initial Context, Summary, and Recent Steps. Ensure \'updatedSummary\' is included and 'imagePrompt' strongly matches the Genre, Tone, and Visual Style.`;
 }
 
 async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Promise<string> {
@@ -225,8 +293,14 @@ export const generateAdventureNodeAction = async (
       };
     }
 
-    const storyContext = validation.data.storyContext;
-    const prompt = buildAdventurePrompt(storyContext);
+    const { storyContext, initialScenarioText, genre, tone, visualStyle } = validation.data;
+    const prompt = buildAdventurePrompt(
+      storyContext,
+      initialScenarioText,
+      genre,
+      tone,
+      visualStyle
+    );
     const activeModel = getActiveModel();
     const aiResponseContent = await callAIForAdventure(prompt, activeModel);
 
@@ -357,7 +431,7 @@ export const generateAdventureNodeAction = async (
       updatedSummary: updatedSummary,
     };
 
-    console.log('[Adventure] Successfully generated node with summary.');
+    console.log('[Adventure] Successfully generated node with summary and style context.');
     return { adventureNode: finalNode };
   } catch (error) {
     console.error('[Adventure] Error generating adventure node:', error);
@@ -404,25 +478,20 @@ export const generateStartingScenariosAction =
       };
     }
 
-    console.log('[Adventure Scenarios] Generating starting scenarios...');
+    console.log('[Adventure Scenarios] Generating starting scenarios with metadata...');
     try {
-      // Optimized JSON structure definition (slightly shorter description)
-      const jsonStructure = `[
-  { "text": "(string) Brief (1-2 sentence) starting scenario description." },
-  { "text": "(string) Another different scenario description." },
-  { "text": "(string) A third distinct scenario description." },
-  { "text": "(string) Optionally, a fourth scenario description." }
+      // Updated JSON structure definition to include new fields
+      const jsonStructure = `[\n  { \"text\": \"(string) Brief (1-2 sentence) starting scenario description.\", \"genre\": \"(string) e.g., Sci-Fi\", \"tone\": \"(string) e.g., Mysterious\", \"visualStyle\": \"(string) e.g., Realistic Digital Painting\" },\n  { \"text\": \"...\", \"genre\": \"...\", \"tone\": \"...\", \"visualStyle\": \"...\" },\n  ...
 ]`;
 
-      // Optimized prompt
-      const prompt = `You are an AI creating starting points for a text adventure. Generate 3-4 diverse starting scenarios across different genres (sci-fi, fantasy, mystery, etc.).
-Respond ONLY with a valid JSON array matching this structure, filling in the details:
+      // Updated prompt to request metadata
+      const prompt = `You are an AI creating starting points for a text adventure. Generate 3-4 diverse starting scenarios across different genres (sci-fi, fantasy, mystery, etc.). For each scenario, provide a brief description ('text'), a suitable 'genre', 'tone', and 'visualStyle'.
+Respond ONLY with a valid JSON array matching this structure, filling in all details:
 ${jsonStructure}
-Ensure the output is only the JSON array string. Examples: "Awake on an alien spaceship medical table.", "Standing at a dark forest entrance with a map.", "Coded message hints at 1920s Paris conspiracy."
-`;
+Ensure the output is only the JSON array string. Examples for text field: "Awake on an alien spaceship medical table.", "Standing at a dark forest entrance with a map.", "Coded message hints at 1920s Paris conspiracy."
+Examples for other fields: genre: "Fantasy", tone: "Epic", visualStyle: "Impressionist Oil Painting"`;
 
       const activeModel = getActiveModel();
-      // Use the existing callAIForAdventure function
       const aiResponseContent = await callAIForAdventure(prompt, activeModel);
 
       let parsedAiContent: unknown;
@@ -443,11 +512,11 @@ Ensure the output is only the JSON array string. Examples: "Awake on an alien sp
         return { error: 'Failed to parse AI starting scenarios response.' };
       }
 
-      // Validate the response against the schema
+      // Validate the response against the schema (which now includes metadata)
       const validationResult = StartingScenariosSchema.safeParse(parsedAiContent);
       if (!validationResult.success) {
         console.error(
-          '[Adventure Scenarios] Schema validation failed:',
+          '[Adventure Scenarios] Schema validation failed (with metadata):',
           validationResult.error.format()
         );
         console.error(
@@ -463,7 +532,7 @@ Ensure the output is only the JSON array string. Examples: "Awake on an alien sp
         return { error: 'Starting scenarios AI response validation failed.' };
       }
 
-      console.log('[Adventure Scenarios] Successfully generated starting scenarios.');
+      console.log('[Adventure Scenarios] Successfully generated starting scenarios with metadata.');
       return { scenarios: validationResult.data };
     } catch (error) {
       console.error('[Adventure Scenarios] Error generating starting scenarios:', error);

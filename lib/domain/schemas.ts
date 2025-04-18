@@ -3,6 +3,12 @@ import { z } from 'zod';
 // Add simplified Choice Schema back
 export const AdventureChoiceSchema = z.object({
   text: z.string().describe('The text of the choice presented to the user'),
+  genre: z.string().optional().describe('Suggested genre (e.g., fantasy, sci-fi, mystery)'),
+  tone: z.string().optional().describe('Suggested tone (e.g., dark, humorous, adventurous)'),
+  visualStyle: z
+    .string()
+    .optional()
+    .describe('Suggested visual style (e.g., oil painting, cartoon, photorealistic)'),
 });
 
 export const AdventureNodeSchema = z.object({
