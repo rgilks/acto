@@ -10,22 +10,22 @@ export interface StoryHistoryItem {
   choiceText?: string; // The text of the choice made *after* this passage
 }
 
+// Type for structured rate limit errors passed from the server
+interface RateLimitError {
+  message: string;
+  resetTimestamp: number;
+  apiType: 'text' | 'image' | 'tts';
+}
+
+// Type for the error state, which can be a string or a structured rate limit error
+type ErrorState = string | { rateLimitError: RateLimitError } | null;
+
 // Simplified State
 interface AdventureState {
   currentNode: AdventureNode | null; // Node containing current passage, choices, image
   storyHistory: StoryHistoryItem[];
   isLoading: boolean;
-  error: string | null;
-  // -- Removed Fields --
-  // currentRoomId: RoomId | null;
-  // currentImagePlaceholder: string | null; // Maybe keep if useful for loading?
-  // playerHealth: number;
-  // playerWounds: string[];
-  // ogreHealth: number;
-  // ogreRoomId: RoomId | null;
-  // isPlayerDead: boolean;
-  // isOgreDefeated: boolean;
-  // -- End Removed Fields --
+  error: ErrorState; // Use the new ErrorState type
 
   // --- TTS State --- (Keep)
   isSpeaking: boolean;
@@ -35,19 +35,14 @@ interface AdventureState {
 }
 
 interface AdventureActions {
-  // fetchAdventureNode now only needs optional choiceText
   fetchAdventureNode: (choiceText?: string) => Promise<void>;
   // TTS Actions (Keep)
   stopSpeaking: () => void;
   setSpeaking: (isSpeaking: boolean) => void;
   setTTSError: (error: string | null) => void;
   setTTSVolume: (volume: number) => void;
-  // makeChoice now takes simplified choice
   makeChoice: (choice: z.infer<typeof AdventureChoiceSchema>) => void;
-  // resetAdventure resets to initial state (no automatic fetch)
   resetAdventure: () => void;
-  // NEW action placeholder for starting scenarios
-  // fetchStartingScenarios: () => Promise<void>; // We'll add this later
 }
 
 // Simplified Initial State
@@ -56,16 +51,6 @@ const initialState: AdventureState = {
   storyHistory: [],
   isLoading: false,
   error: null,
-  // -- Removed Fields --
-  // currentRoomId: null,
-  // currentImagePlaceholder: null,
-  // playerHealth: 10,
-  // playerWounds: [],
-  // ogreHealth: 20,
-  // ogreRoomId: 'room5',
-  // isPlayerDead: false,
-  // isOgreDefeated: false,
-  // -- End Removed Fields --
 
   // --- Initial TTS State --- (Keep)
   isSpeaking: false,
@@ -85,10 +70,8 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
       });
 
       try {
-        // Get current history
         const history = [...get().storyHistory];
 
-        // If a choice was made, add it to the *last* history item
         if (choiceText && history.length > 0) {
           history[history.length - 1] = {
             ...history[history.length - 1],
@@ -96,7 +79,6 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           };
         }
 
-        // Prepare context for the backend (only history is needed now)
         const storyContextForAction = {
           history,
           // Temporary shim for old action signature:
@@ -110,13 +92,20 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
 
         console.log('Sending context to action:', storyContextForAction);
 
-        // Call the backend action (remove temporary 'as any')
         const result = await generateAdventureNodeAction({ storyContext: storyContextForAction });
+
+        if (result.rateLimitError) {
+          console.warn('Rate limit hit:', result.rateLimitError);
+          set((state) => {
+            state.error = { rateLimitError: result.rateLimitError! };
+            state.isLoading = false;
+          });
+          return;
+        }
 
         if (result.error) {
           throw new Error(result.error);
         }
-        // Backend action should return simplified AdventureNode
         if (!result.adventureNode) {
           throw new Error('No adventure node received from the server.');
         }
@@ -124,12 +113,10 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         const newNode = result.adventureNode;
 
         set((state) => {
-          // Add the *new* passage to history (choiceText will be added on next turn)
           state.storyHistory.push({ passage: newNode.passage });
           state.currentNode = newNode;
           state.isLoading = false;
           state.error = null;
-          // Remove updates for combat/room state
         });
       } catch (error) {
         console.error('Error fetching adventure node:', error);
@@ -141,20 +128,13 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
     },
 
     makeChoice: (choice: z.infer<typeof AdventureChoiceSchema>) => {
-      // Removed isPlayerDead check
       const { isLoading, stopSpeaking } = get();
-
-      if (isLoading) {
-        console.log('Cannot make choice while loading.');
-        return;
-      }
+      if (isLoading) return;
       stopSpeaking();
-      // Call fetchAdventureNode with the chosen text
       void get().fetchAdventureNode(choice.text);
     },
 
     resetAdventure: () => {
-      // Reset to initial state, don't fetch automatically
       set(initialState);
     },
 

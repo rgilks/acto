@@ -12,6 +12,23 @@ import AuthButton from '@/components/AuthButton';
 type GamePhase = 'loading_scenarios' | 'selecting_scenario' | 'playing' | 'error';
 type Scenario = z.infer<typeof AdventureChoiceSchema>;
 
+// Helper function to format timestamp into a user-friendly string
+function formatResetTime(timestamp: number): string {
+  if (!timestamp) return 'an unknown time';
+  const now = Date.now();
+  const resetDate = new Date(timestamp);
+  const diffSeconds = Math.round((timestamp - now) / 1000);
+
+  if (diffSeconds <= 0) return 'shortly';
+  if (diffSeconds < 60) return `in ${diffSeconds} second${diffSeconds > 1 ? 's' : ''}`;
+  if (diffSeconds < 3600) {
+    const minutes = Math.ceil(diffSeconds / 60);
+    return `in about ${minutes} minute${minutes > 1 ? 's' : ''}`;
+  }
+  // For longer durations, show the time
+  return `at ${resetDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+}
+
 const AdventureGame = () => {
   const {
     currentNode,
@@ -31,7 +48,6 @@ const AdventureGame = () => {
 
   const [gamePhase, setGamePhase] = useState<GamePhase>('loading_scenarios');
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
-  const [scenarioError, setScenarioError] = useState<string | null>(null);
   const [isUnauthorized, setIsUnauthorized] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -42,29 +58,54 @@ const AdventureGame = () => {
 
   const fetchScenarios = useCallback(async () => {
     setGamePhase('loading_scenarios');
-    setScenarioError(null);
+    setIsUnauthorized(false);
+    // Clear error in store before fetching
+    useAdventureStore.setState({ error: null, isLoading: true });
+
     try {
       const result = await generateStartingScenariosAction();
+
+      // Handle Rate Limit Error from starting scenarios
+      if (result.rateLimitError) {
+        console.warn('Scenario Rate Limit Hit:', result.rateLimitError);
+        useAdventureStore.setState({
+          error: { rateLimitError: result.rateLimitError },
+          isLoading: false,
+        });
+        setGamePhase('error');
+        return;
+      }
+
+      // Handle generic error from starting scenarios
       if (result.error) {
         if (result.error === 'Unauthorized: User must be logged in.') {
           console.log('[AdventureGame] User is not logged in.');
-          setIsUnauthorized(true);
+          setIsUnauthorized(true); // Keep local state for unauthorized display
+          // Set generic error in store as well, or keep null?
+          // Let's keep it null for now, isUnauthorized handles the display
+          useAdventureStore.setState({ error: null, isLoading: false });
           setGamePhase('error');
           return;
         }
+        // Throw other generic errors to be caught below
         throw new Error(result.error);
       }
+
       if (!result.scenarios) {
         throw new Error('No scenarios generated.');
       }
-      setIsUnauthorized(false);
+
+      // Success path
       setScenarios(result.scenarios);
       setGamePhase('selecting_scenario');
+      useAdventureStore.setState({ isLoading: false, error: null }); // Ensure error is null on success
     } catch (err) {
-      if (!(err instanceof Error && err.message === 'Unauthorized: User must be logged in.')) {
-        console.error('Error fetching scenarios:', err);
-        setScenarioError(err instanceof Error ? err.message : 'Failed to load starting scenarios.');
-      }
+      console.error('Error fetching scenarios:', err);
+      // Set generic error state in the store
+      useAdventureStore.setState({
+        error: err instanceof Error ? err.message : 'Failed to load starting scenarios.',
+        isLoading: false,
+      });
       setGamePhase('error');
     }
   }, []);
@@ -89,11 +130,12 @@ const AdventureGame = () => {
   );
 
   const handleReset = useCallback(() => {
-    resetStore();
+    resetStore(); // Resets store including error state
     setScenarios([]);
-    setScenarioError(null);
     setIsUnauthorized(false);
     setClickedChoiceIndex(null);
+    // Reset game phase and fetch scenarios again
+    setGamePhase('loading_scenarios');
     void fetchScenarios();
   }, [resetStore, fetchScenarios]);
 
@@ -246,173 +288,214 @@ const AdventureGame = () => {
     }
   }, [ttsVolume]);
 
+  // Effect to synchronize gamePhase with error state from the store
+  useEffect(() => {
+    if (nodeError !== null) {
+      // If there's an error in the store (rate limit or generic),
+      // ensure the component enters the error phase.
+      setGamePhase('error');
+    }
+    // We only want this effect to run when nodeError changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodeError]);
+
   return (
     <>
       <audio ref={audioRef} loop hidden aria-hidden="true" />
       <audio ref={ttsAudioRef} hidden aria-hidden="true" />
 
-      <div className="bg-slate-800 rounded-lg p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 min-h-[350px] relative mx-auto w-full flex flex-col">
-        {gamePhase === 'loading_scenarios' && (
-          <div className="flex-grow flex flex-col items-center justify-center">
-            <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin mb-4" />
-            <p className="text-gray-400">Generating starting adventures...</p>
-          </div>
-        )}
+      {(() => {
+        const rateLimitInfo =
+          typeof nodeError === 'object' && nodeError !== null && 'rateLimitError' in nodeError
+            ? nodeError.rateLimitError
+            : null;
+        const genericErrorMessage = typeof nodeError === 'string' ? nodeError : null;
 
-        {gamePhase === 'error' && isUnauthorized && (
-          <div className="text-center text-amber-100/90 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
-            <p className="text-xl font-semibold mb-4">Please Sign In</p>
-            <p className="mb-6 text-gray-400">You need to be signed in to start an adventure.</p>
-            <AuthButton variant="short" />
-          </div>
-        )}
-
-        {gamePhase === 'error' && !isUnauthorized && (scenarioError || nodeError) && (
-          <div className="text-center text-red-400 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
-            <p className="text-xl font-semibold mb-4">An Error Occurred</p>
-            <p className="mb-6 text-gray-400">{scenarioError || nodeError || 'Unknown error'}</p>
-            <button
-              onClick={handleReset}
-              className={`${buttonBaseClasses} ${secondaryButtonClasses}`}
-            >
-              Try Again
-            </button>
-          </div>
-        )}
-
-        {gamePhase === 'selecting_scenario' && !scenarioError && (
-          <div className="flex-grow flex flex-col items-center">
-            <h2 className="text-2xl font-semibold text-amber-100/90 mb-6 font-serif">
-              Choose your starting scenario:
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
-              {scenarios.map((scenario, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleScenarioSelect(scenario)}
-                  className={`${buttonBaseClasses} ${choiceButtonClasses}`}
-                  disabled={isNodeLoading}
-                >
-                  <span>{scenario.text}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {gamePhase === 'playing' && !nodeError && (
-          <>
-            {isNodeLoading && !currentNode && (
-              <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80 rounded-lg z-20">
-                <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin" />
+        return (
+          <div className="bg-slate-800 rounded-lg p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 min-h-[350px] relative mx-auto w-full flex flex-col">
+            {gamePhase === 'loading_scenarios' && (
+              <div className="flex-grow flex flex-col items-center justify-center">
+                <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin mb-4" />
+                <p className="text-gray-400">Generating starting adventures...</p>
               </div>
             )}
 
-            {currentNode && (
+            {gamePhase === 'error' && isUnauthorized && (
+              <div className="text-center text-amber-100/90 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
+                <p className="text-xl font-semibold mb-4">Please Sign In</p>
+                <p className="mb-6 text-gray-400">
+                  You need to be signed in to start an adventure.
+                </p>
+                <AuthButton variant="short" />
+              </div>
+            )}
+
+            {gamePhase === 'error' && rateLimitInfo && (
+              <div className="text-center text-amber-300 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
+                <p className="text-xl font-semibold mb-4">Time for a Break?</p>
+                <p className="mb-6 text-gray-400">
+                  You&apos;ve been adventuring hard! Maybe take a short break and come back{' '}
+                  {formatResetTime(rateLimitInfo.resetTimestamp)}?
+                </p>
+                <button
+                  onClick={handleReset}
+                  className={`${buttonBaseClasses} ${secondaryButtonClasses}`}
+                >
+                  Start New Adventure
+                </button>
+              </div>
+            )}
+
+            {gamePhase === 'error' && !isUnauthorized && !rateLimitInfo && genericErrorMessage && (
+              <div className="text-center text-red-400 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
+                <p className="text-xl font-semibold mb-4">An Error Occurred</p>
+                <p className="mb-6 text-gray-400">
+                  {genericErrorMessage || 'An unknown error occurred.'}
+                </p>
+                <button
+                  onClick={handleReset}
+                  className={`${buttonBaseClasses} ${secondaryButtonClasses}`}
+                >
+                  Try Again
+                </button>
+              </div>
+            )}
+
+            {gamePhase === 'selecting_scenario' && !nodeError && (
+              <div className="flex-grow flex flex-col items-center">
+                <h2 className="text-2xl font-semibold text-amber-100/90 mb-6 font-serif">
+                  Choose your starting scenario:
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
+                  {scenarios.map((scenario, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleScenarioSelect(scenario)}
+                      className={`${buttonBaseClasses} ${choiceButtonClasses}`}
+                      disabled={isNodeLoading}
+                    >
+                      <span>{scenario.text}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {gamePhase === 'playing' && !nodeError && (
               <>
-                <div className="flex flex-col md:flex-row md:items-start md:gap-6 lg:gap-8 mb-6">
-                  {currentNode.imageUrl && (
-                    <div className="w-full md:w-1/2 lg:w-5/12 flex-shrink-0 mb-4 md:mb-0">
-                      <div className="aspect-[16/10] bg-slate-700 rounded overflow-hidden shadow-md mb-4 relative">
-                        <Image
-                          src={currentNode.imageUrl}
-                          alt="Adventure scene"
-                          fill
-                          className="object-cover"
-                          priority
-                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw"
-                          onLoad={handleImageLoad}
-                        />
-                      </div>
-                      <div className="flex items-center justify-center space-x-4 w-full">
-                        <button
-                          onClick={handleToggleSpeak}
-                          title={
-                            currentAudioData
-                              ? isSpeaking
-                                ? 'Stop reading aloud'
-                                : 'Read passage aloud'
-                              : 'Audio not available'
-                          }
-                          aria-label={isSpeaking ? 'Stop reading aloud' : 'Read passage aloud'}
-                          className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full ${!currentAudioData ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          disabled={isNodeLoading || !currentAudioData}
-                        >
-                          {isSpeaking ? (
-                            <SpeakerXMarkIcon className="h-5 w-5" />
-                          ) : (
-                            <SpeakerWaveIcon className="h-5 w-5" />
-                          )}
-                        </button>
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.1"
-                          value={ttsVolume}
-                          onChange={(e) => setTTSVolume(parseFloat(e.target.value))}
-                          className="h-1 w-24 cursor-pointer accent-amber-400"
-                          title={`Volume: ${Math.round(ttsVolume * 100)}%`}
-                          aria-label="Speech volume"
-                          disabled={isNodeLoading}
-                        />
-                      </div>
-                      {ttsError && (
-                        <p className="mt-2 text-xs text-red-400 text-center">
-                          Speech Error: {ttsError}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <div className={`${!currentNode.imageUrl ? 'w-full' : 'md:w-1/2 lg:w-7/12'}`}>
-                    <div className="mb-4 text-xl leading-relaxed text-left w-full text-gray-300 relative">
-                      <p style={{ whiteSpace: 'pre-wrap' }}>{currentNode.passage}</p>
-                    </div>
+                {isNodeLoading && !currentNode && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80 rounded-lg z-20">
+                    <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin" />
                   </div>
-                </div>
+                )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
-                  {currentNode.choices.map((choice, index) => {
-                    const isClicked = index === clickedChoiceIndex;
-                    const isLoadingChoice = isNodeLoading && isClicked;
-                    return (
-                      <button
-                        key={index}
-                        onClick={() => handleChoiceClick(choice, index)}
-                        className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isNodeLoading ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
-                        disabled={isNodeLoading}
-                        data-testid={`choice-button-${index}`}
-                      >
-                        <span>{choice.text}</span>
-                        {isLoadingChoice && (
-                          <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                {currentNode && (
+                  <>
+                    <div className="flex flex-col md:flex-row md:items-start md:gap-6 lg:gap-8 mb-6">
+                      {currentNode.imageUrl && (
+                        <div className="w-full md:w-1/2 lg:w-5/12 flex-shrink-0 mb-4 md:mb-0">
+                          <div className="aspect-[16/10] bg-slate-700 rounded overflow-hidden shadow-md mb-4 relative">
+                            <Image
+                              src={currentNode.imageUrl}
+                              alt="Adventure scene"
+                              fill
+                              className="object-cover"
+                              priority
+                              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw"
+                              onLoad={handleImageLoad}
+                            />
+                          </div>
+                          <div className="flex items-center justify-center space-x-4 w-full">
+                            <button
+                              onClick={handleToggleSpeak}
+                              title={
+                                currentAudioData
+                                  ? isSpeaking
+                                    ? 'Stop reading aloud'
+                                    : 'Read passage aloud'
+                                  : 'Audio not available'
+                              }
+                              aria-label={isSpeaking ? 'Stop reading aloud' : 'Read passage aloud'}
+                              className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full ${!currentAudioData ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              disabled={isNodeLoading || !currentAudioData}
+                            >
+                              {isSpeaking ? (
+                                <SpeakerXMarkIcon className="h-5 w-5" />
+                              ) : (
+                                <SpeakerWaveIcon className="h-5 w-5" />
+                              )}
+                            </button>
+                            <input
+                              type="range"
+                              min="0"
+                              max="1"
+                              step="0.1"
+                              value={ttsVolume}
+                              onChange={(e) => setTTSVolume(parseFloat(e.target.value))}
+                              className="h-1 w-24 cursor-pointer accent-amber-400"
+                              title={`Volume: ${Math.round(ttsVolume * 100)}%`}
+                              aria-label="Speech volume"
+                              disabled={isNodeLoading}
+                            />
+                          </div>
+                          {ttsError && (
+                            <p className="mt-2 text-xs text-red-400 text-center">
+                              Speech Error: {ttsError}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <div className={`${!currentNode.imageUrl ? 'w-full' : 'md:w-1/2 lg:w-7/12'}`}>
+                        <div className="mb-4 text-xl leading-relaxed text-left w-full text-gray-300 relative">
+                          <p style={{ whiteSpace: 'pre-wrap' }}>{currentNode.passage}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
+                      {currentNode.choices.map((choice, index) => {
+                        const isClicked = index === clickedChoiceIndex;
+                        const isLoadingChoice = isNodeLoading && isClicked;
+                        return (
+                          <button
+                            key={index}
+                            onClick={() => handleChoiceClick(choice, index)}
+                            className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isNodeLoading ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
+                            disabled={isNodeLoading}
+                            data-testid={`choice-button-${index}`}
+                          >
+                            <span>{choice.text}</span>
+                            {isLoadingChoice && (
+                              <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+                {!currentNode && !isNodeLoading && gamePhase === 'playing' && (
+                  <div className="flex-grow flex flex-col items-center justify-center">
+                    <p className="text-gray-400">Generating your adventure...</p>
+                  </div>
+                )}
               </>
             )}
-            {!currentNode && !isNodeLoading && gamePhase === 'playing' && (
-              <div className="flex-grow flex flex-col items-center justify-center">
-                <p className="text-gray-400">Generating your adventure...</p>
+
+            {gamePhase === 'playing' && !isNodeLoading && !nodeError && storyHistory.length > 0 && (
+              <div className="mt-8 pt-4 border-t border-slate-700 w-full max-w-lg mx-auto flex justify-center">
+                <button
+                  onClick={handleReset}
+                  className={`${buttonBaseClasses} ${secondaryButtonClasses}`}
+                >
+                  Start New Adventure
+                </button>
               </div>
             )}
-          </>
-        )}
-
-        {gamePhase === 'playing' && !isNodeLoading && !nodeError && storyHistory.length > 0 && (
-          <div className="mt-8 pt-4 border-t border-slate-700 w-full max-w-lg mx-auto flex justify-center">
-            <button
-              onClick={handleReset}
-              className={`${buttonBaseClasses} ${secondaryButtonClasses}`}
-            >
-              Start New Adventure
-            </button>
           </div>
-        )}
-      </div>
+        );
+      })()}
     </>
   );
 };

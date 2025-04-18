@@ -53,14 +53,18 @@ function initializeDatabase(): Database.Database {
         UNIQUE(provider_id, provider)
       );
 
-    
-      CREATE TABLE IF NOT EXISTS rate_limits (
-        ip_address TEXT PRIMARY KEY,
+      -- New user and API-specific rate limit table
+      CREATE TABLE IF NOT EXISTS rate_limits_user (
+        user_id INTEGER NOT NULL,
+        api_type TEXT NOT NULL, -- e.g., 'text', 'image', 'tts'
+        window_start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         request_count INTEGER NOT NULL DEFAULT 1,
-        window_start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        PRIMARY KEY (user_id, api_type),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
 
       CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login DESC);
+      CREATE INDEX IF NOT EXISTS idx_rate_limits_user_window ON rate_limits_user(user_id, api_type, window_start_time DESC);
     `);
 
     console.log('[DB] Schema initialization/verification complete');

@@ -62,11 +62,12 @@ _(Placeholder for a new screenshot of the application interface)_
 acto implements strategies to manage AI API costs:
 
 - **Rate Limiting**:
-  - Uses a fixed-window counter based on IP address, stored in the `rate_limits` SQLite table.
-  - Default limit: **100 requests per hour** per IP to the adventure generation action (`app/actions/adventure.ts`). _(Verify exact limits and implementation details)_
-  - Applies to all users (anonymous and logged-in).
-  - Exceeding the limit logs a warning to Sentry (if configured).
-  - Adjust limits in relevant action files if needed.
+  - Uses a per-user sliding window counter stored in the `rate_limits_user` SQLite table.
+  - Applies separate limits for different Google AI API types (text generation, image generation, TTS).
+  - Requires users to be logged in (via NextAuth) to make rate-limited API calls.
+  - Default limits are defined in `lib/rateLimitSqlite.ts` (e.g., 10 text requests/min, 5 image requests/hour).
+  - Adjust limits directly in `lib/rateLimitSqlite.ts` or consider moving them to environment variables for easier configuration.
+  - Exceeding the limit returns an error to the user and logs details to the console and Sentry (if configured).
 - **Database Caching**: _(Review if applicable)_
   - Previous implementation cached language exercises. It's unclear if game states or AI responses are currently cached. Caching might be less applicable to a dynamic adventure but could be implemented for specific scenarios.
 
@@ -321,7 +322,7 @@ Accessible at `/admin` for users whose email is in `ADMIN_EMAILS`.
 
 **Features:**
 
-- View data from `users`, `rate_limits`, potentially game state or feedback tables. _(Verify available tables)_
+- View data from `users`, `rate_limits_user`, potentially game state or feedback tables. _(Verify available tables)_
 - Basic pagination.
 - Requires login; redirects non-admins.
 
@@ -395,7 +396,7 @@ Useful commands: `.tables`, `SELECT * FROM users LIMIT 5;`, `.schema`, `.quit`.
 
 ### Database Schema
 
-_(Review `lib/db.ts` or schema definition files for the current schema. The example schema below might need updates, especially regarding saved games/stories.)_
+_(Review `lib/db.ts` for the definitive schema. The example below reflects the core tables.)_
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
@@ -407,16 +408,21 @@ CREATE TABLE IF NOT EXISTS users (
   image TEXT,
   first_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  language TEXT DEFAULT 'en',
   UNIQUE(provider_id, provider)
 );
 
-CREATE TABLE IF NOT EXISTS rate_limits (
-  ip_address TEXT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS rate_limits_user (
+  user_id INTEGER NOT NULL,
+  api_type TEXT NOT NULL, -- e.g., 'text', 'image', 'tts'
+  window_start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   request_count INTEGER NOT NULL DEFAULT 1,
-  window_start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  PRIMARY KEY (user_id, api_type),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Example: Potential table for saved stories (Needs verification)
+/*
 CREATE TABLE IF NOT EXISTS saved_stories (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -424,9 +430,11 @@ CREATE TABLE IF NOT EXISTS saved_stories (
   saved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   story_title TEXT
 );
+*/
 
--- Indexes (Review existing indexes)
+-- Indexes
 CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login DESC);
+CREATE INDEX IF NOT EXISTS idx_rate_limits_user_window ON rate_limits_user(user_id, api_type, window_start_time DESC);
 -- CREATE INDEX IF NOT EXISTS idx_saved_stories_user_id ON saved_stories(user_id); -- If table exists
 ```
 
@@ -436,7 +444,7 @@ CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login DESC);
 - **Auth Errors:** Verify `.env.local` / Fly secrets (`AUTH_SECRET`, provider IDs/secrets, `NEXTAUTH_URL`). Ensure OAuth callback URLs match.
 - **API Key Errors:** Check AI provider keys in env/secrets. Ensure billing/quotas are sufficient. Check `lib/modelConfig.ts`.
 - **AI Errors:** Check Sentry/console logs for errors from the AI API. Ensure the AI is returning valid JSON matching the expected Zod schema in `app/actions/adventure.ts`. Refine prompts if needed.
-- **Rate Limit Errors:** Wait for the window to reset or adjust limits if necessary. Check `rate_limits` table.
+- **Rate Limit Errors:** Wait for the window to reset or adjust limits in `lib/rateLimitSqlite.ts` if necessary. Check `rate_limits_user` table for current counts.
 - **Admin Access Denied:** Confirm logged-in user's email is EXACTLY in `ADMIN_EMAILS`. Check Fly secrets value.
 - **Deployment Issues:** Examine GitHub Actions logs and `fly logs --app <your-app-name>`.
 - **State Management Issues:** Use React DevTools/Zustand DevTools to inspect game state.

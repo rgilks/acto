@@ -10,9 +10,10 @@ import {
 import * as Sentry from '@sentry/nextjs';
 import { GoogleGenAI } from '@google/genai';
 import { type StoryHistoryItem } from '@/store/adventureStore';
-import { synthesizeSpeechAction } from './tts';
+import { synthesizeSpeechAction, type SynthesizeSpeechResult } from './tts';
 import { TTS_VOICE_NAME } from '@/lib/constants';
 import { getSession } from '@/app/auth';
+import { checkTextRateLimit, checkImageRateLimit } from '@/lib/rateLimitSqlite';
 
 const StoryHistoryItemSchema = z.object({
   passage: z.string(),
@@ -34,6 +35,11 @@ type GenerateAdventureNodeParams = z.infer<typeof GenerateAdventureNodeParamsSch
 type GenerateAdventureNodeResult = {
   adventureNode?: AdventureNode;
   error?: string;
+  rateLimitError?: {
+    message: string;
+    resetTimestamp: number;
+    apiType: 'text' | 'image' | 'tts';
+  };
 };
 
 function buildAdventurePrompt(context: StoryContext | undefined): string {
@@ -78,6 +84,8 @@ Generate the next step:
 async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Promise<string> {
   console.log('[Adventure] Calling AI...');
 
+  // Rate limit check is handled before calling this function
+
   try {
     const genAI: GoogleGenAI = getGoogleAIClient();
     const result = await genAI.models.generateContent({
@@ -103,7 +111,24 @@ async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Pro
   }
 }
 
-async function generateImageWithGemini(imagePrompt: string): Promise<string | undefined> {
+async function generateImageWithGemini(
+  imagePrompt: string
+): Promise<
+  | { dataUri: string; error: undefined }
+  | { dataUri: undefined; error: string; rateLimitResetTimestamp?: number }
+> {
+  const imageLimitCheck = await checkImageRateLimit();
+  if (!imageLimitCheck.success) {
+    console.warn(
+      `[Adventure Image] Rate limit exceeded for user. Error: ${imageLimitCheck.errorMessage}`
+    );
+    return {
+      dataUri: undefined,
+      error: imageLimitCheck.errorMessage ?? 'Image generation rate limit exceeded.',
+      rateLimitResetTimestamp: imageLimitCheck.reset,
+    };
+  }
+
   const finalImagePrompt = `Digital painting, detailed, atmospheric illustration. ${imagePrompt}`;
   console.log('[Adventure Image] Sending final prompt to Imagen API:', finalImagePrompt);
 
@@ -138,7 +163,7 @@ async function generateImageWithGemini(imagePrompt: string): Promise<string | un
       const mimeType = 'image/png';
       const dataUri = `data:${mimeType};base64,${base64Data}`;
       console.log('[Adventure Image] Generated Image as Data URI via @google/genai SDK.');
-      return dataUri;
+      return { dataUri: dataUri, error: undefined };
     } else {
       console.error(
         '[Adventure Image] No imageBytes found in the generated image response part:',
@@ -149,7 +174,10 @@ async function generateImageWithGemini(imagePrompt: string): Promise<string | un
   } catch (error) {
     console.error('[Adventure Image] Failed to generate image via @google/genai SDK:', error);
     Sentry.captureException(error, { extra: { imagePrompt: imagePrompt } });
-    return undefined;
+    return {
+      dataUri: undefined,
+      error: error instanceof Error ? error.message : 'Failed to generate image.',
+    };
   }
 }
 
@@ -160,6 +188,20 @@ export const generateAdventureNodeAction = async (
   if (!session?.user) {
     console.warn('[Adventure Action] Unauthorized attempt.');
     return { error: 'Unauthorized: User must be logged in.' };
+  }
+
+  const textLimitCheck = await checkTextRateLimit();
+  if (!textLimitCheck.success) {
+    console.warn(
+      `[Adventure Action] Text rate limit exceeded for user. Error: ${textLimitCheck.errorMessage}`
+    );
+    return {
+      rateLimitError: {
+        message: textLimitCheck.errorMessage ?? 'Text generation rate limit exceeded.',
+        resetTimestamp: textLimitCheck.reset,
+        apiType: 'text',
+      },
+    };
   }
 
   try {
@@ -215,6 +257,8 @@ export const generateAdventureNodeAction = async (
     // --- Generate Image and TTS in Parallel ---
     let imageUrl: string | undefined = undefined;
     let audioBase64: string | undefined = undefined;
+    let imageError: string | undefined = undefined;
+    let ttsError: string | undefined = undefined;
 
     const promisesToSettle = [];
 
@@ -223,7 +267,7 @@ export const generateAdventureNodeAction = async (
       promisesToSettle.push(generateImageWithGemini(imagePrompt));
     } else {
       console.warn('[Adventure Action] Skipping image generation: no prompt.');
-      promisesToSettle.push(Promise.resolve(undefined));
+      promisesToSettle.push(Promise.resolve({ dataUri: undefined, error: undefined }));
     }
 
     // Add TTS generation promise (or placeholder)
@@ -231,40 +275,57 @@ export const generateAdventureNodeAction = async (
       promisesToSettle.push(synthesizeSpeechAction({ text: passage, voiceName: TTS_VOICE_NAME }));
     } else {
       console.warn('[Adventure Action] Skipping TTS generation: no passage.');
-      promisesToSettle.push(Promise.resolve({ audioBase64: undefined, error: 'No passage text' }));
+      promisesToSettle.push(Promise.resolve({ error: 'No passage text' }));
     }
 
     try {
-      // IMPORTANT: Explicitly type the expected settled results array - This comment is useful, keep it.
       const results = (await Promise.allSettled(promisesToSettle)) as [
-        PromiseSettledResult<string | undefined>,
         PromiseSettledResult<
-          { audioBase64?: string; error?: string } | { audioBase64: undefined; error: string }
+          | { dataUri: string; error: undefined }
+          | { dataUri: undefined; error: string; rateLimitResetTimestamp?: number }
         >,
+        PromiseSettledResult<SynthesizeSpeechResult>,
       ];
 
       const imageResult = results[0];
       const audioResultAction = results[1];
 
       // Process Image Result (Index 0)
-      if (imageResult.status === 'fulfilled' && imageResult.value) {
-        imageUrl = imageResult.value;
+      if (imageResult.status === 'fulfilled') {
+        if (imageResult.value.dataUri) {
+          imageUrl = imageResult.value.dataUri;
+        } else if (imageResult.value.error) {
+          imageError = imageResult.value.error;
+          console.error('[Adventure Action] Image generation failed:', imageError);
+          if (imageResult.value.rateLimitResetTimestamp) {
+            imageError = imageResult.value.error;
+          }
+        }
       } else if (imageResult.status === 'rejected') {
-        console.error('[Adventure Action] Image generation failed:', imageResult.reason);
-        // Sentry handled in generateImageWithGemini
+        imageError =
+          imageResult.reason instanceof Error
+            ? imageResult.reason.message
+            : 'Unknown image generation error';
+        console.error('[Adventure Action] Image generation promise rejected:', imageResult.reason);
       }
 
       // Process Audio Result (Index 1)
       if (audioResultAction.status === 'fulfilled') {
         const audioData = audioResultAction.value;
-        // Check the fulfilled value has the expected properties
         if (audioData.audioBase64) {
           audioBase64 = audioData.audioBase64;
         } else if (audioData.error) {
-          console.error('[Adventure Action] TTS synthesis failed:', audioData.error);
-          // Sentry handled in synthesizeSpeechAction potentially
+          ttsError = audioData.error;
+          console.error('[Adventure Action] TTS synthesis failed:', ttsError);
+          if (audioData.rateLimitError) {
+            // ttsRateLimitHit = true; // Removed
+          }
         }
       } else if (audioResultAction.status === 'rejected') {
+        ttsError =
+          audioResultAction.reason instanceof Error
+            ? audioResultAction.reason.message
+            : 'Unknown TTS error';
         console.error(
           '[Adventure Action] TTS synthesis promise rejected:',
           audioResultAction.reason
@@ -280,7 +341,7 @@ export const generateAdventureNodeAction = async (
     const finalNode: AdventureNode = {
       passage: validatedNode.passage,
       choices: validatedNode.choices,
-      imageUrl: imageUrl ?? validatedNode.imageUrl, // Use generated URL, fallback to original if any
+      imageUrl: imageUrl ?? validatedNode.imageUrl,
       audioBase64: audioBase64,
     };
 
@@ -302,6 +363,11 @@ const StartingScenariosSchema = z.array(AdventureChoiceSchema).min(3).max(5);
 type GenerateStartingScenariosResult = {
   scenarios?: z.infer<typeof StartingScenariosSchema>;
   error?: string;
+  rateLimitError?: {
+    message: string;
+    resetTimestamp: number;
+    apiType: 'text';
+  };
 };
 
 export const generateStartingScenariosAction =
@@ -310,6 +376,20 @@ export const generateStartingScenariosAction =
     if (!session?.user) {
       console.warn('[Adventure Scenarios] Unauthorized attempt.');
       return { error: 'Unauthorized: User must be logged in.' };
+    }
+
+    const textLimitCheck = await checkTextRateLimit();
+    if (!textLimitCheck.success) {
+      console.warn(
+        `[Adventure Scenarios] Text rate limit exceeded for user. Error: ${textLimitCheck.errorMessage}`
+      );
+      return {
+        rateLimitError: {
+          message: textLimitCheck.errorMessage ?? 'Starting scenario rate limit exceeded.',
+          resetTimestamp: textLimitCheck.reset,
+          apiType: 'text',
+        },
+      };
     }
 
     console.log('[Adventure Scenarios] Generating starting scenarios...');
