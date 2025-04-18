@@ -145,7 +145,7 @@ const AdventureGame = () => {
 
   const handleImageLoad = useCallback(
     (loadedImageUrl?: string) => {
-      console.log('[ImageLoad] Image load event fired for:', loadedImageUrl);
+      // console.log('[ImageLoad] Image load event fired for:', loadedImageUrl);
       if (displayNode?.imageUrl && loadedImageUrl === displayNode.imageUrl) {
         console.log('[ImageLoad] Matching image loaded. Setting loading state to false.');
         setIsCurrentImageLoading(false);
