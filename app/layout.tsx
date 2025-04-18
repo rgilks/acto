@@ -7,6 +7,8 @@ import ClientPWAWrapper from '@/components/ClientPWAWrapper';
 const poppins = Poppins({
   weight: ['400', '500', '600', '700'],
   subsets: ['latin'],
+  variable: '--font-poppins',
+  display: 'swap',
 });
 
 export const viewport: Viewport = {
@@ -55,7 +57,7 @@ export default function RootLayout({
         <link rel="icon" href="/icons/icon-192x192.png" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
-      <body className={poppins.className}>
+      <body className={`${poppins.variable} font-sans`}>
         <AuthProvider>
           {children}
           <ClientPWAWrapper />

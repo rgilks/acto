@@ -7,7 +7,7 @@ import AdventureGame from '@/components/AdventureGame';
 const Page = () => {
   return (
     <main className="flex min-h-screen flex-col items-center p-3 md:p-8 bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 text-gray-300">
-      <div className="z-10 w-full max-w-5xl">
+      <div className="z-10 w-full max-w-7xl">
         <div className="flex flex-wrap justify-between items-center gap-2 mb-3 md:mb-8">
           <div className="flex-shrink-0">
             <AuthButton variant="icon-only" />
