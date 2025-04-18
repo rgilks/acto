@@ -12,9 +12,9 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install dependencies using npm
-COPY package.json package-lock.json* ./
-RUN npm ci
+# Install dependencies only based on package-lock.json
+# Use --omit=dev to skip installing devDependencies
+RUN npm ci --omit=dev
 
 # ---- Builder ----
 FROM base AS builder
