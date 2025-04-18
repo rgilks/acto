@@ -13,6 +13,8 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Install dependencies only based on package-lock.json
+# Copy lockfile and package.json first
+COPY package.json package-lock.json* ./
 # Use --omit=dev to skip installing devDependencies
 RUN npm ci --omit=dev
 
