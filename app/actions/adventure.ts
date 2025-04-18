@@ -1,7 +1,7 @@
 'use server';
 
 import { z } from 'zod';
-import { getActiveModel, getGoogleAIClient, openai, ModelConfig } from '@/lib/modelConfig';
+import { getActiveModel, getGoogleAIClient, ModelConfig } from '@/lib/modelConfig';
 import {
   AdventureNodeSchema,
   AdventureChoiceSchema,
@@ -77,49 +77,28 @@ Generate the next step:
 async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Promise<string> {
   console.log('[Adventure] Calling AI...');
 
-  if (modelConfig.provider === 'openai' && openai) {
-    try {
-      const completion = await openai.chat.completions.create({
-        model: modelConfig.name,
-        messages: [{ role: 'user', content: prompt }],
-        response_format: { type: 'json_object' },
-        max_tokens: modelConfig.maxTokens,
-      });
-      const result = completion?.choices?.[0]?.message?.content;
-      if (!result) throw new Error('No content received from OpenAI');
-      console.log('[Adventure] Received response from OpenAI.');
-      return result;
-    } catch (error) {
-      console.error('[Adventure] OpenAI API error:', error);
-      Sentry.captureException(error);
-      throw error;
-    }
-  } else if (modelConfig.provider === 'google') {
-    try {
-      const genAI: GoogleGenAI = getGoogleAIClient();
-      const result = await genAI.models.generateContent({
-        model: modelConfig.name,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      });
-      const text = result.text;
+  try {
+    const genAI: GoogleGenAI = getGoogleAIClient();
+    const result = await genAI.models.generateContent({
+      model: modelConfig.name,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    });
+    const text = result.text;
 
-      if (!text) {
-        console.error(
-          '[Adventure] Failed to extract text from Google AI response:',
-          JSON.stringify(result, null, 2)
-        );
-        throw new Error('No content received from Google AI or failed to extract text.');
-      }
-
-      console.log('[Adventure] Received response from Google AI.');
-      return text;
-    } catch (error) {
-      console.error('[Adventure] Google AI error:', error);
-      Sentry.captureException(error);
-      throw error;
+    if (!text) {
+      console.error(
+        '[Adventure] Failed to extract text from Google AI response:',
+        JSON.stringify(result, null, 2)
+      );
+      throw new Error('No content received from Google AI or failed to extract text.');
     }
-  } else {
-    throw new Error(`Unsupported model provider or client not available: ${modelConfig.provider}`);
+
+    console.log('[Adventure] Received response from Google AI.');
+    return text;
+  } catch (error) {
+    console.error('[Adventure] Google AI error:', error);
+    Sentry.captureException(error);
+    throw error;
   }
 }
 

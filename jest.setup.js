@@ -1,7 +1,5 @@
 import '@testing-library/jest-dom';
 
-import 'openai/shims/node';
-
 if (typeof Request === 'undefined') {
   global.Request = class Request {};
   global.Response = class Response {

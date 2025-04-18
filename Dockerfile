@@ -1,80 +1,83 @@
-FROM node:18-alpine AS base
+# Dockerfile
 
-# Install system dependencies
-RUN apk add --no-cache ca-certificates fuse3 sqlite
-
-# Install dependencies only when needed
-FROM base AS deps
+# ---- Base ----
+FROM node:20-alpine AS base
 WORKDIR /app
 
-# Copy package files first for better caching
+# No global pnpm needed
+
+# ---- Dependencies ----
+FROM base AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# Install dependencies using npm
 COPY package.json package-lock.json* ./
 RUN npm ci
 
-# Rebuild the source code only when needed
+# ---- Builder ----
 FROM base AS builder
 WORKDIR /app
-
-# Add build argument for NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-
-# Add build argument for Node version
-ARG NODE_VERSION
-ENV NODE_VERSION=$NODE_VERSION
-
 COPY --from=deps /app/node_modules ./node_modules
-# Copy everything instead of individual directories
 COPY . .
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the build.
-ENV NEXT_TELEMETRY_DISABLED 1
+# ENV NEXT_TELEMETRY_DISABLED 1
 
-# Create public directory if it doesn't exist
-RUN mkdir -p public
+# Set build-time env vars
+# ARG DATABASE_URL
+ARG NEXT_PUBLIC_SENTRY_DSN
+ARG SENTRY_ORG
+ARG SENTRY_PROJECT
+ARG SENTRY_AUTH_TOKEN
+# ARG COMMIT_SHA
+ARG GOOGLE_AI_API_KEY
 
+# ENV DATABASE_URL
+ENV NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN}
+ENV SENTRY_ORG=${SENTRY_ORG}
+ENV SENTRY_PROJECT=${SENTRY_PROJECT}
+ENV SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}
+# ENV COMMIT_SHA
+ENV GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
+
+# Ensure Sentry sourcemaps work (using npm run build)
 RUN npm run build
 
-# Production image, copy all the files and run next
+# ---- Runner ----
 FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+# Uncomment the following line in case you want to disable telemetry during runtime.
+# ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy LiteFS binary
-COPY --from=flyio/litefs:0.5 /usr/local/bin/litefs /usr/local/bin/litefs
-
-# Create public directory in runner if it doesn't exist
-RUN mkdir -p public
 COPY --from=builder /app/public ./public
 
-# Set the correct permission for prerender cache
-RUN mkdir -p .next
-RUN chown nextjs:nodejs .next
-
 # Automatically leverage output traces to reduce image size
+# https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy the LiteFS config file
-COPY --from=builder --chown=nextjs:nodejs /app/litefs.yml ./litefs.yml
-
-# Create directory for SQLite database
-RUN mkdir -p /litefs && chown nextjs:nodejs /litefs
-RUN mkdir -p /data && chown nextjs:nodejs /data
+# Copy and set permissions for the entrypoint script
+COPY --chown=nextjs:nodejs entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 USER nextjs
 
 EXPOSE 3000
 
 ENV PORT 3000
+# set hostname to localhost
 ENV HOSTNAME "0.0.0.0"
 
-# ENTRYPOINT runs the Next.js app directly
-ENTRYPOINT ["node", "/app/server.js"]
+# Set the entrypoint script to handle credentials before starting the app
+ENTRYPOINT ["/app/entrypoint.sh"]
+
+# server.js is created by next build from the standalone output
+# https://nextjs.org/docs/pages/api-reference/next-config-js/output
+# This is now passed as arguments to entrypoint.sh
+CMD ["node", "server.js"]
