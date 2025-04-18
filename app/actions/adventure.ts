@@ -18,6 +18,7 @@ import { checkTextRateLimit, checkImageRateLimit } from '@/lib/rateLimitSqlite';
 const StoryHistoryItemSchema = z.object({
   passage: z.string(),
   choiceText: z.string().optional(),
+  summary: z.string().optional(),
 });
 
 type StoryContext = {
@@ -44,41 +45,52 @@ type GenerateAdventureNodeResult = {
 
 function buildAdventurePrompt(context: StoryContext | undefined): string {
   const history = context?.history ?? [];
+  const maxHistoryItems = 3; // Number of recent steps to include text for
+
+  // Get the summary from the *very last* history item
+  const latestSummary = history.length > 0 ? history[history.length - 1]?.summary : null;
 
   const jsonStructure = `{
-  "passage": "(string) Write the next part of the adventure, describing the outcome of the player's last choice (if any) and the current situation. Be creative and engaging.",
-  "choices": [ /* Array of { "text": string } objects. Provide 3-4 relevant choices for the player based on the passage. */ ],
-  "imagePrompt": "(string) Generate a concise, descriptive prompt for an image generation model based *only* on the visual elements described in the \"passage\". Focus on key nouns, actions, and atmosphere. E.g., \"Dimly lit spaceship corridor\", \"Overgrown jungle temple entrance\". Keep it under 50 words."
+  "passage": "(string) Next part of the adventure, describing outcome of last choice and current situation.",
+  "choices": [ /* Array of 3-4 { "text": string } objects for player choices. */ ],
+  "imagePrompt": "(string) Concise visual prompt (max 50 words) based ONLY on the \"passage\". E.g., \"Dim spaceship corridor\"",
+  "updatedSummary": "(string) A brief (1-2 sentence) summary encompassing the entire story so far, updated with the events of this new 'passage'."
 }`;
 
-  let historySummary = 'Story so far:\n';
+  // Build the recent history text section
+  let recentHistoryText = 'Most Recent Steps:\n';
   if (history.length === 0) {
-    historySummary += 'The adventure begins...';
+    recentHistoryText += 'The adventure begins...';
   } else {
-    history.forEach((item, index) => {
-      historySummary += `Step ${index + 1} Passage: ${item.passage}\n`;
+    const recentHistory = history.slice(-maxHistoryItems);
+    recentHistory.forEach((item, index) => {
+      const stepNum = history.length - recentHistory.length + index + 1;
+      recentHistoryText += `Step ${stepNum} Passage: ${item.passage}\n`;
       if (item.choiceText) {
-        historySummary += `Step ${index + 1} Choice: ${item.choiceText}\n`;
+        recentHistoryText += `Step ${stepNum} Choice: ${item.choiceText}\n`;
       }
     });
+    if (history.length > maxHistoryItems) {
+      recentHistoryText = `(Older steps summarized below)\n` + recentHistoryText;
+    }
   }
 
-  const basePrompt = `You are a creative storyteller for an interactive text adventure game. Continue the story based on the history provided. Respond ONLY with a valid JSON object matching this structure:
+  const storySummarySection = latestSummary
+    ? `Summary of story before recent steps:\n${latestSummary}`
+    : 'No summary yet.';
+
+  // Prompt includes both summary and recent steps
+  const basePrompt = `You are a storyteller for an interactive text adventure. Continue the story based on the provided Summary and Most Recent Steps. Respond ONLY with a valid JSON object matching this structure:
 ${jsonStructure}
-Ensure the entire output is a single, valid JSON object string without any surrounding text or markdown formatting.`;
+Output only the JSON object. Provide an 'updatedSummary' reflecting the entire story including the new 'passage'.`;
 
-  return `
-${basePrompt}
+  return `${basePrompt}
 
-${historySummary}
+${storySummarySection}
 
-Generate the next step:
-- Read the "Story so far".
-- If a "Choice" was made in the last step, write a "passage" describing the outcome.
-- If it's the beginning, write an engaging starting "passage".
-- Provide 3-4 relevant "choices" (as { "text": string } objects) for the player to make next.
-- Create a concise "imagePrompt" based *only* on the visual elements of the generated "passage".
-`;
+${recentHistoryText}
+
+Generate the next JSON step, considering both summary and recent steps, and ensure 'updatedSummary' is included.`;
 }
 
 async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Promise<string> {
@@ -253,6 +265,7 @@ export const generateAdventureNodeAction = async (
     const validatedNode = validationResult.data;
     const imagePrompt = validatedNode.imagePrompt;
     const passage = validatedNode.passage;
+    const updatedSummary = validatedNode.updatedSummary;
 
     // --- Generate Image and TTS in Parallel ---
     let imageUrl: string | undefined = undefined;
@@ -262,7 +275,6 @@ export const generateAdventureNodeAction = async (
 
     const promisesToSettle = [];
 
-    // Add Image generation promise (or placeholder)
     if (imagePrompt) {
       promisesToSettle.push(generateImageWithGemini(imagePrompt));
     } else {
@@ -270,7 +282,6 @@ export const generateAdventureNodeAction = async (
       promisesToSettle.push(Promise.resolve({ dataUri: undefined, error: undefined }));
     }
 
-    // Add TTS generation promise (or placeholder)
     if (passage) {
       promisesToSettle.push(synthesizeSpeechAction({ text: passage, voiceName: TTS_VOICE_NAME }));
     } else {
@@ -343,9 +354,10 @@ export const generateAdventureNodeAction = async (
       choices: validatedNode.choices,
       imageUrl: imageUrl ?? validatedNode.imageUrl,
       audioBase64: audioBase64,
+      updatedSummary: updatedSummary,
     };
 
-    console.log('[Adventure] Successfully generated node with parallel assets.');
+    console.log('[Adventure] Successfully generated node with summary.');
     return { adventureNode: finalNode };
   } catch (error) {
     console.error('[Adventure] Error generating adventure node:', error);
@@ -394,19 +406,19 @@ export const generateStartingScenariosAction =
 
     console.log('[Adventure Scenarios] Generating starting scenarios...');
     try {
-      // Define the specific JSON structure for starting scenarios
+      // Optimized JSON structure definition (slightly shorter description)
       const jsonStructure = `[
-  { "text": "(string) A brief (1-2 sentence) description of a starting scenario for an adventure (any genre)." },
-  { "text": "(string) Another different starting scenario description." },
-  { "text": "(string) A third distinct starting scenario description." },
+  { "text": "(string) Brief (1-2 sentence) starting scenario description." },
+  { "text": "(string) Another different scenario description." },
+  { "text": "(string) A third distinct scenario description." },
   { "text": "(string) Optionally, a fourth scenario description." }
 ]`;
 
-      // Prompt asking for diverse starting scenarios
-      const prompt = `You are an AI assistant creating starting points for an interactive text adventure game. Generate 3 to 4 diverse and intriguing starting scenarios across *different genres and settings* (e.g., sci-fi, fantasy, mystery, historical, modern-day).
-    Respond ONLY with a valid JSON array matching this structure, filling in the details:
+      // Optimized prompt
+      const prompt = `You are an AI creating starting points for a text adventure. Generate 3-4 diverse starting scenarios across different genres (sci-fi, fantasy, mystery, etc.).
+Respond ONLY with a valid JSON array matching this structure, filling in the details:
 ${jsonStructure}
-Ensure the entire output is a single, valid JSON array string containing 3 or 4 objects, without any surrounding text or markdown formatting. Examples: "You awake on a sterile medical table aboard an alien spaceship.", "You stand at the entrance to a dark forest, clutching a weathered map.", "A coded message arrives, hinting at a conspiracy in 1920s Paris."
+Ensure the output is only the JSON array string. Examples: "Awake on an alien spaceship medical table.", "Standing at a dark forest entrance with a map.", "Coded message hints at 1920s Paris conspiracy."
 `;
 
       const activeModel = getActiveModel();
