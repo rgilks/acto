@@ -155,7 +155,6 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           // Update current state with results from the action
           state.currentNode = newNode;
           state.currentRoomId = newNode.roomId as RoomId;
-          state.currentImagePlaceholder = newNode.imagePlaceholder;
           state.playerHealth = newNode.playerHealth;
           state.playerWounds = newNode.playerWounds;
           state.ogreHealth = newNode.ogreHealth;

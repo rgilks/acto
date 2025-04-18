@@ -23,8 +23,6 @@ const AdventureGame = () => {
     fetchAdventureNode,
     makeChoice,
     resetAdventure,
-    // Get image placeholder from store
-    currentImagePlaceholder,
     // Get currentRoomId from store
     currentRoomId,
     // Get TTS state and actions
@@ -302,20 +300,16 @@ const AdventureGame = () => {
 
         {!isLoading && !error && currentNode && (
           <div className="w-full flex flex-col items-center">
-            {/* Image Placeholder */}
-            {currentImagePlaceholder && (
+            {currentNode.imageUrl && (
               <div className="mb-6 w-full max-w-xl aspect-video bg-slate-700 rounded overflow-hidden shadow-md">
-                {/* Basic img tag - assumes placeholders are in /public */}
                 <img
-                  src={`/${currentImagePlaceholder}`}
-                  alt={currentNode.roomId} // Use roomId or generate better alt text
+                  src={currentNode.imageUrl}
+                  alt={currentNode.roomId}
                   className="w-full h-full object-cover"
-                  // Add error handling for image load?
                 />
               </div>
             )}
 
-            {/* Passage text color and font */}
             <div className="mb-4 text-lg leading-relaxed text-left w-full max-w-3xl text-gray-300 font-serif relative">
               <p style={{ whiteSpace: 'pre-wrap' }}>{currentNode.passage}</p>
             </div>

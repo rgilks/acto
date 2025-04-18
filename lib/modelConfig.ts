@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 
 export type ModelProvider = 'openai' | 'google';
@@ -64,7 +64,7 @@ export const getGoogleAIClient = () => {
     console.warn('Warning: GOOGLE_AI_API_KEY is not set or invalid');
   }
 
-  return new GoogleGenerativeAI(apiKey || '');
+  return new GoogleGenAI({ apiKey: apiKey || '' });
 };
 
 export const getActiveModel = (): ModelConfig => {
