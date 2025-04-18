@@ -12,6 +12,7 @@ import { GoogleGenAI } from '@google/genai';
 import { type StoryHistoryItem } from '@/store/adventureStore';
 import { synthesizeSpeechAction } from './tts';
 import { TTS_VOICE_NAME } from '@/lib/constants';
+import { getSession } from '@/app/auth';
 
 const StoryHistoryItemSchema = z.object({
   passage: z.string(),
@@ -155,6 +156,12 @@ async function generateImageWithGemini(imagePrompt: string): Promise<string | un
 export const generateAdventureNodeAction = async (
   params: GenerateAdventureNodeParams
 ): Promise<GenerateAdventureNodeResult> => {
+  const session = await getSession();
+  if (!session?.user) {
+    console.warn('[Adventure Action] Unauthorized attempt.');
+    return { error: 'Unauthorized: User must be logged in.' };
+  }
+
   try {
     const validation = GenerateAdventureNodeParamsSchema.safeParse(params);
     if (!validation.success) {
@@ -299,6 +306,12 @@ type GenerateStartingScenariosResult = {
 
 export const generateStartingScenariosAction =
   async (): Promise<GenerateStartingScenariosResult> => {
+    const session = await getSession();
+    if (!session?.user) {
+      console.warn('[Adventure Scenarios] Unauthorized attempt.');
+      return { error: 'Unauthorized: User must be logged in.' };
+    }
+
     console.log('[Adventure Scenarios] Generating starting scenarios...');
     try {
       // Define the specific JSON structure for starting scenarios

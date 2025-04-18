@@ -4,6 +4,7 @@ import { TextToSpeechClient } from '@google-cloud/text-to-speech';
 import * as Sentry from '@sentry/nextjs';
 // Import constant from lib
 import { TTS_VOICE_NAME } from '@/lib/constants';
+import { getSession } from '@/app/auth';
 
 // Instantiate the client
 // Make sure GOOGLE_APPLICATION_CREDENTIALS is set in your environment
@@ -23,6 +24,12 @@ export const synthesizeSpeechAction = async ({
   text,
   voiceName,
 }: SynthesizeSpeechParams): Promise<SynthesizeSpeechResult> => {
+  const session = await getSession();
+  if (!session?.user) {
+    console.warn('[TTS Action] Unauthorized attempt.');
+    return { error: 'Unauthorized: User must be logged in.' };
+  }
+
   if (!text) {
     return { error: 'No text provided for synthesis.' };
   }

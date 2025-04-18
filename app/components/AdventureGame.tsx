@@ -13,6 +13,7 @@ import {
   generateStartingScenariosAction,
   // generateAdventureNodeAction, // Remove unused import
 } from '../actions/adventure';
+import AuthButton from '@/components/AuthButton';
 
 // Remove TTS_VOICE_NAME constant
 // const TTS_VOICE_NAME = 'en-IN-Chirp3-HD-Enceladus';
@@ -42,6 +43,7 @@ const AdventureGame = () => {
   const [gamePhase, setGamePhase] = useState<GamePhase>('loading_scenarios');
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [scenarioError, setScenarioError] = useState<string | null>(null);
+  const [isUnauthorized, setIsUnauthorized] = useState(false); // Add new state for unauthorized status
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const ttsAudioRef = useRef<HTMLAudioElement>(null);
@@ -58,16 +60,29 @@ const AdventureGame = () => {
     try {
       const result = await generateStartingScenariosAction();
       if (result.error) {
+        // Check specifically for the unauthorized error
+        if (result.error === 'Unauthorized: User must be logged in.') {
+          console.log('[AdventureGame] User is not logged in.');
+          setIsUnauthorized(true);
+          setGamePhase('error'); // Keep phase as error but use isUnauthorized flag to render differently
+          return; // Stop further processing in this case
+        }
+        // Throw other errors to be caught below
         throw new Error(result.error);
       }
       if (!result.scenarios) {
         throw new Error('No scenarios generated.');
       }
+      setIsUnauthorized(false); // Reset unauthorized flag on success
       setScenarios(result.scenarios);
       setGamePhase('selecting_scenario');
     } catch (err) {
-      console.error('Error fetching scenarios:', err);
-      setScenarioError(err instanceof Error ? err.message : 'Failed to load starting scenarios.');
+      // Only set scenarioError if it's not the specific unauthorized error
+      if (!(err instanceof Error && err.message === 'Unauthorized: User must be logged in.')) {
+        console.error('Error fetching scenarios:', err);
+        setScenarioError(err instanceof Error ? err.message : 'Failed to load starting scenarios.');
+      }
+      // Set gamePhase to error regardless, but rendering depends on isUnauthorized
       setGamePhase('error');
     }
   }, []);
@@ -101,6 +116,7 @@ const AdventureGame = () => {
     resetStore(); // Reset zustand store
     setScenarios([]); // Clear scenarios
     setScenarioError(null);
+    setIsUnauthorized(false); // Reset unauthorized flag on reset
     setClickedChoiceIndex(null);
     void fetchScenarios(); // Fetch new scenarios
   }, [resetStore, fetchScenarios]);
@@ -287,7 +303,17 @@ const AdventureGame = () => {
         )}
 
         {/* Error State (Could be scenario or node error) */}
-        {gamePhase !== 'loading_scenarios' && (scenarioError || nodeError) && (
+        {/* Render login prompt if unauthorized */}
+        {gamePhase === 'error' && isUnauthorized && (
+          <div className="text-center text-amber-100/90 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
+            <p className="text-xl font-semibold mb-4">Please Log In</p>
+            <p className="mb-6 text-gray-400">You need to be logged in to start an adventure.</p>
+            <AuthButton variant="short" />
+          </div>
+        )}
+
+        {/* Render generic error display if not unauthorized */}
+        {gamePhase === 'error' && !isUnauthorized && (scenarioError || nodeError) && (
           <div className="text-center text-red-400 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
             <p className="text-xl font-semibold mb-4">An Error Occurred</p>
             <p className="mb-6 text-gray-400">{scenarioError || nodeError || 'Unknown error'}</p>
