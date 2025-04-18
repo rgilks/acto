@@ -32,7 +32,7 @@ const Page = () => {
           style={{ animationDelay: '0.3s' }}
         >
           <p>
-            Powered by AI |{' '}
+            Powered by Google AI |{' '}
             <Link href="https://github.com/rgilks/acto" className="underline hover:text-gray-300">
               GitHub
             </Link>
