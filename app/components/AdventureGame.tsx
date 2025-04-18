@@ -12,7 +12,8 @@ import AuthButton from '@/components/AuthButton';
 type GamePhase = 'loading_scenarios' | 'selecting_scenario' | 'playing' | 'error';
 type Scenario = z.infer<typeof AdventureChoiceSchema>;
 
-// Helper function to format timestamp into a user-friendly string
+const SCENARIO_CACHE_KEY = 'adventureGame_startingScenarios';
+
 function formatResetTime(timestamp: number): string {
   if (!timestamp) return 'an unknown time';
   const now = Date.now();
@@ -25,7 +26,6 @@ function formatResetTime(timestamp: number): string {
     const minutes = Math.ceil(diffSeconds / 60);
     return `in about ${minutes} minute${minutes > 1 ? 's' : ''}`;
   }
-  // For longer durations, show the time
   return `at ${resetDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 }
 
@@ -58,15 +58,30 @@ const AdventureGame = () => {
   const [currentAudioData, setCurrentAudioData] = useState<string | null>(null);
 
   const fetchScenarios = useCallback(async () => {
+    try {
+      const cachedData = sessionStorage.getItem(SCENARIO_CACHE_KEY);
+      if (cachedData) {
+        const parsedData = JSON.parse(cachedData) as Scenario[];
+        console.log('[AdventureGame] Using cached scenarios.');
+        setScenarios(parsedData);
+        setGamePhase('selecting_scenario');
+        useAdventureStore.setState({ isLoading: false, error: null });
+        setIsUnauthorized(false);
+        return;
+      }
+    } catch (error) {
+      console.error('Error reading scenarios from sessionStorage:', error);
+      sessionStorage.removeItem(SCENARIO_CACHE_KEY);
+    }
+
+    console.log('[AdventureGame] No valid cached scenarios found. Fetching from backend.');
     setGamePhase('loading_scenarios');
     setIsUnauthorized(false);
-    // Clear error in store before fetching
     useAdventureStore.setState({ error: null, isLoading: true });
 
     try {
       const result = await generateStartingScenariosAction();
 
-      // Handle Rate Limit Error from starting scenarios
       if (result.rateLimitError) {
         console.warn('Scenario Rate Limit Hit:', result.rateLimitError);
         useAdventureStore.setState({
@@ -77,18 +92,14 @@ const AdventureGame = () => {
         return;
       }
 
-      // Handle generic error from starting scenarios
       if (result.error) {
         if (result.error === 'Unauthorized: User must be logged in.') {
           console.log('[AdventureGame] User is not logged in.');
-          setIsUnauthorized(true); // Keep local state for unauthorized display
-          // Set generic error in store as well, or keep null?
-          // Let's keep it null for now, isUnauthorized handles the display
+          setIsUnauthorized(true);
           useAdventureStore.setState({ error: null, isLoading: false });
           setGamePhase('error');
           return;
         }
-        // Throw other generic errors to be caught below
         throw new Error(result.error);
       }
 
@@ -96,13 +107,18 @@ const AdventureGame = () => {
         throw new Error('No scenarios generated.');
       }
 
-      // Success path
       setScenarios(result.scenarios);
+      try {
+        sessionStorage.setItem(SCENARIO_CACHE_KEY, JSON.stringify(result.scenarios));
+        console.log('[AdventureGame] Scenarios fetched and cached.');
+      } catch (error) {
+        console.error('Error saving scenarios to sessionStorage:', error);
+      }
+
       setGamePhase('selecting_scenario');
-      useAdventureStore.setState({ isLoading: false, error: null }); // Ensure error is null on success
+      useAdventureStore.setState({ isLoading: false, error: null });
     } catch (err) {
       console.error('Error fetching scenarios:', err);
-      // Set generic error state in the store
       useAdventureStore.setState({
         error: err instanceof Error ? err.message : 'Failed to load starting scenarios.',
         isLoading: false,
@@ -128,20 +144,21 @@ const AdventureGame = () => {
   );
 
   const handleReset = useCallback(() => {
-    resetStore(); // Resets store including error state
+    sessionStorage.removeItem(SCENARIO_CACHE_KEY);
+    console.log('[AdventureGame] Resetting adventure and clearing scenario cache.');
+
+    resetStore();
     setScenarios([]);
     setIsUnauthorized(false);
     setClickedChoiceIndex(null);
     setDisplayNode(null);
     setIsCurrentImageLoading(true);
-    // Reset game phase and fetch scenarios again
     setGamePhase('loading_scenarios');
     void fetchScenarios();
   }, [resetStore, fetchScenarios]);
 
   const handleImageLoad = useCallback(
     (loadedImageUrl?: string) => {
-      // console.log('[ImageLoad] Image load event fired for:', loadedImageUrl);
       if (displayNode?.imageUrl && loadedImageUrl === displayNode.imageUrl) {
         console.log('[ImageLoad] Matching image loaded. Setting loading state to false.');
         setIsCurrentImageLoading(false);
@@ -325,15 +342,10 @@ const AdventureGame = () => {
     }
   }, [ttsVolume]);
 
-  // Effect to synchronize gamePhase with error state from the store
   useEffect(() => {
     if (nodeError !== null) {
-      // If there's an error in the store (rate limit or generic),
-      // ensure the component enters the error phase.
       setGamePhase('error');
     }
-    // We only want this effect to run when nodeError changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodeError]);
 
   return (
