@@ -16,7 +16,7 @@
     "test:coverage": "jest --coverage",
     "test:quick": "jest --bail --findRelatedTests --passWithNoTests",
     "nuke": "rm -rf node_modules package-lock.json .next .next-validation",
-    "prepare": "husky && husky install && npx playwright install",
+    "prepare": "husky && husky install && [ \"$CI\" != \"true\" ] && npx playwright install || true",
     "test:e2e": "npx playwright test --reporter=list"
   },
   "dependencies": {
