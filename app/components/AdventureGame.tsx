@@ -1,7 +1,10 @@
 'use client';
 
 import React, { useEffect, useRef, useCallback, useState } from 'react';
+import Image from 'next/image'; // Import next/image
 import useAdventureStore from '@/store/adventureStore';
+import { AdventureChoiceSchema } from '@/lib/domain/schemas'; // Import schema type
+import { z } from 'zod';
 import {
   ArrowPathIcon,
   SpeakerWaveIcon,
@@ -9,19 +12,27 @@ import {
   ArrowDownCircleIcon, // Loading indicator
 } from '@heroicons/react/24/solid';
 import { synthesizeSpeechAction } from '../actions/tts';
+// Import the new action
+import {
+  generateStartingScenariosAction,
+  // generateAdventureNodeAction, // Remove unused import
+} from '../actions/adventure';
 
 const TTS_VOICE_NAME = 'en-IN-Chirp3-HD-Enceladus';
 
+type GamePhase = 'loading_scenarios' | 'selecting_scenario' | 'playing' | 'error';
+type Scenario = z.infer<typeof AdventureChoiceSchema>;
+
 const AdventureGame = () => {
+  // Get simplified state/actions from store
   const {
     currentNode,
-    isLoading,
-    error,
+    isLoading: isNodeLoading, // Rename to avoid clash with scenario loading
+    error: nodeError,
     storyHistory,
-    fetchAdventureNode,
+    fetchAdventureNode, // Still used after scenario selection
     makeChoice,
-    resetAdventure,
-    currentRoomId,
+    resetAdventure: resetStore,
     isSpeaking,
     ttsError,
     ttsVolume,
@@ -30,24 +41,79 @@ const AdventureGame = () => {
     setTTSVolume,
   } = useAdventureStore();
 
+  // Component state for game phase and scenarios
+  const [gamePhase, setGamePhase] = useState<GamePhase>('loading_scenarios');
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [scenarioError, setScenarioError] = useState<string | null>(null);
+
   const audioRef = useRef<HTMLAudioElement>(null);
   const ttsAudioRef = useRef<HTMLAudioElement>(null);
   const [isTTsLoading, setIsTTsLoading] = useState(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [clickedChoiceIndex, setClickedChoiceIndex] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (storyHistory.length === 0 && !currentNode && !isLoading && !currentRoomId) {
-      void fetchAdventureNode();
+  // --- Fetch Starting Scenarios ---
+  const fetchScenarios = useCallback(async () => {
+    setGamePhase('loading_scenarios');
+    setScenarioError(null);
+    try {
+      const result = await generateStartingScenariosAction();
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      if (!result.scenarios) {
+        throw new Error('No scenarios generated.');
+      }
+      setScenarios(result.scenarios);
+      setGamePhase('selecting_scenario');
+    } catch (err) {
+      console.error('Error fetching scenarios:', err);
+      setScenarioError(err instanceof Error ? err.message : 'Failed to load starting scenarios.');
+      setGamePhase('error');
     }
-  }, [isLoading, currentNode, storyHistory, currentRoomId, fetchAdventureNode]);
+  }, []);
 
+  // Initial effect to fetch scenarios
+  useEffect(() => {
+    void fetchScenarios();
+  }, [fetchScenarios]);
+
+  // --- Handle Scenario Selection ---
+  const handleScenarioSelect = useCallback(
+    (scenario: Scenario) => {
+      console.log('Selected scenario:', scenario.text);
+      setGamePhase('playing');
+      setHasUserInteracted(true);
+      // Prime the history with the chosen scenario as the first passage
+      // Note: This interacts directly with zustand state, might need an action
+      useAdventureStore.setState({
+        storyHistory: [{ passage: scenario.text }],
+        currentNode: null, // Clear any previous node
+        error: null,
+      });
+      // Fetch the first node *based on* the selected scenario
+      void fetchAdventureNode(); // No choiceText needed here
+    },
+    [fetchAdventureNode]
+  );
+
+  // Reset function now also resets component state
+  const handleReset = useCallback(() => {
+    resetStore(); // Reset zustand store
+    setScenarios([]); // Clear scenarios
+    setScenarioError(null);
+    setClickedChoiceIndex(null);
+    void fetchScenarios(); // Fetch new scenarios
+  }, [resetStore, fetchScenarios]);
+
+  // --- TTS Logic (mostly unchanged, uses `currentNode` which is null initially) ---
   const startTTSSpeech = useCallback(async () => {
     const audioElement = ttsAudioRef.current;
-    const textToSpeak = currentNode?.passage;
+    // Only speak if in playing phase and node exists
+    const textToSpeak = gamePhase === 'playing' ? currentNode?.passage : null;
 
     console.log(
-      `Attempting startTTSSpeech: hasAudio=${!!audioElement}, hasText=${!!textToSpeak}, isSpeaking=${isSpeaking}, isLoading=${isTTsLoading}`
+      `Attempting startTTSSpeech: phase=${gamePhase}, hasAudio=${!!audioElement}, hasText=${!!textToSpeak}, isSpeaking=${isSpeaking}, isTTsLoading=${isTTsLoading}`
     );
     if (!audioElement || !textToSpeak || isSpeaking || isTTsLoading) {
       if (isSpeaking) console.log('startTTSSpeech: Already speaking.');
@@ -88,7 +154,7 @@ const AdventureGame = () => {
     } finally {
       setIsTTsLoading(false);
     }
-  }, [currentNode?.passage, isSpeaking, setSpeaking, setTTSError, isTTsLoading]);
+  }, [currentNode?.passage, isSpeaking, setSpeaking, setTTSError, isTTsLoading, gamePhase]); // Added gamePhase dependency
 
   const stopTTSSpeech = useCallback(() => {
     const audioElement = ttsAudioRef.current;
@@ -133,14 +199,14 @@ const AdventureGame = () => {
     };
   }, [stopTTSSpeech]);
 
+  // Effect for Auto-Play on New Passage (add gamePhase check)
   const previousPassageRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    const currentPassage = currentNode?.passage;
-
-    if (!isLoading && currentPassage && currentPassage !== previousPassageRef.current) {
+    const currentPassage = gamePhase === 'playing' ? currentNode?.passage : null;
+    if (!isNodeLoading && currentPassage && currentPassage !== previousPassageRef.current) {
       console.log('New passage detected...');
       console.log(
-        `--> isLoading: ${isLoading}, hasUserInteracted: ${hasUserInteracted}, passageChanged: ${currentPassage !== previousPassageRef.current}`
+        `--> isLoading: ${isNodeLoading}, hasUserInteracted: ${hasUserInteracted}, passageChanged: ${currentPassage !== previousPassageRef.current}`
       );
 
       if (hasUserInteracted) {
@@ -161,8 +227,18 @@ const AdventureGame = () => {
     if (currentPassage && !previousPassageRef.current) {
       previousPassageRef.current = currentPassage;
     }
-    previousPassageRef.current = currentPassage;
-  }, [currentNode?.passage, isLoading, startTTSSpeech, stopTTSSpeech, hasUserInteracted]);
+    // Assign only if currentPassage is not null
+    if (currentPassage !== null) {
+      previousPassageRef.current = currentPassage;
+    }
+  }, [
+    currentNode?.passage,
+    isNodeLoading,
+    startTTSSpeech,
+    stopTTSSpeech,
+    hasUserInteracted,
+    gamePhase,
+  ]);
 
   useEffect(() => {
     const audioElement = audioRef.current;
@@ -183,8 +259,9 @@ const AdventureGame = () => {
     };
   }, []);
 
+  // Handle regular choice clicks (uses zustand makeChoice)
   const handleChoiceClick = (
-    choice: NonNullable<typeof currentNode>['choices'][number],
+    choice: Scenario, // Can reuse Scenario type here
     index: number
   ) => {
     if (!hasUserInteracted) {
@@ -202,7 +279,7 @@ const AdventureGame = () => {
   const secondaryButtonClasses =
     'border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600 focus:ring-gray-500 shadow-sm';
   const ghostButtonClasses =
-    'border-transparent text-gray-500 hover:bg-gray-700/50 hover:text-gray-300 focus:ring-gray-500';
+    'border-transparent text-gray-400 hover:bg-gray-700/50 hover:text-gray-300 focus:ring-gray-500';
 
   useEffect(() => {
     const ambientAudio = audioRef.current;
@@ -223,113 +300,163 @@ const AdventureGame = () => {
       <audio ref={audioRef} loop hidden aria-hidden="true" />
       <audio ref={ttsAudioRef} hidden aria-hidden="true" />
 
-      <div className="bg-slate-800 rounded-lg p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 min-h-[350px] relative mx-auto w-full">
-        {error && !isLoading && (
+      <div className="bg-slate-800 rounded-lg p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 min-h-[350px] relative mx-auto w-full flex flex-col">
+        {/* Loading Scenarios State */}
+        {gamePhase === 'loading_scenarios' && (
+          <div className="flex-grow flex flex-col items-center justify-center">
+            <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin mb-4" />
+            <p className="text-gray-400">Generating starting adventures...</p>
+          </div>
+        )}
+
+        {/* Error State (Could be scenario or node error) */}
+        {gamePhase !== 'loading_scenarios' && (scenarioError || nodeError) && (
           <div className="text-center text-red-400 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
             <p className="text-xl font-semibold mb-4">An Error Occurred</p>
-            <p className="mb-6 text-gray-400">{error}</p>
+            <p className="mb-6 text-gray-400">{scenarioError || nodeError || 'Unknown error'}</p>
             <button
-              onClick={() => fetchAdventureNode()}
+              onClick={handleReset}
               className={`${buttonBaseClasses} ${secondaryButtonClasses}`}
             >
-              Retry
+              Try Again
             </button>
           </div>
         )}
 
-        {isLoading && storyHistory.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80 rounded-lg z-20">
-            <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin" />
+        {/* Scenario Selection State */}
+        {gamePhase === 'selecting_scenario' && !scenarioError && (
+          <div className="flex-grow flex flex-col items-center">
+            <h2 className="text-2xl font-semibold text-amber-100/90 mb-6 font-serif">
+              Choose your starting scenario:
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
+              {scenarios.map((scenario, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleScenarioSelect(scenario)}
+                  className={`${buttonBaseClasses} ${choiceButtonClasses}`}
+                  disabled={isNodeLoading}
+                >
+                  <span>{scenario.text}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
-        {currentNode && (
+        {/* Playing State */}
+        {gamePhase === 'playing' && !nodeError && (
           <>
-            <div className="flex flex-col md:flex-row md:items-start md:gap-6 lg:gap-8 mb-6">
-              {currentNode.imageUrl && (
-                <div className="w-full md:w-1/2 lg:w-5/12 flex-shrink-0 mb-4 md:mb-0">
-                  <div className="aspect-[16/10] bg-slate-700 rounded overflow-hidden shadow-md mb-4">
-                    <img
-                      src={currentNode.imageUrl}
-                      alt={currentNode.roomId}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex items-center justify-center space-x-4 w-full">
-                    <button
-                      onClick={handleToggleSpeak}
-                      title={isSpeaking ? 'Stop reading aloud' : 'Read passage aloud'}
-                      aria-label={isSpeaking ? 'Stop reading aloud' : 'Read passage aloud'}
-                      className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full`}
-                      disabled={isLoading || isTTsLoading || !currentNode.passage}
-                    >
-                      {isTTsLoading ? (
-                        <ArrowDownCircleIcon className="h-5 w-5 animate-spin" />
-                      ) : isSpeaking ? (
-                        <SpeakerXMarkIcon className="h-5 w-5" />
-                      ) : (
-                        <SpeakerWaveIcon className="h-5 w-5" />
-                      )}
-                    </button>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={ttsVolume}
-                      onChange={(e) => setTTSVolume(parseFloat(e.target.value))}
-                      className="h-1 w-24 cursor-pointer accent-amber-400"
-                      title={`Volume: ${Math.round(ttsVolume * 100)}%`}
-                      aria-label="Speech volume"
-                      disabled={isTTsLoading}
-                    />
-                  </div>
-                  {ttsError && (
-                    <p className="mt-2 text-xs text-red-400 text-center">
-                      Speech Error: {ttsError}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <div className={`${!currentNode.imageUrl ? 'w-full' : 'md:w-1/2 lg:w-7/12'}`}>
-                <div className="mb-4 text-xl leading-relaxed text-left w-full text-gray-300 relative">
-                  <p style={{ whiteSpace: 'pre-wrap' }}>{currentNode.passage}</p>
-                </div>
+            {/* Loading overlay: Only show initially */}
+            {isNodeLoading && !currentNode && (
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80 rounded-lg z-20">
+                <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin" />
               </div>
-            </div>
+            )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
-              {currentNode.choices.map((choice, index) => {
-                const isClicked = index === clickedChoiceIndex;
-                const isLoadingChoice = isLoading && isClicked;
-                return (
-                  <button
-                    key={index}
-                    onClick={() => handleChoiceClick(choice, index)}
-                    className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
-                    disabled={isLoading}
-                    data-testid={`choice-button-${index}`}
-                  >
-                    <span>{choice.text}</span>
-                    {isLoadingChoice && (
-                      <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            {/* Main content */}
+            {currentNode && (
+              <>
+                <div className="flex flex-col md:flex-row md:items-start md:gap-6 lg:gap-8 mb-6">
+                  {currentNode.imageUrl && (
+                    <div className="w-full md:w-1/2 lg:w-5/12 flex-shrink-0 mb-4 md:mb-0">
+                      <div className="aspect-[16/10] bg-slate-700 rounded overflow-hidden shadow-md mb-4 relative">
+                        <Image
+                          src={currentNode.imageUrl}
+                          alt="Adventure scene"
+                          fill
+                          className="object-cover"
+                          priority
+                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw"
+                        />
+                      </div>
+                      <div className="flex items-center justify-center space-x-4 w-full">
+                        <button
+                          onClick={handleToggleSpeak}
+                          title={isSpeaking ? 'Stop reading aloud' : 'Read passage aloud'}
+                          aria-label={isSpeaking ? 'Stop reading aloud' : 'Read passage aloud'}
+                          className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full`}
+                          disabled={isNodeLoading || isTTsLoading || !currentNode.passage} // Use isNodeLoading
+                        >
+                          {isTTsLoading ? (
+                            <ArrowDownCircleIcon className="h-5 w-5 animate-spin" />
+                          ) : isSpeaking ? (
+                            <SpeakerXMarkIcon className="h-5 w-5" />
+                          ) : (
+                            <SpeakerWaveIcon className="h-5 w-5" />
+                          )}
+                        </button>
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.1"
+                          value={ttsVolume}
+                          onChange={(e) => setTTSVolume(parseFloat(e.target.value))}
+                          className="h-1 w-24 cursor-pointer accent-amber-400"
+                          title={`Volume: ${Math.round(ttsVolume * 100)}%`}
+                          aria-label="Speech volume"
+                          disabled={isTTsLoading}
+                        />
+                      </div>
+                      {ttsError && (
+                        <p className="mt-2 text-xs text-red-400 text-center">
+                          Speech Error: {ttsError}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className={`${!currentNode.imageUrl ? 'w-full' : 'md:w-1/2 lg:w-7/12'}`}>
+                    <div className="mb-4 text-xl leading-relaxed text-left w-full text-gray-300 relative">
+                      <p style={{ whiteSpace: 'pre-wrap' }}>{currentNode.passage}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
+                  {currentNode.choices.map((choice, index) => {
+                    const isClicked = index === clickedChoiceIndex;
+                    const isLoadingChoice = isNodeLoading && isClicked; // Use isNodeLoading
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => handleChoiceClick(choice, index)}
+                        className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isNodeLoading ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
+                        disabled={isNodeLoading}
+                        data-testid={`choice-button-${index}`}
+                      >
+                        <span>{choice.text}</span>
+                        {isLoadingChoice && (
+                          <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            {/* Show prompt if first node hasn't loaded yet */}
+            {!currentNode && !isNodeLoading && gamePhase === 'playing' && (
+              <div className="flex-grow flex flex-col items-center justify-center">
+                <p className="text-gray-400">Generating your adventure...</p>
+              </div>
+            )}
           </>
         )}
-      </div>
 
-      {!isLoading && (storyHistory.length > 0 || error) && (
-        <div className="mt-8 pt-4 border-t border-slate-700 w-full max-w-lg mx-auto flex justify-center">
-          <button onClick={resetAdventure} className={`${buttonBaseClasses} ${ghostButtonClasses}`}>
-            Start New Adventure
-          </button>
-        </div>
-      )}
+        {/* Restart Button */}
+        {gamePhase === 'playing' && !isNodeLoading && !nodeError && storyHistory.length > 0 && (
+          <div className="mt-8 pt-4 border-t border-slate-700 w-full max-w-lg mx-auto flex justify-center">
+            <button
+              onClick={handleReset}
+              className={`${buttonBaseClasses} ${secondaryButtonClasses}`}
+            >
+              Start New Adventure
+            </button>
+          </div>
+        )}
+      </div>
     </>
   );
 };
