@@ -2,6 +2,8 @@
 
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
 import * as Sentry from '@sentry/nextjs';
+// Import constant from lib
+import { TTS_VOICE_NAME } from '@/lib/constants';
 
 // Instantiate the client
 // Make sure GOOGLE_APPLICATION_CREDENTIALS is set in your environment
@@ -32,9 +34,9 @@ export const synthesizeSpeechAction = async ({
 
     const request = {
       input: { text: text },
-      // Use the provided voice name, or let Google choose based on lang code
+      // Use the provided voice name, or the default constant
       voice: {
-        name: voiceName || undefined,
+        name: voiceName || TTS_VOICE_NAME,
         languageCode: languageCode,
       },
       audioConfig: {

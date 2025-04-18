@@ -5,20 +5,17 @@ import Image from 'next/image'; // Import next/image
 import useAdventureStore from '@/store/adventureStore';
 import { AdventureChoiceSchema } from '@/lib/domain/schemas'; // Import schema type
 import { z } from 'zod';
-import {
-  ArrowPathIcon,
-  SpeakerWaveIcon,
-  SpeakerXMarkIcon,
-  ArrowDownCircleIcon, // Loading indicator
-} from '@heroicons/react/24/solid';
-import { synthesizeSpeechAction } from '../actions/tts';
+import { ArrowPathIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from '@heroicons/react/24/solid';
+// Remove synthesizeSpeechAction import
+// import { synthesizeSpeechAction } from '../actions/tts';
 // Import the new action
 import {
   generateStartingScenariosAction,
   // generateAdventureNodeAction, // Remove unused import
 } from '../actions/adventure';
 
-const TTS_VOICE_NAME = 'en-IN-Chirp3-HD-Enceladus';
+// Remove TTS_VOICE_NAME constant
+// const TTS_VOICE_NAME = 'en-IN-Chirp3-HD-Enceladus';
 
 type GamePhase = 'loading_scenarios' | 'selecting_scenario' | 'playing' | 'error';
 type Scenario = z.infer<typeof AdventureChoiceSchema>;
@@ -48,11 +45,13 @@ const AdventureGame = () => {
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const ttsAudioRef = useRef<HTMLAudioElement>(null);
-  const [isTTsLoading, setIsTTsLoading] = useState(false);
+  // const [isTTsLoading, setIsTTsLoading] = useState(false); // No longer needed? Maybe keep for manual play?
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [clickedChoiceIndex, setClickedChoiceIndex] = useState<number | null>(null);
+  // State to hold pre-generated audio data
+  const [currentAudioData, setCurrentAudioData] = useState<string | null>(null);
 
-  // --- Fetch Starting Scenarios ---
+  // --- Scenario Fetching ---
   const fetchScenarios = useCallback(async () => {
     setGamePhase('loading_scenarios');
     setScenarioError(null);
@@ -97,7 +96,7 @@ const AdventureGame = () => {
     [fetchAdventureNode]
   );
 
-  // Reset function now also resets component state
+  // --- Reset ---
   const handleReset = useCallback(() => {
     resetStore(); // Reset zustand store
     setScenarios([]); // Clear scenarios
@@ -106,139 +105,114 @@ const AdventureGame = () => {
     void fetchScenarios(); // Fetch new scenarios
   }, [resetStore, fetchScenarios]);
 
-  // --- TTS Logic (mostly unchanged, uses `currentNode` which is null initially) ---
-  const startTTSSpeech = useCallback(async () => {
-    const audioElement = ttsAudioRef.current;
-    // Only speak if in playing phase and node exists
-    const textToSpeak = gamePhase === 'playing' ? currentNode?.passage : null;
-
-    console.log(
-      `Attempting startTTSSpeech: phase=${gamePhase}, hasAudio=${!!audioElement}, hasText=${!!textToSpeak}, isSpeaking=${isSpeaking}, isTTsLoading=${isTTsLoading}`
-    );
-    if (!audioElement || !textToSpeak || isSpeaking || isTTsLoading) {
-      if (isSpeaking) console.log('startTTSSpeech: Already speaking.');
-      if (isTTsLoading) console.log('startTTSSpeech: Already loading TTS.');
-      return;
+  // --- Handle Image Load ---
+  const handleImageLoad = useCallback(() => {
+    console.log('[ImageLoad] Image loaded.');
+    if (hasUserInteracted && currentAudioData && ttsAudioRef.current && !isSpeaking) {
+      console.log('[ImageLoad] Conditions met, attempting to play pre-fetched audio.');
+      const audioSrc = `data:audio/mp3;base64,${currentAudioData}`;
+      ttsAudioRef.current.src = audioSrc;
+      ttsAudioRef.current
+        .play()
+        .then(() => {
+          console.log('[ImageLoad] Audio playback started successfully.');
+          setSpeaking(true);
+        })
+        .catch((err) => {
+          console.error('[ImageLoad] Error playing audio:', err);
+          setTTSError('Failed to auto-play audio after image load.');
+          setSpeaking(false); // Ensure state is correct
+        });
+    } else {
+      console.log(
+        `[ImageLoad] Conditions not met: interacted=${hasUserInteracted}, hasAudio=${!!currentAudioData}, isSpeaking=${isSpeaking}`
+      );
     }
+  }, [hasUserInteracted, currentAudioData, setSpeaking, setTTSError, isSpeaking]);
 
-    setIsTTsLoading(true);
-    setTTSError(null);
-    setSpeaking(false);
+  // --- TTS Logic ---
 
-    try {
-      console.log(`Starting TTS: Voice=${TTS_VOICE_NAME}`);
-
-      const result = await synthesizeSpeechAction({
-        text: textToSpeak,
-        voiceName: TTS_VOICE_NAME,
-      });
-
-      console.log('Synthesize action result:', result);
-
-      if (result.error) {
-        throw new Error(result.error);
-      }
-
-      if (result.audioBase64) {
-        const audioSrc = `data:audio/mp3;base64,${result.audioBase64}`;
-        audioElement.src = audioSrc;
-        await audioElement.play();
-        setSpeaking(true);
-      } else {
-        throw new Error('No audio data received.');
-      }
-    } catch (error) {
-      console.error('TTS startTTSSpeech Error:', error);
-      setTTSError(error instanceof Error ? error.message : 'Failed to play audio.');
-      setSpeaking(false);
-    } finally {
-      setIsTTsLoading(false);
-    }
-  }, [currentNode?.passage, isSpeaking, setSpeaking, setTTSError, isTTsLoading, gamePhase]); // Added gamePhase dependency
-
+  // Stop TTS playback
   const stopTTSSpeech = useCallback(() => {
     const audioElement = ttsAudioRef.current;
     if (audioElement) {
-      console.log('Stopping TTS playback.');
       audioElement.pause();
       audioElement.currentTime = 0;
-      audioElement.src = '';
+      audioElement.src = ''; // Clear source
     }
     setSpeaking(false);
   }, [setSpeaking]);
 
+  // Toggle manual playback
   const handleToggleSpeak = useCallback(() => {
-    if (isSpeaking) {
-      stopTTSSpeech();
-    } else {
-      const ambientAudio = audioRef.current;
-      if (ambientAudio && ambientAudio.paused) {
-        ambientAudio
-          .play()
-          .catch((e) => console.warn('Ambient audio play failed on interaction:', e));
-      }
-      void startTTSSpeech();
-    }
-    if (!hasUserInteracted) {
-      console.log('User interaction registered via toggle button.');
-      setHasUserInteracted(true);
-    }
-  }, [isSpeaking, startTTSSpeech, stopTTSSpeech, hasUserInteracted]);
-
-  useEffect(() => {
     const audioElement = ttsAudioRef.current;
     if (!audioElement) return;
 
-    const handleAudioEnd = () => {
+    if (isSpeaking) {
       stopTTSSpeech();
-    };
+    } else {
+      // Play only if audio data exists
+      if (currentAudioData) {
+        // If src isn't already set (e.g., wasn't auto-played), set it now
+        if (!audioElement.src.startsWith('data:audio/mp3')) {
+          audioElement.src = `data:audio/mp3;base64,${currentAudioData}`;
+        }
+        // Attempt to play
+        audioElement
+          .play()
+          .then(() => setSpeaking(true))
+          .catch((err) => {
+            console.error('[ToggleSpeak] Error playing audio:', err);
+            setTTSError('Failed to play audio.');
+          });
+      } else {
+        console.warn('[ToggleSpeak] No audio data available to play.');
+        setTTSError('Audio not available for this passage.');
+      }
+      // Ensure ambient audio plays on first manual interaction
+      const ambientAudio = audioRef.current;
+      if (ambientAudio && ambientAudio.paused) {
+        ambientAudio.play().catch((e) => console.warn('Ambient audio play failed:', e));
+      }
+      if (!hasUserInteracted) {
+        setHasUserInteracted(true);
+      }
+    }
+  }, [isSpeaking, stopTTSSpeech, currentAudioData, setSpeaking, setTTSError, hasUserInteracted]);
 
+  // Effect to handle audio ending
+  useEffect(() => {
+    const audioElement = ttsAudioRef.current;
+    if (!audioElement) return;
+    const handleAudioEnd = () => stopTTSSpeech();
     audioElement.addEventListener('ended', handleAudioEnd);
-    return () => {
-      audioElement.removeEventListener('ended', handleAudioEnd);
-    };
+    return () => audioElement.removeEventListener('ended', handleAudioEnd);
   }, [stopTTSSpeech]);
 
-  // Effect for Auto-Play on New Passage (add gamePhase check)
+  // Effect to store new audio data and handle passage changes
   const previousPassageRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     const currentPassage = gamePhase === 'playing' ? currentNode?.passage : null;
-    if (!isNodeLoading && currentPassage && currentPassage !== previousPassageRef.current) {
-      console.log('New passage detected...');
-      console.log(
-        `--> isLoading: ${isNodeLoading}, hasUserInteracted: ${hasUserInteracted}, passageChanged: ${currentPassage !== previousPassageRef.current}`
-      );
+    const audioData = gamePhase === 'playing' ? currentNode?.audioBase64 : null;
 
-      if (hasUserInteracted) {
-        console.log('...starting auto-play.');
-        const timer = setTimeout(() => {
-          void startTTSSpeech();
-        }, 100);
-        previousPassageRef.current = currentPassage;
-        return () => clearTimeout(timer);
-      } else {
-        console.log('...user has not interacted yet, skipping auto-play.');
-        previousPassageRef.current = currentPassage;
-      }
-    } else if (!currentPassage) {
-      previousPassageRef.current = undefined;
+    console.log(
+      '[Node Update Effect] New node received, passage changed:',
+      currentPassage !== previousPassageRef.current
+    );
+    console.log('[Node Update Effect] Audio data available:', !!audioData);
+
+    // Store audio data when node updates
+    setCurrentAudioData(audioData ?? null);
+
+    // Stop current speech if passage changes
+    if (currentPassage !== previousPassageRef.current && isSpeaking) {
+      console.log('[Node Update Effect] Passage changed, stopping current speech.');
+      stopTTSSpeech();
     }
 
-    if (currentPassage && !previousPassageRef.current) {
-      previousPassageRef.current = currentPassage;
-    }
-    // Assign only if currentPassage is not null
-    if (currentPassage !== null) {
-      previousPassageRef.current = currentPassage;
-    }
-  }, [
-    currentNode?.passage,
-    isNodeLoading,
-    startTTSSpeech,
-    stopTTSSpeech,
-    hasUserInteracted,
-    gamePhase,
-  ]);
+    // Update passage ref for next comparison
+    previousPassageRef.current = currentPassage ?? undefined;
+  }, [currentNode, gamePhase, isSpeaking, stopTTSSpeech]);
 
   useEffect(() => {
     const audioElement = audioRef.current;
@@ -259,19 +233,20 @@ const AdventureGame = () => {
     };
   }, []);
 
-  // Handle regular choice clicks (uses zustand makeChoice)
-  const handleChoiceClick = (
-    choice: Scenario, // Can reuse Scenario type here
-    index: number
-  ) => {
-    if (!hasUserInteracted) {
-      console.log('User interaction registered via choice click.');
-      setHasUserInteracted(true);
-    }
-    setClickedChoiceIndex(index);
-    makeChoice(choice);
-  };
+  // Handle regular choice clicks
+  const handleChoiceClick = useCallback(
+    (choice: Scenario, index: number) => {
+      if (!hasUserInteracted) {
+        console.log('User interaction registered via choice click.');
+        setHasUserInteracted(true);
+      }
+      setClickedChoiceIndex(index);
+      makeChoice(choice);
+    },
+    [makeChoice, hasUserInteracted]
+  );
 
+  // --- Button Classes ---
   const buttonBaseClasses =
     'px-4 py-2 rounded-md border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800';
   const choiceButtonClasses =
@@ -281,6 +256,7 @@ const AdventureGame = () => {
   const ghostButtonClasses =
     'border-transparent text-gray-400 hover:bg-gray-700/50 hover:text-gray-300 focus:ring-gray-500';
 
+  // --- Volume Effects ---
   useEffect(() => {
     const ambientAudio = audioRef.current;
     if (ambientAudio) {
@@ -295,6 +271,7 @@ const AdventureGame = () => {
     }
   }, [ttsVolume]);
 
+  // --- Render Logic ---
   return (
     <>
       <audio ref={audioRef} loop hidden aria-hidden="true" />
@@ -368,19 +345,24 @@ const AdventureGame = () => {
                           className="object-cover"
                           priority
                           sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw"
+                          onLoad={handleImageLoad}
                         />
                       </div>
                       <div className="flex items-center justify-center space-x-4 w-full">
                         <button
                           onClick={handleToggleSpeak}
-                          title={isSpeaking ? 'Stop reading aloud' : 'Read passage aloud'}
+                          title={
+                            currentAudioData
+                              ? isSpeaking
+                                ? 'Stop reading aloud'
+                                : 'Read passage aloud'
+                              : 'Audio not available'
+                          }
                           aria-label={isSpeaking ? 'Stop reading aloud' : 'Read passage aloud'}
-                          className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full`}
-                          disabled={isNodeLoading || isTTsLoading || !currentNode.passage} // Use isNodeLoading
+                          className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full ${!currentAudioData ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          disabled={isNodeLoading || !currentAudioData}
                         >
-                          {isTTsLoading ? (
-                            <ArrowDownCircleIcon className="h-5 w-5 animate-spin" />
-                          ) : isSpeaking ? (
+                          {isSpeaking ? (
                             <SpeakerXMarkIcon className="h-5 w-5" />
                           ) : (
                             <SpeakerWaveIcon className="h-5 w-5" />
@@ -396,7 +378,7 @@ const AdventureGame = () => {
                           className="h-1 w-24 cursor-pointer accent-amber-400"
                           title={`Volume: ${Math.round(ttsVolume * 100)}%`}
                           aria-label="Speech volume"
-                          disabled={isTTsLoading}
+                          disabled={isNodeLoading}
                         />
                       </div>
                       {ttsError && (

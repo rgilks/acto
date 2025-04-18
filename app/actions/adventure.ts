@@ -10,6 +10,8 @@ import {
 import * as Sentry from '@sentry/nextjs';
 import { GoogleGenAI } from '@google/genai';
 import { type StoryHistoryItem } from '@/store/adventureStore';
+import { synthesizeSpeechAction } from './tts';
+import { TTS_VOICE_NAME } from '@/lib/constants';
 
 const StoryHistoryItemSchema = z.object({
   passage: z.string(),
@@ -178,12 +180,12 @@ export const generateAdventureNodeAction = async (
     const validation = GenerateAdventureNodeParamsSchema.safeParse(params);
     if (!validation.success) {
       console.error('[Adventure] Invalid parameters:', validation.error.format());
-      const errorMsg = validation.error.errors[0]?.message ?? 'Invalid parameters.';
-      return { error: `Invalid input: ${errorMsg}` };
+      return {
+        error: `Invalid input: ${validation.error.errors[0]?.message ?? 'Invalid parameters.'}`,
+      };
     }
 
     const storyContext = validation.data.storyContext;
-
     const prompt = buildAdventurePrompt(storyContext);
     const activeModel = getActiveModel();
     const aiResponseContent = await callAIForAdventure(prompt, activeModel);
@@ -194,7 +196,6 @@ export const generateAdventureNodeAction = async (
         .replace(/^```json\s*/, '')
         .replace(/```\s*$/, '')
         .trim();
-
       parsedAiContent = JSON.parse(cleanedResponse);
     } catch (parseError) {
       console.error(
@@ -222,36 +223,82 @@ export const generateAdventureNodeAction = async (
     }
 
     const validatedNode = validationResult.data;
-
     const imagePrompt = validatedNode.imagePrompt;
+    const passage = validatedNode.passage;
+
+    // --- Generate Image and TTS in Parallel ---
+    let imageUrl: string | undefined = undefined;
+    let audioBase64: string | undefined = undefined;
+
+    const promisesToSettle = [];
+
+    // Add Image generation promise (or placeholder)
+    if (imagePrompt) {
+      promisesToSettle.push(generateImageWithGemini(imagePrompt));
+    } else {
+      console.warn('[Adventure Action] Skipping image generation: no prompt.');
+      promisesToSettle.push(Promise.resolve(undefined));
+    }
+
+    // Add TTS generation promise (or placeholder)
+    if (passage) {
+      promisesToSettle.push(synthesizeSpeechAction({ text: passage, voiceName: TTS_VOICE_NAME }));
+    } else {
+      console.warn('[Adventure Action] Skipping TTS generation: no passage.');
+      promisesToSettle.push(Promise.resolve({ audioBase64: undefined, error: 'No passage text' }));
+    }
+
+    try {
+      // IMPORTANT: Explicitly type the expected settled results array - This comment is useful, keep it.
+      const results = (await Promise.allSettled(promisesToSettle)) as [
+        PromiseSettledResult<string | undefined>,
+        PromiseSettledResult<
+          { audioBase64?: string; error?: string } | { audioBase64: undefined; error: string }
+        >,
+      ];
+
+      const imageResult = results[0];
+      const audioResultAction = results[1];
+
+      // Process Image Result (Index 0)
+      if (imageResult.status === 'fulfilled' && imageResult.value) {
+        imageUrl = imageResult.value;
+      } else if (imageResult.status === 'rejected') {
+        console.error('[Adventure Action] Image generation failed:', imageResult.reason);
+        // Sentry handled in generateImageWithGemini
+      }
+
+      // Process Audio Result (Index 1)
+      if (audioResultAction.status === 'fulfilled') {
+        const audioData = audioResultAction.value;
+        // Check the fulfilled value has the expected properties
+        if (audioData.audioBase64) {
+          audioBase64 = audioData.audioBase64;
+        } else if (audioData.error) {
+          console.error('[Adventure Action] TTS synthesis failed:', audioData.error);
+          // Sentry handled in synthesizeSpeechAction potentially
+        }
+      } else if (audioResultAction.status === 'rejected') {
+        console.error(
+          '[Adventure Action] TTS synthesis promise rejected:',
+          audioResultAction.reason
+        );
+        Sentry.captureException(audioResultAction.reason);
+      }
+    } catch (settleError) {
+      console.error('[Adventure Action] Error settling promises:', settleError);
+      Sentry.captureException(settleError);
+    }
+    // --- End Parallel Generation ---
 
     const finalNode: AdventureNode = {
       passage: validatedNode.passage,
       choices: validatedNode.choices,
-      imageUrl: validatedNode.imageUrl,
+      imageUrl: imageUrl ?? validatedNode.imageUrl, // Use generated URL, fallback to original if any
+      audioBase64: audioBase64,
     };
 
-    if (imagePrompt) {
-      try {
-        console.log('Attempting image generation with prompt:', imagePrompt);
-        const imageUrl = await generateImageWithGemini(imagePrompt);
-        if (imageUrl) {
-          finalNode.imageUrl = imageUrl;
-        } else {
-          console.warn('[Adventure Action] Image generation failed or returned no URL.');
-        }
-      } catch (imageError) {
-        console.error('[Adventure Action] Image generation encountered an error:', imageError);
-        Sentry.captureException(imageError);
-        finalNode.imageUrl = undefined;
-      }
-    } else {
-      console.warn(
-        '[Adventure Action] Skipping image generation because no imagePrompt was provided by the AI.'
-      );
-    }
-
-    console.log('[Adventure] Successfully generated node.');
+    console.log('[Adventure] Successfully generated node with parallel assets.');
     return { adventureNode: finalNode };
   } catch (error) {
     console.error('[Adventure] Error generating adventure node:', error);
