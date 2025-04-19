@@ -248,7 +248,7 @@ const AdventureGame = () => {
   const buttonBaseClasses =
     'px-4 py-2 rounded-md border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800';
   const choiceButtonClasses =
-    'w-full text-left justify-start p-4 h-auto border-amber-800/50 bg-gradient-to-br from-amber-100/5 via-amber-100/10 to-amber-100/5 text-amber-100/80 hover:text-amber-100 hover:border-amber-700 hover:from-amber-100/10 hover:to-amber-100/10 focus:ring-amber-500 shadow-md hover:shadow-lg';
+    'w-full text-left justify-start p-2 text-sm sm:p-3 sm:text-base md:p-4 border-amber-800/50 bg-gradient-to-br from-amber-100/5 via-amber-100/10 to-amber-100/5 text-amber-100/80 hover:text-amber-100 hover:border-amber-700 hover:from-amber-100/10 hover:to-amber-100/10 focus:ring-amber-500 shadow-md hover:shadow-lg flex items-center';
 
   useEffect(() => {
     if (nodeError !== null) {
@@ -304,7 +304,7 @@ const AdventureGame = () => {
 
         const containerClasses = fullscreenHandle.active
           ? 'fixed inset-0 z-50 bg-black flex items-center justify-center'
-          : 'bg-slate-800 rounded-lg p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 min-h-[350px] relative mx-auto w-full flex flex-col';
+          : 'bg-slate-800 rounded-lg p-2 sm:p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 relative mx-auto w-full flex flex-col';
 
         const showGameUI =
           gamePhase === 'playing' || gamePhase === 'loading_first_node' || gamePhase === 'error';
@@ -345,7 +345,7 @@ const AdventureGame = () => {
             )}
 
             {showGameUI && gamePhase !== 'error' && (
-              <FullScreen handle={fullscreenHandle}>
+              <FullScreen handle={fullscreenHandle} className="flex-grow flex flex-col">
                 <>
                   <div
                     className={
@@ -358,9 +358,8 @@ const AdventureGame = () => {
                       <>
                         <div
                           className={`
-                            relative group overflow-hidden w-full flex-grow
-                            ${fullscreenHandle.active ? 'bg-black' : 'aspect-[16/10] rounded shadow-md bg-slate-700'}
-                            mb-4
+                            relative group overflow-hidden w-full flex-grow min-h-[200px] aspect-[16/10]
+                            ${fullscreenHandle.active ? 'bg-black' : 'rounded shadow-md bg-slate-700 flex items-center justify-center shadow-xl shadow-amber-300/20'}
                           `}
                         >
                           {displayNode.imageUrl && (
@@ -446,14 +445,14 @@ const AdventureGame = () => {
 
                           <div
                             className={`
-                              absolute bottom-0 left-0 right-0 p-4 pt-16 z-10
+                              absolute bottom-0 left-0 right-0 p-2 pt-10 sm:p-3 sm:pt-12 md:p-4 md:pt-16 z-10
                               bg-gradient-to-t from-black/80 via-black/60 to-transparent
                               transition-opacity duration-500 ease-in-out
                               ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
                             `}
                           >
                             {showChoices && (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 w-full">
                                 {displayNode.choices.map((choice, index) => {
                                   const isClicked = index === clickedChoiceIndex;
                                   const isDisabled = isNodeLoading;
@@ -462,13 +461,13 @@ const AdventureGame = () => {
                                     <button
                                       key={index}
                                       onClick={() => handleChoiceClick(choice, index)}
-                                      className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
+                                      className={`${buttonBaseClasses} ${choiceButtonClasses} ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
                                       disabled={isDisabled}
                                       data-testid={`choice-button-${index}`}
                                     >
                                       <span>{choice.text}</span>
                                       {isLoadingChoice && (
-                                        <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
+                                        <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-2 sm:ml-3 md:ml-4" />
                                       )}
                                     </button>
                                   );

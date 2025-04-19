@@ -22,7 +22,7 @@ _(Placeholder for a new screenshot of the application interface)_
 - **Data Persistence**: (Likely, uses SQLite) Store user data or potentially story progress.
 - **Responsive Design**: Optimized for both desktop and mobile devices using Tailwind CSS.
 - **Modern UI**: Clean interface built with React and Next.js.
-- **Enhanced Game UI**: Image-centric layout with integrated, minimal audio controls (play/pause, volume) and fullscreen option, enhancing visual immersion.
+- **Enhanced & Responsive Game UI**: Improved image-centric layout that adapts to different screen sizes, featuring integrated minimal audio controls (play/pause, volume), a subtle glow effect, and a fullscreen option to enhance visual immersion.
 - **Robust Validation**: Uses Zod for validating AI responses.
 - **State Management**: Uses `zustand` for managing client-side application state.
 - **Continuous Deployment**: Automatic deployment to Fly.io via GitHub Actions.
