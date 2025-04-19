@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Session } from 'next-auth';
 import { useState, useEffect, useRef } from 'react';
+import useAdventureStore from '@/store/adventureStore';
 
 interface AuthButtonProps {
   variant?: 'full' | 'icon-only' | 'short';
@@ -15,6 +16,7 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
     data: Session | null;
     status: 'loading' | 'authenticated' | 'unauthenticated';
   };
+  const triggerReset = useAdventureStore((state) => state.triggerReset);
   const [isMounted, setIsMounted] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -93,6 +95,15 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
                   Admin
                 </Link>
               )}
+              <button
+                onClick={() => {
+                  triggerReset();
+                  setShowUserMenu(false);
+                }}
+                className="block px-4 py-2 text-sm text-white hover:bg-gray-700 transition-colors w-full text-left focus:outline-none focus-visible:bg-gray-700 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-600"
+              >
+                Start New Adventure
+              </button>
               <button
                 onClick={() => {
                   void signOut();

@@ -55,6 +55,7 @@ interface AdventureActions {
   setTTSVolume: (volume: number) => void;
   makeChoice: (choice: z.infer<typeof AdventureChoiceSchema>) => void; // Takes full choice object now
   resetAdventure: () => void;
+  triggerReset: () => void;
 }
 
 // Simplified Initial State
@@ -210,7 +211,23 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
     },
 
     resetAdventure: () => {
-      set(initialState); // This now correctly resets metadata to null
+      // Keep the current TTS volume when resetting
+      const currentVolume = get().ttsVolume;
+      set({ ...initialState, ttsVolume: currentVolume });
+    },
+
+    triggerReset: () => {
+      const { resetAdventure } = get();
+      resetAdventure(); // Call the existing reset logic
+      // Clear the scenario cache from session storage
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.removeItem('adventureGame_startingScenarios');
+          console.log('[Store] Cleared scenario cache.');
+        } catch (error) {
+          console.error('[Store] Error clearing scenario cache from sessionStorage:', error);
+        }
+      }
     },
 
     // TTS Actions (Unchanged)

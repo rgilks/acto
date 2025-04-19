@@ -14,7 +14,6 @@ import {
   EyeSlashIcon,
 } from '@heroicons/react/24/solid';
 import { generateStartingScenariosAction } from '../actions/adventure';
-import AuthButton from '@/components/AuthButton';
 
 type GamePhase = 'loading_scenarios' | 'selecting_scenario' | 'playing' | 'error';
 type Scenario = z.infer<typeof AdventureChoiceSchema>;
@@ -71,7 +70,6 @@ const AdventureGame = () => {
     error: nodeError,
     storyHistory,
     makeChoice,
-    resetAdventure: resetStore,
     isSpeaking,
     ttsError,
     ttsVolume,
@@ -158,9 +156,45 @@ const AdventureGame = () => {
     }
   }, []);
 
+  const stopTTSSpeech = useCallback(() => {
+    const audioElement = ttsAudioRef.current;
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+      audioElement.src = '';
+    }
+    setSpeaking(false);
+    setShowChoices(true);
+    if (readingTimerRef.current) {
+      clearTimeout(readingTimerRef.current);
+      readingTimerRef.current = null;
+    }
+  }, [setSpeaking]);
+
   useEffect(() => {
-    void fetchScenarios();
-  }, [fetchScenarios]);
+    const shouldFetch =
+      gamePhase === 'loading_scenarios' ||
+      (currentNode === null && storyHistory.length === 0 && gamePhase !== 'selecting_scenario');
+
+    if (shouldFetch) {
+      if (gamePhase !== 'loading_scenarios') {
+        setGamePhase('loading_scenarios');
+      }
+      setClickedChoiceIndex(null);
+      setDisplayNode(null);
+      setIsCurrentImageLoading(true);
+      setCurrentAudioData(null);
+      setShowChoices(false);
+      setShowPassageText(false);
+      if (readingTimerRef.current) {
+        clearTimeout(readingTimerRef.current);
+        readingTimerRef.current = null;
+      }
+      stopTTSSpeech();
+
+      void fetchScenarios();
+    }
+  }, [fetchScenarios, currentNode, storyHistory, gamePhase, stopTTSSpeech]);
 
   const handleScenarioSelect = useCallback(
     (scenario: Scenario) => {
@@ -172,18 +206,6 @@ const AdventureGame = () => {
     },
     [makeChoice, hasUserInteracted]
   );
-
-  const handleReset = useCallback(() => {
-    sessionStorage.removeItem(SCENARIO_CACHE_KEY);
-    resetStore();
-    setScenarios([]);
-    setIsUnauthorized(false);
-    setClickedChoiceIndex(null);
-    setDisplayNode(null);
-    setIsCurrentImageLoading(true);
-    setGamePhase('loading_scenarios');
-    void fetchScenarios();
-  }, [resetStore, fetchScenarios]);
 
   const handleImageLoad = useCallback(
     (loadedImageUrl?: string) => {
@@ -207,21 +229,6 @@ const AdventureGame = () => {
     },
     [displayNode, hasUserInteracted, currentAudioData, setSpeaking, setTTSError, isSpeaking]
   );
-
-  const stopTTSSpeech = useCallback(() => {
-    const audioElement = ttsAudioRef.current;
-    if (audioElement) {
-      audioElement.pause();
-      audioElement.currentTime = 0;
-      audioElement.src = '';
-    }
-    setSpeaking(false);
-    setShowChoices(true);
-    if (readingTimerRef.current) {
-      clearTimeout(readingTimerRef.current);
-      readingTimerRef.current = null;
-    }
-  }, [setSpeaking]);
 
   const handleToggleSpeak = useCallback(() => {
     const audioElement = ttsAudioRef.current;
@@ -321,8 +328,6 @@ const AdventureGame = () => {
     'px-4 py-2 rounded-md border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800';
   const choiceButtonClasses =
     'w-full text-left justify-start p-4 h-auto border-amber-800/50 bg-gradient-to-br from-amber-100/5 via-amber-100/10 to-amber-100/5 text-amber-100/80 hover:text-amber-100 hover:border-amber-700 hover:from-amber-100/10 hover:to-amber-100/10 focus:ring-amber-500 shadow-md hover:shadow-lg';
-  const secondaryButtonClasses =
-    'border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600 focus:ring-gray-500 shadow-sm';
   const ghostButtonClasses =
     'border-transparent text-gray-400 hover:bg-gray-700/50 hover:text-gray-300 focus:ring-gray-500';
 
@@ -389,7 +394,6 @@ const AdventureGame = () => {
                   Please sign in to join the waiting list. Once approved, you can start your
                   adventure!
                 </p>
-                <AuthButton variant="short" />
               </div>
             )}
 
@@ -400,12 +404,6 @@ const AdventureGame = () => {
                   You&apos;ve been adventuring hard! Maybe take a short break and come back{' '}
                   {formatResetTime(rateLimitInfo.resetTimestamp)}?
                 </p>
-                <button
-                  onClick={handleReset}
-                  className={`${buttonBaseClasses} ${secondaryButtonClasses}`}
-                >
-                  Start New Adventure
-                </button>
               </div>
             )}
 
@@ -421,12 +419,6 @@ const AdventureGame = () => {
                   <p className="mb-6 text-gray-400">
                     {genericErrorMessage || 'An unknown error occurred.'}
                   </p>
-                  <button
-                    onClick={handleReset}
-                    className={`${buttonBaseClasses} ${secondaryButtonClasses}`}
-                  >
-                    Try Again
-                  </button>
                 </div>
               )}
 
@@ -602,17 +594,6 @@ const AdventureGame = () => {
                   </div>
                 )}
               </>
-            )}
-
-            {gamePhase === 'playing' && !isNodeLoading && !nodeError && storyHistory.length > 0 && (
-              <div className="mt-8 pt-4 border-t border-slate-700 w-full max-w-lg mx-auto flex justify-center">
-                <button
-                  onClick={handleReset}
-                  className={`${buttonBaseClasses} ${secondaryButtonClasses}`}
-                >
-                  Start New Adventure
-                </button>
-              </div>
             )}
           </div>
         );
