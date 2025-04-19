@@ -15,7 +15,7 @@ _(Placeholder for a new screenshot of the application interface)_
 - **AI-Generated Narrative**: Unique story passages and scenarios crafted by Google AI (Gemini models) based on user choices and story history (prompt refined for better narrative cohesion and conclusion).
 - **Dynamic Choices**: AI generates relevant choices for the user at each step, influencing the story progression.
 - **Starting Scenarios**: Generates diverse starting points for new stories across different genres (prompt refined for better variation and conciseness; hardcoded scenarios updated for variety and brevity).
-- **AI-Generated Images**: Images created based on the narrative using Imagen via the Gemini API (prompt now explicitly requests first-person perspective, excluding hands).
+- **AI-Generated Images**: Images created based on the narrative using Imagen via the Gemini API (prompt refined to explicitly request first-person perspective, excluding hands).
 - **Text-to-Speech (TTS)**: Reads story passages aloud using Google Cloud TTS. Audio begins playing automatically when ready.
 - **Stateful Interaction**: The application maintains the story history to provide context for the AI.
 - **User Authentication**: (Optional) Secure login via GitHub, Google, and Discord OAuth using NextAuth.
