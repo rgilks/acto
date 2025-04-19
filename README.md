@@ -124,8 +124,8 @@ acto implements strategies to manage AI API costs:
 
     - `ADMIN_EMAILS`: For admin panel access.
     - `ALLOWED_EMAILS`: Comma-separated list of additional emails allowed access when the waiting list mode is implicitly active (i.e., if `ALLOWED_EMAILS` is set).
-
-    # DATABASE_URL, COMMIT_SHA (See .env.example - typically not set manually)
+    - `DATABASE_URL`: Optional. Usually not required; database path is typically handled internally (e.g., by LiteFS on Fly.io). See `.env.example` for details.
+    - `COMMIT_SHA`: Optional. Used to link Sentry errors to specific code versions. Often injected automatically during the CI/CD build process. See `.env.example`.
 
 4.  **Run Dev Server:**
 
