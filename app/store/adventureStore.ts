@@ -173,9 +173,15 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           state.error = null;
         });
       } catch (error) {
-        console.error('Error fetching adventure node:', error);
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to fetch adventure node.';
+        if (errorMessage === 'Unauthorized: User must be logged in.') {
+          console.info('[Adventure Store] Unauthorized: User must be logged in.'); // Log as info
+        } else {
+          console.error('Error fetching adventure node:', error); // Log other errors as error
+        }
         set((state) => {
-          state.error = error instanceof Error ? error.message : 'Failed to fetch adventure node.';
+          state.error = errorMessage;
           state.isLoading = false;
         });
       }

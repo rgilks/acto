@@ -1,10 +1,13 @@
 'use client';
 
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import AuthButton from '@/components/AuthButton';
 import AdventureGame from '@/components/AdventureGame';
 
 const Page = () => {
+  const { status } = useSession();
+
   return (
     <main className="flex min-h-screen flex-col items-center p-3 md:pt-4 md:px-8 bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 text-gray-300">
       <div className="z-10 w-full max-w-7xl">
@@ -19,10 +22,11 @@ const Page = () => {
           <p className="text-lg mb-3 text-gray-400 max-w-2xl mx-auto">
             An AI-powered interactive storytelling experience.
           </p>
-          <p className="text-md mb-5 text-amber-300/80 max-w-2xl mx-auto">
-            (We&apos;re currently onboarding users from our waiting list. Sign in to join or access
-            if you&apos;re already approved.)
-          </p>
+          {status !== 'authenticated' && (
+            <p className="text-sm mb-5 text-amber-300/70 max-w-2xl mx-auto italic">
+              Waiting list active.
+            </p>
+          )}
         </div>
 
         <div className="fade-in w-full" style={{ animationDelay: '0.2s' }}>

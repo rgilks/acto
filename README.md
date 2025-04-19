@@ -122,7 +122,7 @@ acto implements strategies to manage AI API costs:
     **Optional (Remove if not used):**
 
     - `ADMIN_EMAILS`: For admin panel access.
-    - `ALLOWED_EMAILS`: Comma-separated list of additional emails allowed access when the waiting list/invite-only mode is implicitly active (i.e., if `ALLOWED_EMAILS` is set).
+    - `ALLOWED_EMAILS`: Comma-separated list of additional emails allowed access when the waiting list mode is implicitly active (i.e., if `ALLOWED_EMAILS` is set).
 
     # DATABASE_URL, COMMIT_SHA (See .env.example - typically not set manually)
 
@@ -206,9 +206,9 @@ The following commands will guide you through the initial setup. Run them in you
 
 ## Key Features Explained
 
-### Waiting List / Invite-Only Mode
+### Waiting List Mode
 
-`acto` can be configured to operate in a restricted access mode, functioning like a waiting list or invite-only system.
+`acto` can be configured to operate in a restricted access mode, functioning like a waiting list system.
 
 - **Activation**: This mode is implicitly activated whenever the `ALLOWED_EMAILS` environment variable is set and contains at least one email address.
 - **Access Control**: When active, only users whose email addresses are present in _either_ the `ALLOWED_EMAILS` or `ADMIN_EMAILS` environment variables will be allowed to sign in or complete the sign-up process.

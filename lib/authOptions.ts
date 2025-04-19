@@ -141,15 +141,16 @@ export const authOptions: NextAuthOptions = {
   pages: {},
   callbacks: {
     signIn: ({ user, account }: { user: User | AdapterUser; account: Account | null }) => {
-      // --- Invite Only / Admin Check ---
+      // --- Waiting List / Admin Check ---
       const rawAllowedEmails = validatedAuthEnv?.ALLOWED_EMAILS;
       const rawAdminEmails = validatedAuthEnv?.ADMIN_EMAILS;
-      const inviteOnlyEnabled = typeof rawAllowedEmails === 'string' && rawAllowedEmails.length > 0;
+      const waitingListEnabled =
+        typeof rawAllowedEmails === 'string' && rawAllowedEmails.length > 0;
       const adminListExists = typeof rawAdminEmails === 'string' && rawAdminEmails.length > 0;
 
       // Combine allowed and admin emails into a single set for checking
       const combinedAllowedEmails = new Set<string>();
-      if (inviteOnlyEnabled) {
+      if (waitingListEnabled) {
         rawAllowedEmails
           .split(',')
           .map((e) => e.trim().toLowerCase())
@@ -164,8 +165,8 @@ export const authOptions: NextAuthOptions = {
           .forEach((email) => combinedAllowedEmails.add(email));
       }
 
-      // Only enforce the check if either ALLOWED_EMAILS or ADMIN_EMAILS is set
-      if (inviteOnlyEnabled || adminListExists) {
+      // Only enforce the check if waiting list is enabled or admin list exists
+      if (waitingListEnabled || adminListExists) {
         const userEmail = user?.email?.toLowerCase();
         if (!userEmail || !combinedAllowedEmails.has(userEmail)) {
           console.warn(
@@ -177,10 +178,10 @@ export const authOptions: NextAuthOptions = {
           `[AUTH SignIn] Allowed access for email: ${user.email} (found in ALLOWED_EMAILS or ADMIN_EMAILS)`
         );
       } else {
-        // If neither ALLOWED_EMAILS nor ADMIN_EMAILS is set, allow everyone
+        // If neither waiting list nor admin list is set, allow everyone
         // console.log('[AUTH SignIn] No ALLOWED_EMAILS or ADMIN_EMAILS set, allowing all users.');
       }
-      // --- End Invite Only / Admin Check ---
+      // --- End Waiting List / Admin Check ---
 
       try {
         if (user && account) {

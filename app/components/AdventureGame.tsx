@@ -79,9 +79,11 @@ const AdventureGame = () => {
   const [isUnauthorized, setIsUnauthorized] = useState(false);
   const [displayNode, setDisplayNode] = useState<AdventureNode | null>(null);
   const [isCurrentImageLoading, setIsCurrentImageLoading] = useState<boolean>(true);
+  const [showChoices, setShowChoices] = useState<boolean>(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const ttsAudioRef = useRef<HTMLAudioElement>(null);
+  const readingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [clickedChoiceIndex, setClickedChoiceIndex] = useState<number | null>(null);
   const [currentAudioData, setCurrentAudioData] = useState<string | null>(null);
@@ -227,6 +229,11 @@ const AdventureGame = () => {
       audioElement.src = '';
     }
     setSpeaking(false);
+    setShowChoices(true);
+    if (readingTimerRef.current) {
+      clearTimeout(readingTimerRef.current);
+      readingTimerRef.current = null;
+    }
   }, [setSpeaking]);
 
   const handleToggleSpeak = useCallback(() => {
@@ -236,6 +243,10 @@ const AdventureGame = () => {
     if (isSpeaking) {
       stopTTSSpeech();
     } else {
+      if (readingTimerRef.current) {
+        clearTimeout(readingTimerRef.current);
+        readingTimerRef.current = null;
+      }
       if (currentAudioData) {
         if (!audioElement.src.startsWith('data:audio/mp3')) {
           audioElement.src = `data:audio/mp3;base64,${currentAudioData}`;
@@ -272,6 +283,11 @@ const AdventureGame = () => {
   useEffect(() => {
     const newlyFetchedNode = gamePhase === 'playing' ? currentNode : null;
 
+    if (readingTimerRef.current) {
+      clearTimeout(readingTimerRef.current);
+      readingTimerRef.current = null;
+    }
+
     console.log(
       '[Display Node Effect] Checking for node update. Current displayNode:',
       displayNode?.passage?.substring(0, 30),
@@ -303,6 +319,21 @@ const AdventureGame = () => {
         } else {
           setIsCurrentImageLoading(false);
         }
+
+        if (!newlyFetchedNode.audioBase64) {
+          const passageText = newlyFetchedNode.passage || '';
+          const wordCount = passageText.split(/\s+/).filter(Boolean).length;
+          const wordsPerMinute = 200;
+          const delay = Math.max(1500, (wordCount / wordsPerMinute) * 60 * 1000);
+          console.log(
+            `[Display Node Effect] No audio. Setting reading timer for ${wordCount} words: ${delay.toFixed(0)}ms`
+          );
+          readingTimerRef.current = setTimeout(() => {
+            console.log('[Display Node Effect] Reading timer elapsed. Showing choices.');
+            setShowChoices(true);
+            readingTimerRef.current = null;
+          }, delay);
+        }
       } else {
         console.log('[Display Node Effect] TTS data not yet available for new node. Waiting...');
       }
@@ -312,6 +343,7 @@ const AdventureGame = () => {
       setIsCurrentImageLoading(true);
       setCurrentAudioData(null);
       if (isSpeaking) stopTTSSpeech();
+      setShowChoices(false);
     }
   }, [currentNode, gamePhase, displayNode, isSpeaking, stopTTSSpeech]);
 
@@ -375,6 +407,14 @@ const AdventureGame = () => {
     }
   }, [nodeError]);
 
+  useEffect(() => {
+    return () => {
+      if (readingTimerRef.current) {
+        clearTimeout(readingTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
     <>
       <Script
@@ -414,7 +454,8 @@ const AdventureGame = () => {
               <div className="text-center text-amber-100/90 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
                 <p className="text-xl font-semibold mb-4">Please Sign In</p>
                 <p className="mb-6 text-gray-400">
-                  You need to be signed in to start an adventure.
+                  Please sign in to join the waiting list. Once approved, you can start your
+                  adventure!
                 </p>
                 <AuthButton variant="short" />
               </div>
@@ -436,20 +477,26 @@ const AdventureGame = () => {
               </div>
             )}
 
-            {gamePhase === 'error' && !isUnauthorized && !rateLimitInfo && genericErrorMessage && (
-              <div className="text-center text-red-400 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
-                <p className="text-xl font-semibold mb-4">An Error Occurred</p>
-                <p className="mb-6 text-gray-400">
-                  {genericErrorMessage || 'An unknown error occurred.'}
-                </p>
-                <button
-                  onClick={handleReset}
-                  className={`${buttonBaseClasses} ${secondaryButtonClasses}`}
-                >
-                  Try Again
-                </button>
-              </div>
-            )}
+            {gamePhase === 'error' &&
+              !rateLimitInfo &&
+              !(
+                typeof nodeError === 'string' &&
+                nodeError === 'Unauthorized: User must be logged in.'
+              ) &&
+              genericErrorMessage && (
+                <div className="text-center text-red-400 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
+                  <p className="text-xl font-semibold mb-4">An Error Occurred</p>
+                  <p className="mb-6 text-gray-400">
+                    {genericErrorMessage || 'An unknown error occurred.'}
+                  </p>
+                  <button
+                    onClick={handleReset}
+                    className={`${buttonBaseClasses} ${secondaryButtonClasses}`}
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
 
             {gamePhase === 'selecting_scenario' && !nodeError && (
               <div className="flex-grow flex flex-col items-center">
@@ -564,27 +611,35 @@ const AdventureGame = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
-                      {displayNode.choices.map((choice, index) => {
-                        const isClicked = index === clickedChoiceIndex;
-                        const isDisabled = isNodeLoading;
-                        const isLoadingChoice = isNodeLoading && isClicked;
-                        return (
-                          <button
-                            key={index}
-                            onClick={() => handleChoiceClick(choice, index)}
-                            className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
-                            disabled={isDisabled}
-                            data-testid={`choice-button-${index}`}
-                          >
-                            <span>{choice.text}</span>
-                            {isLoadingChoice && (
-                              <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
-                            )}
-                          </button>
-                        );
-                      })}
+                    {/* Choices Container with Conditional Rendering & Animation */}
+                    <div
+                      className={`transition-opacity duration-500 ease-in-out ${showChoices ? 'opacity-100' : 'opacity-0'}`}
+                    >
+                      {showChoices && ( // Render grid only when showChoices is true
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
+                          {displayNode.choices.map((choice, index) => {
+                            const isClicked = index === clickedChoiceIndex;
+                            const isDisabled = isNodeLoading;
+                            const isLoadingChoice = isNodeLoading && isClicked;
+                            return (
+                              <button
+                                key={index}
+                                onClick={() => handleChoiceClick(choice, index)}
+                                className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
+                                disabled={isDisabled}
+                                data-testid={`choice-button-${index}`}
+                              >
+                                <span>{choice.text}</span>
+                                {isLoadingChoice && (
+                                  <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
+                    {/* End Choices Container */}
                   </>
                 )}
                 {!displayNode && !isNodeLoading && gamePhase === 'playing' && (
