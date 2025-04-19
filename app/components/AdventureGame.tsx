@@ -185,6 +185,18 @@ const AdventureGame = () => {
     }
   }, [setSpeaking]);
 
+  const pauseTTSSpeech = useCallback(() => {
+    const audioElement = ttsAudioRef.current;
+    if (audioElement) {
+      audioElement.pause();
+    }
+    setSpeaking(false);
+    if (readingTimerRef.current) {
+      clearTimeout(readingTimerRef.current);
+      readingTimerRef.current = null;
+    }
+  }, [setSpeaking]);
+
   useEffect(() => {
     const shouldFetch =
       gamePhase === 'loading_scenarios' ||
@@ -262,7 +274,7 @@ const AdventureGame = () => {
     if (!audioElement) return;
 
     if (isSpeaking) {
-      stopTTSSpeech();
+      pauseTTSSpeech();
     } else {
       if (readingTimerRef.current) {
         clearTimeout(readingTimerRef.current);
@@ -287,7 +299,7 @@ const AdventureGame = () => {
         setHasUserInteracted(true);
       }
     }
-  }, [isSpeaking, stopTTSSpeech, currentAudioData, setSpeaking, setTTSError, hasUserInteracted]);
+  }, [isSpeaking, pauseTTSSpeech, currentAudioData, setSpeaking, setTTSError, hasUserInteracted]);
 
   useEffect(() => {
     const audioElement = ttsAudioRef.current;
