@@ -199,7 +199,11 @@ async function generateImageWithGemini(
     stylePrefix += `Tone: ${tone}. `;
   }
 
-  const finalImagePrompt = `${stylePrefix}${imagePrompt}`;
+  // Add constraint to exclude the player character
+  const sceneConstraint =
+    " The image should represent the scene from the protagonist's point of view. Do NOT depict the protagonist, player character, or any representation of 'self'.";
+
+  const finalImagePrompt = `${stylePrefix}${imagePrompt}${sceneConstraint}`;
 
   console.log('[Adventure Image] Sending final prompt to Imagen API:', finalImagePrompt);
 
