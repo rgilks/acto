@@ -8,7 +8,7 @@
     "preview-build": "NEXT_PREVIEW_BUILD=true next build",
     "start": "next start",
     "verify": "prettier --check . && next lint --no-cache",
-    "check": "prettier --write . && next lint --fix && npx tsc --noEmit && jest && npx playwright test --reporter=list",
+    "check": "prettier --write . && next lint --fix --no-cache && npx tsc --noEmit && jest && npx playwright test --reporter=list",
     "deps": "npx npm-check-updates",
     "deps:update": "npx npm-check-updates -u && npm install",
     "test": "jest",

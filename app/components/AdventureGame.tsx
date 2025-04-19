@@ -75,6 +75,22 @@ function formatResetTime(timestamp: number): string {
   return `at ${resetDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 }
 
+interface FullscreenElement extends HTMLElement {
+  webkitRequestFullscreen?(): Promise<void>;
+  mozRequestFullScreen?(): Promise<void>; // Note capital 'S'
+  msRequestFullscreen?(): Promise<void>;
+}
+
+interface FullscreenDocument extends Document {
+  webkitExitFullscreen?(): Promise<void>;
+  mozCancelFullScreen?(): Promise<void>; // Note different name and capital 'S'
+  msExitFullscreen?(): Promise<void>;
+
+  webkitFullscreenElement?: Element | null;
+  mozFullScreenElement?: Element | null; // Note capital 'S'
+  msFullscreenElement?: Element | null;
+}
+
 const AdventureGame = () => {
   const {
     currentNode,
@@ -384,30 +400,88 @@ const AdventureGame = () => {
     const elem = gameContainerRef.current;
     if (!elem) return;
 
-    if (!document.fullscreenElement) {
-      elem.requestFullscreen().catch((err) => {
-        const message = err instanceof Error ? err.message : String(err);
-        const name = err instanceof Error ? err.name : 'UnknownError';
-        console.error(`Error attempting to enable full-screen mode: ${message} (${name})`);
-      });
+    // Use interfaces with type assertions
+    const fullscreenElem = elem as FullscreenElement;
+    const fullscreenDoc = document as FullscreenDocument;
+
+    // Define potential requestFullscreen methods with vendor prefixes
+    const requestFullscreen =
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      fullscreenElem.requestFullscreen ||
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      fullscreenElem.webkitRequestFullscreen ||
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      fullscreenElem.mozRequestFullScreen ||
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      fullscreenElem.msRequestFullscreen;
+
+    // Define potential exitFullscreen methods with vendor prefixes
+    const exitFullscreen =
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      fullscreenDoc.exitFullscreen ||
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      fullscreenDoc.webkitExitFullscreen ||
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      fullscreenDoc.mozCancelFullScreen ||
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      fullscreenDoc.msExitFullscreen;
+
+    // Define potential fullscreenElement properties with vendor prefixes
+    const fullscreenElement =
+      fullscreenDoc.fullscreenElement ||
+      fullscreenDoc.webkitFullscreenElement ||
+      fullscreenDoc.mozFullScreenElement ||
+      fullscreenDoc.msFullscreenElement;
+
+    if (!fullscreenElement) {
+      if (requestFullscreen) {
+        // Bind 'this' to the element
+        requestFullscreen.call(fullscreenElem).catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : String(err);
+          const name = err instanceof Error ? err.name : 'UnknownError';
+          console.error(`Error attempting to enable full-screen mode: ${message} (${name})`);
+        });
+      } else {
+        console.error('Fullscreen API is not supported by this browser.');
+      }
     } else {
-      document.exitFullscreen().catch((err) => {
-        const message = err instanceof Error ? err.message : String(err);
-        const name = err instanceof Error ? err.name : 'UnknownError';
-        console.error(`Error attempting to exit full-screen mode: ${message} (${name})`);
-      });
+      if (exitFullscreen) {
+        // Bind 'this' to the document
+        exitFullscreen.call(fullscreenDoc).catch((err: unknown) => {
+          const message = err instanceof Error ? err.message : String(err);
+          const name = err instanceof Error ? err.name : 'UnknownError';
+          console.error(`Error attempting to exit full-screen mode: ${message} (${name})`);
+        });
+      } else {
+        console.error('Fullscreen API is not supported by this browser.');
+      }
     }
   }, []);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const fullscreenDoc = document as FullscreenDocument;
+      // Check multiple vendor-prefixed fullscreenElement properties
+      const isCurrentlyFullscreen = !!(
+        fullscreenDoc.fullscreenElement ||
+        fullscreenDoc.webkitFullscreenElement ||
+        fullscreenDoc.mozFullScreenElement ||
+        fullscreenDoc.msFullscreenElement
+      );
+      setIsFullscreen(isCurrentlyFullscreen);
     };
 
+    // Listen to vendor-prefixed fullscreenchange events
     document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange); // Note: no capital 'S'
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange); // Note: capital 'MSF'
 
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
   }, []);
 
