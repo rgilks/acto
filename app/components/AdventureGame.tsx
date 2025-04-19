@@ -12,6 +12,8 @@ import {
   SpeakerXMarkIcon,
   EyeIcon,
   EyeSlashIcon,
+  ArrowsPointingOutIcon,
+  ArrowsPointingInIcon,
 } from '@heroicons/react/24/solid';
 import { generateStartingScenariosAction } from '../actions/adventure';
 
@@ -90,9 +92,11 @@ const AdventureGame = () => {
   const [isCurrentImageLoading, setIsCurrentImageLoading] = useState<boolean>(true);
   const [showChoices, setShowChoices] = useState<boolean>(false);
   const [showPassageText, setShowPassageText] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const ttsAudioRef = useRef<HTMLAudioElement>(null);
+  const gameContainerRef = useRef<HTMLDivElement>(null);
   const readingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [clickedChoiceIndex, setClickedChoiceIndex] = useState<number | null>(null);
@@ -300,10 +304,18 @@ const AdventureGame = () => {
 
       setDisplayNode(newlyFetchedNode);
       setCurrentAudioData(newlyFetchedNode.audioBase64 ?? null);
-      setIsCurrentImageLoading(!!newlyFetchedNode.imageUrl);
+      const imageAvailable = !!newlyFetchedNode.imageUrl;
+      const audioAvailable = !!newlyFetchedNode.audioBase64;
+      setIsCurrentImageLoading(imageAvailable);
 
       if (gamePhase === 'loading_first_node') {
         setGamePhase('playing');
+      }
+
+      // If there's no image loading and no audio available, show choices immediately.
+      // Otherwise, choices wait for handleImageLoad or stopTTSSpeech.
+      if (!imageAvailable && !audioAvailable) {
+        setShowChoices(true);
       }
     } else if (!newlyFetchedNode && displayNode && gamePhase === 'playing') {
       setDisplayNode(null);
@@ -353,6 +365,32 @@ const AdventureGame = () => {
     };
   }, []);
 
+  const handleToggleFullscreen = useCallback(() => {
+    const elem = gameContainerRef.current;
+    if (!elem) return;
+
+    if (!document.fullscreenElement) {
+      elem.requestFullscreen().catch((err) => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+        // Maybe show an error message to the user
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
   return (
     <>
       <Script
@@ -379,8 +417,12 @@ const AdventureGame = () => {
             : null;
         const genericErrorMessage = typeof nodeError === 'string' ? nodeError : null;
 
+        const containerClasses = isFullscreen
+          ? 'fixed inset-0 z-50 bg-black flex items-center justify-center'
+          : 'bg-slate-800 rounded-lg p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 min-h-[350px] relative mx-auto w-full flex flex-col';
+
         return (
-          <div className="bg-slate-800 rounded-lg p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 min-h-[350px] relative mx-auto w-full flex flex-col">
+          <div ref={gameContainerRef} className={containerClasses}>
             {gamePhase === 'loading_scenarios' && (
               <div className="flex-grow flex flex-col items-center justify-center">
                 <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin mb-4" />
@@ -460,34 +502,70 @@ const AdventureGame = () => {
               <>
                 {displayNode && (
                   <>
-                    <div className="flex flex-col md:flex-row md:items-start md:gap-6 lg:gap-8 mb-6">
+                    <div
+                      className={`
+                      ${
+                        isFullscreen
+                          ? 'relative h-full aspect-video'
+                          : 'flex flex-col md:flex-row md:items-start md:gap-6 lg:gap-8 mb-6'
+                      }
+                    `}
+                    >
                       {displayNode.imageUrl && (
                         <div
-                          className={`flex-shrink-0 mb-4 md:mb-0 ${
-                            showPassageText ? 'w-full md:w-1/2 lg:w-5/12' : 'w-full'
-                          }`}
+                          className={`
+                            relative group overflow-hidden w-full h-full
+                            ${
+                              isFullscreen
+                                ? 'bg-black'
+                                : `flex-shrink-0 mb-4 md:mb-0 aspect-[16/10] rounded shadow-md bg-slate-700 ${showPassageText ? 'w-full md:w-1/2 lg:w-5/12' : 'w-full'}`
+                            }
+                          `}
                         >
-                          <div className="aspect-[16/10] bg-slate-700 rounded overflow-hidden shadow-md relative group">
-                            {isCurrentImageLoading && (
-                              <div className="absolute inset-0 bg-slate-600 flex items-center justify-center z-10">
-                                <ArrowPathIcon className="h-8 w-8 text-slate-400 animate-spin" />
-                              </div>
-                            )}
-                            <Image
-                              key={displayNode.imageUrl}
-                              src={displayNode.imageUrl}
-                              alt="Adventure scene"
-                              fill
-                              className={`object-cover transition-opacity duration-500 ${isCurrentImageLoading ? 'opacity-0' : 'opacity-100'}`}
-                              priority
-                              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw"
-                              onLoad={() => handleImageLoad(displayNode.imageUrl)}
-                              onError={() => {
-                                console.error('Image failed to load:', displayNode.imageUrl);
-                                setIsCurrentImageLoading(false);
-                              }}
-                            />
-                            <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-end space-x-3 p-2 bg-gradient-to-b from-black/80 to-transparent">
+                          {isCurrentImageLoading && (
+                            <div className="absolute inset-0 bg-slate-600 flex items-center justify-center z-10">
+                              <ArrowPathIcon className="h-8 w-8 text-slate-400 animate-spin" />
+                            </div>
+                          )}
+                          <Image
+                            key={displayNode.imageUrl}
+                            src={displayNode.imageUrl}
+                            alt="Adventure scene"
+                            fill
+                            className={`
+                              ${
+                                isFullscreen
+                                  ? 'absolute inset-0 w-full h-full object-cover'
+                                  : 'object-cover'
+                              }
+                              transition-opacity duration-500 ${isCurrentImageLoading ? 'opacity-0' : 'opacity-100'}
+                            `}
+                            priority
+                            sizes={
+                              isFullscreen
+                                ? '100vw'
+                                : '(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw'
+                            }
+                            onLoad={() => handleImageLoad(displayNode.imageUrl)}
+                            onError={() => {
+                              console.error('Image failed to load:', displayNode.imageUrl);
+                              setIsCurrentImageLoading(false);
+                            }}
+                          />
+                          <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between space-x-3 p-2 bg-gradient-to-b from-black/80 to-transparent">
+                            <button
+                              onClick={handleToggleFullscreen}
+                              title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                              className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full text-white hover:opacity-80 drop-shadow-sm`}
+                            >
+                              {isFullscreen ? (
+                                <ArrowsPointingInIcon className="h-5 w-5" />
+                              ) : (
+                                <ArrowsPointingOutIcon className="h-5 w-5" />
+                              )}
+                            </button>
+                            <div className="flex items-center space-x-3">
                               <button
                                 onClick={handleToggleSpeak}
                                 title={
@@ -534,49 +612,50 @@ const AdventureGame = () => {
                                 )}
                               </button>
                             </div>
-
-                            <div
-                              className={`
-                                absolute bottom-0 left-0 right-0 p-4 pt-16 
-                                bg-gradient-to-t from-black/90 via-black/70 to-transparent
-                                transition-opacity duration-500 ease-in-out 
-                                ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
-                              `}
-                            >
-                              {showChoices && (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
-                                  {displayNode.choices.map((choice, index) => {
-                                    const isClicked = index === clickedChoiceIndex;
-                                    const isDisabled = isNodeLoading;
-                                    const isLoadingChoice = isNodeLoading && isClicked;
-                                    return (
-                                      <button
-                                        key={index}
-                                        onClick={() => handleChoiceClick(choice, index)}
-                                        className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
-                                        disabled={isDisabled}
-                                        data-testid={`choice-button-${index}`}
-                                      >
-                                        <span>{choice.text}</span>
-                                        {isLoadingChoice && (
-                                          <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
-                                        )}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
                           </div>
+
+                          <div
+                            className={`
+                              absolute bottom-0 left-0 right-0 p-4 pt-16 
+                              bg-gradient-to-t from-black/90 via-black/70 to-transparent
+                              transition-opacity duration-500 ease-in-out 
+                              ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+                            `}
+                          >
+                            {showChoices && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
+                                {displayNode.choices.map((choice, index) => {
+                                  const isClicked = index === clickedChoiceIndex;
+                                  const isDisabled = isNodeLoading;
+                                  const isLoadingChoice = isNodeLoading && isClicked;
+                                  return (
+                                    <button
+                                      key={index}
+                                      onClick={() => handleChoiceClick(choice, index)}
+                                      className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
+                                      disabled={isDisabled}
+                                      data-testid={`choice-button-${index}`}
+                                    >
+                                      <span>{choice.text}</span>
+                                      {isLoadingChoice && (
+                                        <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+
                           {ttsError && (
-                            <p className="mt-2 text-xs text-red-400 text-center">
+                            <p className="absolute bottom-0 left-0 right-0 mb-2 text-xs text-red-400 text-center z-5">
                               Speech Error: {ttsError}
                             </p>
                           )}
                         </div>
                       )}
 
-                      {showPassageText && (
+                      {!isFullscreen && showPassageText && (
                         <div
                           className={`${!displayNode.imageUrl ? 'w-full' : 'md:w-1/2 lg:w-7/12'}`}
                         >

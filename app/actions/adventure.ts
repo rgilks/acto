@@ -216,6 +216,7 @@ async function generateImageWithGemini(
       prompt: finalImagePrompt,
       config: {
         numberOfImages: 1,
+        aspectRatio: '16:9',
       },
     });
 
