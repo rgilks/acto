@@ -446,7 +446,7 @@ const AdventureGame = () => {
         }
 
         return (
-          <div ref={gameContainerRef} className={containerClasses}>
+          <div ref={gameContainerRef} className={`${containerClasses} game-outer-container`}>
             {showGameUI && gamePhase !== 'error' && (
               <FullScreen
                 handle={fullscreenHandle}

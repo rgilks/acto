@@ -80,6 +80,13 @@ body {
     display: none !important;
   }
 
+  /* Remove padding from the outer container */
+  .game-outer-container {
+    padding: 0 !important;
+    border: none !important; /* Also remove border if desired */
+    border-radius: 0 !important; /* Remove rounded corners */
+  }
+
   /* Optional: Hide other elements like headers/footers if necessary */
   /* Example: */
   /* body > header, body > footer { */
