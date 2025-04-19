@@ -36,6 +36,7 @@ interface AdventureState {
   storyHistory: StoryHistoryItem[];
   isLoading: boolean;
   error: ErrorState;
+  loginRequired: boolean;
   currentGenre: string | null;
   currentTone: string | null;
   currentVisualStyle: string | null;
@@ -72,6 +73,7 @@ const initialState: AdventureState = {
   storyHistory: [],
   isLoading: false,
   error: null,
+  loginRequired: false,
   currentGenre: null,
   currentTone: null,
   currentVisualStyle: null,
@@ -225,13 +227,19 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           error instanceof Error ? error.message : 'Failed to fetch adventure node.';
         if (errorMessage === 'Unauthorized: User must be logged in.') {
           console.info('[Adventure Store] Unauthorized: User must be logged in.');
+          set((state) => {
+            state.loginRequired = true;
+            state.error = null;
+            state.isLoading = false;
+          });
         } else {
           console.error('Error fetching adventure node:', error);
+          set((state) => {
+            state.error = errorMessage;
+            state.loginRequired = false;
+            state.isLoading = false;
+          });
         }
-        set((state) => {
-          state.error = errorMessage;
-          state.isLoading = false;
-        });
       }
     },
 
@@ -261,6 +269,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         Object.assign(state, initialState);
         // Keep the current TTS volume
         state.ttsVolume = currentVolume;
+        state.loginRequired = false;
       });
     },
 

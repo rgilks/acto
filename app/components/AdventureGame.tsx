@@ -17,6 +17,7 @@ import ScenarioSelector from './ScenarioSelector';
 import useTTSPlayer from '@/hooks/useTTSPlayer';
 import { FullScreen, useFullScreenHandle } from 'react-full-screen';
 import { useSession } from 'next-auth/react';
+import AuthButton from './AuthButton';
 
 interface RateLimitError {
   message: string;
@@ -87,6 +88,8 @@ const AdventureGame = () => {
     isFetchingScenarios,
     fetchScenariosError,
     fetchStartingScenarios,
+    loginRequired,
+    triggerReset,
   } = useAdventureStore();
 
   const { data: _session, status: sessionStatus } = useSession();
@@ -319,6 +322,105 @@ const AdventureGame = () => {
     }
   }, []);
 
+  const effectiveError = nodeError || fetchScenariosError;
+
+  const rateLimitInfo =
+    typeof effectiveError === 'object' &&
+    effectiveError !== null &&
+    'rateLimitError' in effectiveError
+      ? (effectiveError.rateLimitError as RateLimitError)
+      : null;
+
+  const simpleErrorMessage = typeof effectiveError === 'string' ? effectiveError : null;
+
+  const handleRestart = useCallback(() => {
+    triggerReset();
+    setGamePhase('selecting_scenario');
+    setDisplayNode(null);
+    setIsCurrentImageLoading(true);
+    setCurrentAudioData(null);
+    setShowChoices(false);
+    setClickedChoiceIndex(null);
+    stopTTS();
+    if (fullscreenHandle.active) {
+      void fullscreenHandle.exit();
+    }
+  }, [triggerReset, stopTTS, fullscreenHandle]);
+
+  if (loginRequired) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-4">
+        <h2 className="text-2xl font-bold text-yellow-400 mb-4">Sign In Required</h2>
+        <p className="mb-4">Please sign in to start your adventure.</p>
+        <p className="text-sm text-gray-400 mb-6">
+          New users are currently added via a waitlist. Sign in to check your status or join!
+        </p>
+        <AuthButton />
+        <button
+          onClick={handleRestart}
+          className="mt-4 text-sm text-gray-400 hover:text-white underline"
+        >
+          Go back
+        </button>
+      </div>
+    );
+  }
+
+  if (rateLimitInfo) {
+    const resetTime = formatResetTime(rateLimitInfo.resetTimestamp);
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-4">
+        <h2 className="text-2xl font-bold text-red-500 mb-4">Rate Limit Reached</h2>
+        <p className="mb-4">{rateLimitInfo.message}</p>
+        <p className="text-sm text-gray-400 mb-6">
+          Please try again {resetTime}. You can continue playing then!
+        </p>
+        <button
+          onClick={handleRestart}
+          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white flex items-center"
+        >
+          <ArrowPathIcon className="h-5 w-5 mr-2" />
+          Try Different Scenario
+        </button>
+      </div>
+    );
+  }
+
+  if (simpleErrorMessage) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-4">
+        <h2 className="text-2xl font-bold text-red-500 mb-4">An Error Occurred</h2>
+        <p className="mb-6">{simpleErrorMessage}</p>
+        <button
+          onClick={handleRestart}
+          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white flex items-center"
+        >
+          <ArrowPathIcon className="h-5 w-5 mr-2" />
+          Start Over
+        </button>
+      </div>
+    );
+  }
+
+  if (
+    gamePhase === 'selecting_scenario' &&
+    !displayNode &&
+    !isNodeLoading &&
+    !isSelectingScenario
+  ) {
+    return (
+      <ScenarioSelector
+        onScenarioSelect={handleScenarioSelect}
+        isLoadingSelection={isSelectingScenario}
+        scenariosToDisplay={isUserLoggedIn ? dynamicScenarios : hardcodedScenarios}
+        isLoadingScenarios={isFetchingScenarios}
+        fetchError={fetchScenariosError}
+        onFetchNewScenarios={handleFetchNewScenarios}
+        isUserLoggedIn={isUserLoggedIn}
+      />
+    );
+  }
+
   return (
     <>
       <Script
@@ -327,12 +429,6 @@ const AdventureGame = () => {
       />
 
       {(() => {
-        const rateLimitInfo =
-          typeof nodeError === 'object' && nodeError !== null && 'rateLimitError' in nodeError
-            ? (nodeError.rateLimitError as RateLimitError)
-            : null;
-        const genericErrorMessage = typeof nodeError === 'string' ? nodeError : null;
-
         const containerClasses = fullscreenHandle.active
           ? 'fixed inset-0 z-50 bg-black flex items-center justify-center'
           : 'bg-slate-800 rounded-lg p-2 sm:p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 relative mx-auto w-full flex flex-col';
@@ -340,48 +436,17 @@ const AdventureGame = () => {
         const showGameUI =
           gamePhase === 'playing' || gamePhase === 'loading_first_node' || gamePhase === 'error';
 
-        const scenariosToDisplay = isUserLoggedIn ? dynamicScenarios : hardcodedScenarios;
+        if (gamePhase === 'loading_first_node' && !displayNode && !effectiveError) {
+          return (
+            <div className="flex-grow flex flex-col items-center justify-center h-full">
+              <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin mb-4" />
+              <p className="text-gray-400">Generating your adventure...</p>
+            </div>
+          );
+        }
 
         return (
           <div ref={gameContainerRef} className={containerClasses}>
-            {gamePhase === 'selecting_scenario' && (
-              <ScenarioSelector
-                onScenarioSelect={handleScenarioSelect}
-                isLoadingSelection={isSelectingScenario}
-                scenariosToDisplay={scenariosToDisplay}
-                isLoadingScenarios={isFetchingScenarios}
-                fetchError={fetchScenariosError}
-                onFetchNewScenarios={handleFetchNewScenarios}
-                isUserLoggedIn={isUserLoggedIn}
-              />
-            )}
-
-            {gamePhase === 'loading_first_node' && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-800/80 rounded-lg z-20">
-                <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin mb-2" />
-                <p className="text-gray-400 italic">Starting your adventure...</p>
-              </div>
-            )}
-
-            {gamePhase === 'error' && rateLimitInfo && !rateLimitInfo.apiType && (
-              <div className="text-center text-amber-300 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
-                <p className="text-xl font-semibold mb-4">Time for a Break?</p>
-                <p className="mb-6 text-gray-400">
-                  You&apos;ve been adventuring hard! Maybe take a short break and come back{' '}
-                  {formatResetTime(rateLimitInfo.resetTimestamp)}?
-                </p>
-              </div>
-            )}
-
-            {gamePhase === 'error' && !rateLimitInfo && genericErrorMessage && (
-              <div className="text-center text-red-400 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
-                <p className="text-xl font-semibold mb-4">An Error Occurred</p>
-                <p className="mb-6 text-gray-400">
-                  {genericErrorMessage || 'An unknown error occurred during the adventure.'}
-                </p>
-              </div>
-            )}
-
             {showGameUI && gamePhase !== 'error' && (
               <FullScreen handle={fullscreenHandle} className="flex-grow flex flex-col">
                 <>
