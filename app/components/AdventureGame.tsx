@@ -16,6 +16,8 @@ import {
   ArrowsPointingInIcon,
 } from '@heroicons/react/24/solid';
 import ScenarioSelector from './ScenarioSelector';
+import useTTSPlayer from '@/hooks/useTTSPlayer';
+import { FullScreen, useFullScreenHandle } from 'react-full-screen';
 
 interface RateLimitError {
   message: string;
@@ -74,33 +76,13 @@ function formatResetTime(timestamp: number): string {
   return `at ${resetDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 }
 
-interface FullscreenElement extends HTMLElement {
-  webkitRequestFullscreen?(): Promise<void>;
-  mozRequestFullScreen?(): Promise<void>; // Note capital 'S'
-  msRequestFullscreen?(): Promise<void>;
-}
-
-interface FullscreenDocument extends Document {
-  webkitExitFullscreen?(): Promise<void>;
-  mozCancelFullScreen?(): Promise<void>; // Note different name and capital 'S'
-  msExitFullscreen?(): Promise<void>;
-
-  webkitFullscreenElement?: Element | null;
-  mozFullScreenElement?: Element | null; // Note capital 'S'
-  msFullscreenElement?: Element | null;
-}
-
 const AdventureGame = () => {
   const {
     currentNode,
     isLoading: isNodeLoading,
     error: nodeError,
     makeChoice,
-    isSpeaking,
-    ttsError,
     ttsVolume,
-    setSpeaking,
-    setTTSError,
     setTTSVolume,
   } = useAdventureStore();
 
@@ -109,43 +91,32 @@ const AdventureGame = () => {
   const [isCurrentImageLoading, setIsCurrentImageLoading] = useState<boolean>(true);
   const [showChoices, setShowChoices] = useState<boolean>(false);
   const [showPassageText, setShowPassageText] = useState<boolean>(false);
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [isIOS, setIsIOS] = useState<boolean>(false);
-
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const ttsAudioRef = useRef<HTMLAudioElement>(null);
-  const gameContainerRef = useRef<HTMLDivElement>(null);
-  const readingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [clickedChoiceIndex, setClickedChoiceIndex] = useState<number | null>(null);
   const [currentAudioData, setCurrentAudioData] = useState<string | null>(null);
 
-  const stopTTSSpeech = useCallback(() => {
-    const audioElement = ttsAudioRef.current;
-    if (audioElement) {
-      audioElement.pause();
-      audioElement.currentTime = 0;
-      audioElement.src = '';
-    }
-    setSpeaking(false);
-    setShowChoices(true);
-    if (readingTimerRef.current) {
-      clearTimeout(readingTimerRef.current);
-      readingTimerRef.current = null;
-    }
-  }, [setSpeaking]);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
-  const pauseTTSSpeech = useCallback(() => {
-    const audioElement = ttsAudioRef.current;
-    if (audioElement) {
-      audioElement.pause();
-    }
-    setSpeaking(false);
-    if (readingTimerRef.current) {
-      clearTimeout(readingTimerRef.current);
-      readingTimerRef.current = null;
-    }
-  }, [setSpeaking]);
+  const fullscreenHandle = useFullScreenHandle();
+  const gameContainerRef = useRef<HTMLDivElement>(null);
+
+  const {
+    play: playTTS,
+    pause: pauseTTS,
+    stop: stopTTS,
+    isPlaying: isTTSSpeaking,
+    error: ttsPlayerError,
+    audioRef: ttsAudioRef,
+  } = useTTSPlayer({
+    audioData: currentAudioData,
+    volume: ttsVolume,
+    onPlaybackEnd: useCallback(() => {
+      setShowChoices(true);
+    }, []),
+    onPlaybackError: useCallback((_errorMsg: string) => {
+      setShowChoices(true);
+    }, []),
+  });
 
   const handleScenarioSelect = useCallback(
     (scenario: Scenario) => {
@@ -159,15 +130,11 @@ const AdventureGame = () => {
       setShowChoices(false);
       setShowPassageText(false);
       setClickedChoiceIndex(null);
-      if (readingTimerRef.current) {
-        clearTimeout(readingTimerRef.current);
-        readingTimerRef.current = null;
-      }
-      stopTTSSpeech();
+      stopTTS();
 
       makeChoice(scenario);
     },
-    [makeChoice, hasUserInteracted, stopTTSSpeech]
+    [makeChoice, hasUserInteracted, stopTTS]
   );
 
   const handleImageLoad = useCallback(
@@ -175,19 +142,8 @@ const AdventureGame = () => {
       if (displayNode?.imageUrl && loadedImageUrl === displayNode.imageUrl) {
         setIsCurrentImageLoading(false);
 
-        if (hasUserInteracted && currentAudioData && ttsAudioRef.current && !isSpeaking) {
-          const audioSrc = `data:audio/mp3;base64,${currentAudioData}`;
-          ttsAudioRef.current.src = audioSrc;
-          ttsAudioRef.current
-            .play()
-            .then(() => {
-              setSpeaking(true);
-            })
-            .catch((_err) => {
-              setTTSError('Failed to auto-play audio after image load.');
-              setSpeaking(false);
-              setShowChoices(true);
-            });
+        if (hasUserInteracted && currentAudioData) {
+          playTTS();
         } else if (!currentAudioData) {
           setShowChoices(true);
         }
@@ -197,61 +153,34 @@ const AdventureGame = () => {
       displayNode,
       hasUserInteracted,
       currentAudioData,
-      setSpeaking,
-      setTTSError,
-      isSpeaking,
       setIsCurrentImageLoading,
       setShowChoices,
+      playTTS,
     ]
   );
 
   const handleToggleSpeak = useCallback(() => {
-    const audioElement = ttsAudioRef.current;
-    if (!audioElement) return;
-
-    if (isSpeaking) {
-      pauseTTSSpeech();
+    if (isTTSSpeaking) {
+      pauseTTS();
     } else {
-      if (readingTimerRef.current) {
-        clearTimeout(readingTimerRef.current);
-        readingTimerRef.current = null;
-      }
       if (currentAudioData) {
-        if (!audioElement.src.startsWith('data:audio/mp3')) {
-          audioElement.src = `data:audio/mp3;base64,${currentAudioData}`;
-        }
-        audioElement
-          .play()
-          .then(() => setSpeaking(true))
-          .catch((err) => {
-            console.error('[ToggleSpeak] Error playing audio:', err);
-            setTTSError('Failed to play audio.');
-          });
+        playTTS();
       } else {
         console.warn('[ToggleSpeak] No audio data available to play.');
-        setTTSError('Audio not available for this passage.');
       }
       if (!hasUserInteracted) {
         setHasUserInteracted(true);
       }
     }
-  }, [isSpeaking, pauseTTSSpeech, currentAudioData, setSpeaking, setTTSError, hasUserInteracted]);
-
-  useEffect(() => {
-    const audioElement = ttsAudioRef.current;
-    if (!audioElement) return;
-    const handleAudioEnd = () => stopTTSSpeech();
-    audioElement.addEventListener('ended', handleAudioEnd);
-    return () => audioElement.removeEventListener('ended', handleAudioEnd);
-  }, [stopTTSSpeech]);
+  }, [isTTSSpeaking, pauseTTS, playTTS, currentAudioData, hasUserInteracted]);
 
   useEffect(() => {
     const newlyFetchedNode =
       gamePhase === 'playing' || gamePhase === 'loading_first_node' ? currentNode : null;
 
     if (newlyFetchedNode && newlyFetchedNode.passage !== displayNode?.passage) {
-      if (isSpeaking) {
-        stopTTSSpeech();
+      if (isTTSSpeaking) {
+        stopTTS();
       }
       setShowChoices(false);
 
@@ -272,10 +201,10 @@ const AdventureGame = () => {
       setDisplayNode(null);
       setIsCurrentImageLoading(true);
       setCurrentAudioData(null);
-      if (isSpeaking) stopTTSSpeech();
+      if (isTTSSpeaking) stopTTS();
       setShowChoices(false);
     }
-  }, [currentNode, gamePhase, displayNode, isSpeaking, stopTTSSpeech]);
+  }, [currentNode, gamePhase, displayNode, isTTSSpeaking, stopTTS]);
 
   const handleChoiceClick = useCallback(
     (choice: Scenario, index: number) => {
@@ -296,128 +225,10 @@ const AdventureGame = () => {
     'border-transparent text-gray-400 hover:bg-gray-700/50 hover:text-gray-300 focus:ring-gray-500';
 
   useEffect(() => {
-    const ttsAudio = ttsAudioRef.current;
-    if (ttsAudio) {
-      ttsAudio.volume = ttsVolume;
-    }
-  }, [ttsVolume]);
-
-  useEffect(() => {
     if (nodeError !== null) {
       setGamePhase('error');
     }
   }, [nodeError]);
-
-  useEffect(() => {
-    return () => {
-      if (readingTimerRef.current) {
-        clearTimeout(readingTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    // Client-side only checks
-    const agent = window.navigator.userAgent;
-    const platform = window.navigator.platform;
-    // Basic iOS detection (covers iPhone, iPad, iPod)
-    const iosCheck =
-      /iPad|iPhone|iPod/.test(agent) ||
-      (platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
-    setIsIOS(iosCheck);
-  }, []);
-
-  const handleToggleFullscreen = useCallback(() => {
-    if (isIOS) {
-      // On iOS, just toggle the state to apply CSS changes
-      setIsFullscreen((prev) => !prev);
-    } else {
-      // On non-iOS, use the Fullscreen API
-      const elem = gameContainerRef.current;
-      if (!elem) return;
-
-      const fullscreenElem = elem as FullscreenElement;
-      const fullscreenDoc = document as FullscreenDocument;
-
-      const requestFullscreen =
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        fullscreenElem.requestFullscreen ||
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        fullscreenElem.webkitRequestFullscreen ||
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        fullscreenElem.mozRequestFullScreen ||
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        fullscreenElem.msRequestFullscreen;
-
-      const exitFullscreen =
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        fullscreenDoc.exitFullscreen ||
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        fullscreenDoc.webkitExitFullscreen ||
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        fullscreenDoc.mozCancelFullScreen ||
-        // eslint-disable-next-line @typescript-eslint/unbound-method
-        fullscreenDoc.msExitFullscreen;
-
-      const fullscreenElement =
-        fullscreenDoc.fullscreenElement ||
-        fullscreenDoc.webkitFullscreenElement ||
-        fullscreenDoc.mozFullScreenElement ||
-        fullscreenDoc.msFullscreenElement;
-
-      if (!fullscreenElement) {
-        if (requestFullscreen) {
-          requestFullscreen.call(fullscreenElem).catch((err: unknown) => {
-            const message = err instanceof Error ? err.message : String(err);
-            const name = err instanceof Error ? err.name : 'UnknownError';
-            console.error(`Error attempting to enable full-screen mode: ${message} (${name})`);
-          });
-        } else {
-          console.error('Fullscreen API is not supported by this browser.');
-        }
-      } else {
-        if (exitFullscreen) {
-          exitFullscreen.call(fullscreenDoc).catch((err: unknown) => {
-            const message = err instanceof Error ? err.message : String(err);
-            const name = err instanceof Error ? err.name : 'UnknownError';
-            console.error(`Error attempting to exit full-screen mode: ${message} (${name})`);
-          });
-        } else {
-          console.error('Fullscreen API is not supported by this browser.');
-        }
-      }
-    }
-  }, [isIOS]); // Add isIOS to dependency array
-
-  useEffect(() => {
-    // Only attach Fullscreen API listeners if not on iOS
-    if (isIOS) return;
-
-    const handleFullscreenChange = () => {
-      const fullscreenDoc = document as FullscreenDocument;
-      const isCurrentlyFullscreen = !!(
-        fullscreenDoc.fullscreenElement ||
-        fullscreenDoc.webkitFullscreenElement ||
-        fullscreenDoc.mozFullScreenElement ||
-        fullscreenDoc.msFullscreenElement
-      );
-      // Update state based on actual Fullscreen API state change (e.g., ESC key)
-      setIsFullscreen(isCurrentlyFullscreen);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
-
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
-    };
-    // Rerun this effect if isIOS changes (though unlikely after initial render)
-  }, [isIOS]);
 
   return (
     <>
@@ -450,7 +261,7 @@ const AdventureGame = () => {
             : null;
         const genericErrorMessage = typeof nodeError === 'string' ? nodeError : null;
 
-        const containerClasses = isFullscreen
+        const containerClasses = fullscreenHandle.active
           ? 'fixed inset-0 z-50 bg-black flex items-center justify-center'
           : 'bg-slate-800 rounded-lg p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 min-h-[350px] relative mx-auto w-full flex flex-col';
 
@@ -500,186 +311,182 @@ const AdventureGame = () => {
 
             {/* Main Game Playing UI */}
             {showGameUI && gamePhase !== 'error' && (
-              <>
-                {displayNode && (
-                  <>
-                    <div
-                      className={`
-                      ${
-                        isFullscreen
-                          ? 'relative h-full aspect-video'
-                          : 'flex flex-col md:flex-row md:items-start md:gap-6 lg:gap-8 mb-6'
-                      }
-                    `}
-                    >
-                      {displayNode.imageUrl && (
-                        <div
-                          className={`
-                            relative group overflow-hidden w-full h-full
-                            ${
-                              isFullscreen
-                                ? 'bg-black'
-                                : `flex-shrink-0 mb-4 md:mb-0 aspect-[16/10] rounded shadow-md bg-slate-700 ${showPassageText ? 'w-full md:w-1/2 lg:w-5/12' : 'w-full'}`
-                            }
-                          `}
-                        >
-                          {isCurrentImageLoading && (
-                            <div className="absolute inset-0 bg-slate-600 flex items-center justify-center z-10">
-                              <ArrowPathIcon className="h-8 w-8 text-slate-400 animate-spin" />
-                            </div>
-                          )}
-                          <Image
-                            key={displayNode.imageUrl}
-                            src={displayNode.imageUrl}
-                            alt="Adventure scene"
-                            fill
-                            className={`
-                              ${
-                                isFullscreen
-                                  ? 'absolute inset-0 w-full h-full object-cover'
-                                  : 'object-cover'
-                              }
-                              transition-opacity duration-500 ${isCurrentImageLoading ? 'opacity-0' : 'opacity-100'}
-                            `}
-                            priority
-                            sizes={
-                              isFullscreen
-                                ? '100vw'
-                                : '(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw'
-                            }
-                            onLoad={() => handleImageLoad(displayNode.imageUrl)}
-                            onError={() => {
-                              console.error('Image failed to load:', displayNode.imageUrl);
-                              setIsCurrentImageLoading(false);
-                            }}
-                          />
-                          <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between space-x-3 p-2 bg-gradient-to-b from-black/80 to-transparent">
-                            <button
-                              onClick={handleToggleFullscreen}
-                              title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-                              aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-                              className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full text-white hover:opacity-80 drop-shadow-sm`}
-                            >
-                              {isFullscreen ? (
-                                <ArrowsPointingInIcon className="h-5 w-5" />
-                              ) : (
-                                <ArrowsPointingOutIcon className="h-5 w-5" />
-                              )}
-                            </button>
-                            <div className="flex items-center space-x-3">
-                              <button
-                                onClick={handleToggleSpeak}
-                                title={
-                                  currentAudioData
-                                    ? isSpeaking
-                                      ? 'Stop reading aloud'
-                                      : 'Read passage aloud'
-                                    : 'Audio not available'
-                                }
-                                aria-label={
-                                  isSpeaking ? 'Stop reading aloud' : 'Read passage aloud'
-                                }
-                                className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full text-white hover:opacity-80 drop-shadow-sm ${!currentAudioData ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                disabled={isNodeLoading || !currentAudioData}
-                              >
-                                {isSpeaking ? (
-                                  <SpeakerXMarkIcon className="h-5 w-5" />
-                                ) : (
-                                  <SpeakerWaveIcon className="h-5 w-5" />
-                                )}
-                              </button>
-                              <input
-                                type="range"
-                                min="0"
-                                max="1"
-                                step="0.1"
-                                value={ttsVolume}
-                                onChange={(e) => setTTSVolume(parseFloat(e.target.value))}
-                                className="h-1 w-20 md:w-24 cursor-pointer appearance-none rounded-full bg-transparent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black/50 focus:ring-amber-500 [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:w-full [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-gray-400/70 [&::-moz-range-track]:h-1 [&::-moz-range-track]:w-full [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-gray-400/70 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-400 [&::-webkit-slider-thumb]:-mt-1 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-amber-400 [&::-moz-range-thumb]:-mt-1"
-                                title={`Volume: ${Math.round(ttsVolume * 100)}%`}
-                                aria-label="Speech volume"
-                                disabled={isNodeLoading}
-                              />
-                              <button
-                                onClick={() => setShowPassageText((prev) => !prev)}
-                                title={showPassageText ? 'Hide text' : 'Show text'}
-                                aria-label={showPassageText ? 'Hide text' : 'Show text'}
-                                className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full text-white hover:opacity-80 drop-shadow-sm`}
-                              >
-                                {showPassageText ? (
-                                  <EyeSlashIcon className="h-5 w-5" />
-                                ) : (
-                                  <EyeIcon className="h-5 w-5" />
-                                )}
-                              </button>
-                            </div>
-                          </div>
-
+              <FullScreen handle={fullscreenHandle}>
+                <>
+                  {displayNode && (
+                    <>
+                      <div
+                        className={`
+                        ${
+                          fullscreenHandle.active
+                            ? 'relative h-full aspect-video'
+                            : 'flex flex-col md:flex-row md:items-start md:gap-6 lg:gap-8 mb-6'
+                        }
+                      `}
+                      >
+                        {displayNode.imageUrl && (
                           <div
                             className={`
-                              absolute bottom-0 left-0 right-0 p-4 pt-16
-                              bg-gradient-to-t from-black/90 via-black/70 to-transparent
-                              transition-opacity duration-500 ease-in-out
-                              ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+                              relative group overflow-hidden w-full h-full
+                              ${
+                                fullscreenHandle.active
+                                  ? 'bg-black'
+                                  : `flex-shrink-0 mb-4 md:mb-0 aspect-[16/10] rounded shadow-md bg-slate-700 ${showPassageText ? 'w-full md:w-1/2 lg:w-5/12' : 'w-full'}`
+                              }
                             `}
                           >
-                            {showChoices && (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
-                                {displayNode.choices.map((choice, index) => {
-                                  const isClicked = index === clickedChoiceIndex;
-                                  const isDisabled = isNodeLoading;
-                                  const isLoadingChoice = isNodeLoading && isClicked;
-                                  return (
-                                    <button
-                                      key={index}
-                                      onClick={() => handleChoiceClick(choice, index)}
-                                      className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
-                                      disabled={isDisabled}
-                                      data-testid={`choice-button-${index}`}
-                                    >
-                                      <span>{choice.text}</span>
-                                      {isLoadingChoice && (
-                                        <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
-                                      )}
-                                    </button>
-                                  );
-                                })}
+                            {isCurrentImageLoading && (
+                              <div className="absolute inset-0 bg-slate-600 flex items-center justify-center z-10">
+                                <ArrowPathIcon className="h-8 w-8 text-slate-400 animate-spin" />
                               </div>
                             )}
+                            <Image
+                              key={displayNode.imageUrl}
+                              src={displayNode.imageUrl}
+                              alt="Adventure scene"
+                              fill
+                              className={`
+                                ${
+                                  fullscreenHandle.active
+                                    ? 'absolute inset-0 w-full h-full object-cover'
+                                    : 'object-cover'
+                                }
+                                transition-opacity duration-500 ${isCurrentImageLoading ? 'opacity-0' : 'opacity-100'}
+                              `}
+                              priority
+                              sizes={
+                                fullscreenHandle.active
+                                  ? '100vw'
+                                  : '(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw'
+                              }
+                              onLoad={() => handleImageLoad(displayNode.imageUrl)}
+                              onError={() => {
+                                console.error('Image failed to load:', displayNode.imageUrl);
+                                setIsCurrentImageLoading(false);
+                              }}
+                            />
+                            <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between space-x-3 p-2 bg-gradient-to-b from-black/80 to-transparent">
+                              <button
+                                onClick={
+                                  fullscreenHandle.active
+                                    ? fullscreenHandle.exit
+                                    : fullscreenHandle.enter
+                                }
+                                title={
+                                  fullscreenHandle.active ? 'Exit fullscreen' : 'Enter fullscreen'
+                                }
+                                aria-label={
+                                  fullscreenHandle.active ? 'Exit fullscreen' : 'Enter fullscreen'
+                                }
+                                className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full text-white hover:opacity-80 drop-shadow-sm`}
+                              >
+                                {fullscreenHandle.active ? (
+                                  <ArrowsPointingInIcon className="h-5 w-5" />
+                                ) : (
+                                  <ArrowsPointingOutIcon className="h-5 w-5" />
+                                )}
+                              </button>
+                              <div className="flex items-center space-x-3">
+                                <button
+                                  onClick={handleToggleSpeak}
+                                  title={
+                                    currentAudioData
+                                      ? isTTSSpeaking
+                                        ? 'Stop reading aloud'
+                                        : 'Read passage aloud'
+                                      : 'Audio not available'
+                                  }
+                                  aria-label={
+                                    isTTSSpeaking ? 'Stop reading aloud' : 'Read passage aloud'
+                                  }
+                                  className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full text-white hover:opacity-80 drop-shadow-sm ${!currentAudioData ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  disabled={isNodeLoading || !currentAudioData}
+                                >
+                                  {isTTSSpeaking ? (
+                                    <SpeakerXMarkIcon className="h-5 w-5" />
+                                  ) : (
+                                    <SpeakerWaveIcon className="h-5 w-5" />
+                                  )}
+                                </button>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="1"
+                                  step="0.1"
+                                  value={ttsVolume}
+                                  onChange={(e) => setTTSVolume(parseFloat(e.target.value))}
+                                  className="h-1 w-20 md:w-24 cursor-pointer appearance-none rounded-full bg-transparent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black/50 focus:ring-amber-500 [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:w-full [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-gray-400/70 [&::-moz-range-track]:h-1 [&::-moz-range-track]:w-full [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-gray-400/70 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-400 [&::-webkit-slider-thumb]:-mt-1 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-amber-400 [&::-moz-range-thumb]:-mt-1"
+                                  title={`Volume: ${Math.round(ttsVolume * 100)}%`}
+                                  aria-label="Speech volume"
+                                  disabled={isNodeLoading}
+                                />
+                                <button
+                                  onClick={() => setShowPassageText((prev) => !prev)}
+                                  title={showPassageText ? 'Hide text' : 'Show text'}
+                                  aria-label={showPassageText ? 'Hide text' : 'Show text'}
+                                  className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full text-white hover:opacity-80 drop-shadow-sm`}
+                                >
+                                  {showPassageText ? (
+                                    <EyeSlashIcon className="h-5 w-5" />
+                                  ) : (
+                                    <EyeIcon className="h-5 w-5" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
                           </div>
+                        )}
 
-                          {ttsError && (
-                            <p className="absolute bottom-0 left-0 right-0 mb-2 text-xs text-red-400 text-center z-5">
-                              Speech Error: {ttsError}
-                            </p>
+                        <div
+                          className={`
+                            absolute bottom-0 left-0 right-0 p-4 pt-16
+                            bg-gradient-to-t from-black/90 via-black/70 to-transparent
+                            transition-opacity duration-500 ease-in-out
+                            ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+                          `}
+                        >
+                          {showChoices && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
+                              {displayNode.choices.map((choice, index) => {
+                                const isClicked = index === clickedChoiceIndex;
+                                const isDisabled = isNodeLoading;
+                                const isLoadingChoice = isNodeLoading && isClicked;
+                                return (
+                                  <button
+                                    key={index}
+                                    onClick={() => handleChoiceClick(choice, index)}
+                                    className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
+                                    disabled={isDisabled}
+                                    data-testid={`choice-button-${index}`}
+                                  >
+                                    <span>{choice.text}</span>
+                                    {isLoadingChoice && (
+                                      <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
-                      )}
 
-                      {!isFullscreen && showPassageText && (
-                        <div
-                          className={`${!displayNode.imageUrl ? 'w-full' : 'md:w-1/2 lg:w-7/12'}`}
-                        >
-                          <div className="mb-4 text-xl leading-relaxed text-left w-full text-gray-300 relative">
-                            {displayNode.passage ? (
-                              <p style={{ whiteSpace: 'pre-wrap' }}>{displayNode.passage}</p>
-                            ) : (
-                              <p className="text-gray-500 italic">Loading passage...</p>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                        {ttsPlayerError && (
+                          <p className="absolute bottom-0 left-0 right-0 mb-2 text-xs text-red-400 text-center z-5">
+                            Speech Error: {ttsPlayerError}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+                  {/* Loading Indicator specifically for *subsequent* nodes */}
+                  {!displayNode && isNodeLoading && gamePhase === 'playing' && (
+                    <div className="flex-grow flex flex-col items-center justify-center">
+                      <ArrowPathIcon className="h-8 w-8 text-amber-300 animate-spin mb-2" />
+                      <p className="text-gray-400 italic">Loading next part...</p>
                     </div>
-                  </>
-                )}
-                {/* Loading Indicator specifically for *subsequent* nodes */}
-                {!displayNode && isNodeLoading && gamePhase === 'playing' && (
-                  <div className="flex-grow flex flex-col items-center justify-center">
-                    <ArrowPathIcon className="h-8 w-8 text-amber-300 animate-spin mb-2" />
-                    <p className="text-gray-400 italic">Loading next part...</p>
-                  </div>
-                )}
-              </>
+                  )}
+                </>
+              </FullScreen>
             )}
           </div>
         );
