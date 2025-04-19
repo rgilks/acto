@@ -529,16 +529,18 @@ const AdventureGame = () => {
                                   <PlayIcon className="h-5 w-5" />
                                 )}
                               </button>
-                              <input
-                                type="range"
-                                min="0"
-                                max="1"
-                                step="0.05"
-                                value={localVolume}
-                                onChange={handleVolumeChange}
-                                className="w-16 h-1 bg-slate-500 rounded-full appearance-none cursor-pointer accent-slate-400"
-                                aria-label="Narration volume"
-                              />
+                              {!isIphone && (
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="1"
+                                  step="0.05"
+                                  value={localVolume}
+                                  onChange={handleVolumeChange}
+                                  className="w-16 h-1 bg-slate-500 rounded-full appearance-none cursor-pointer accent-slate-400"
+                                  aria-label="Narration volume"
+                                />
+                              )}
                               {ttsPlayerError && (
                                 <span className="ml-2 text-xs text-red-400 bg-black/50 px-1.5 py-0.5 rounded">
                                   Audio Error
