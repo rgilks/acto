@@ -12,10 +12,10 @@ _(Placeholder for a new screenshot of the application interface)_
 
 ## Features
 
-- **AI-Generated Narrative**: Unique story passages and scenarios crafted by Google AI (Gemini models) based on user choices and story history.
+- **AI-Generated Narrative**: Unique story passages and scenarios crafted by Google AI (Gemini models) based on user choices and story history (prompt refined for better narrative cohesion).
 - **Dynamic Choices**: AI generates relevant choices for the user at each step, influencing the story progression.
-- **Starting Scenarios**: Generates diverse starting points for new stories across different genres (now with enhanced prompt emphasizing specific themes like surreal/dreamlike/70s sci-fi).
-- **AI-Generated Images**: Images created based on the narrative using Imagen via the Gemini API (prompt now constrains images to first-person perspective).
+- **Starting Scenarios**: Generates diverse starting points for new stories across different genres (prompt refined for better variation; hardcoded scenarios updated for variety).
+- **AI-Generated Images**: Images created based on the narrative using Imagen via the Gemini API (prompt now explicitly requests first-person perspective).
 - **Text-to-Speech (TTS)**: Reads story passages aloud using Google Cloud TTS. Audio begins playing automatically when ready.
 - **Stateful Interaction**: The application maintains the story history to provide context for the AI.
 - **User Authentication**: (Optional) Secure login via GitHub, Google, and Discord OAuth using NextAuth.
@@ -223,7 +223,7 @@ The following commands will guide you through the initial setup. Run them in you
 
 ### Static Starting Scenarios (Logged-Out Users)
 
-To improve performance and reduce unnecessary API calls for visitors who are not logged in, the application now displays a static, hardcoded list of starting scenarios (`app/components/AdventureGame.tsx`). These have been updated to align with the more specific and evocative themes (surreal, dreamlike, 70s sci-fi/fantasy) generated for logged-in users. Logged-in users will continue to receive dynamically generated starting scenarios for a unique experience.
+To improve performance and reduce unnecessary API calls for visitors who are not logged in, the application now displays a static, hardcoded list of starting scenarios (`app/components/AdventureGame.tsx`). These have been updated to offer a more diverse set of unique starting points.
 
 ### Progressive Web App (PWA)
 

@@ -130,16 +130,21 @@ function buildAdventurePrompt(
     ? `Summary of story before recent steps:\\n${latestSummary}`
     : 'No summary yet.';
 
-  const basePrompt = `You are a storyteller for an interactive text adventure. Adhere strictly to the specified Adventure Style (Genre, Tone, Visual Style). Maintain the tone and details from the Initial Scenario Context. Continue the story based on the provided Summary and Most Recent Steps. Respond ONLY with a valid JSON object matching this structure:
+  const basePrompt = `You are a storyteller for an interactive text adventure, focused on creating a **cohesive and engaging narrative arc**. Adhere strictly to the specified Adventure Style (Genre, Tone, Visual Style). Maintain the tone and details from the Initial Scenario Context. Continue the story based on the provided Summary and Most Recent Steps, ensuring choices have meaningful consequences.
+
+**Key Directives:**
+1.  **Narrative Cohesion:** Ensure the story develops logically, building upon previous events and moving towards **some form of progression or goal** relevant to the initial scenario and established themes. Avoid abrupt, unrelated shifts.
+2.  **Summary Guidance:** Pay close attention to the \`updatedSummary\` to maintain **consistency and narrative direction**.
+3.  **Strict JSON Output:** Respond ONLY with a valid JSON object matching this structure:
 ${jsonStructure}
-Output only the JSON object. Provide an 'updatedSummary' reflecting the entire story including the new 'passage'. **Crucially, ensure the 'imagePrompt' is based on the current passage and strongly reflects the required Genre, Tone, and Visual Style.**`;
+Output only the JSON object. Provide an 'updatedSummary' reflecting the entire story including the new 'passage'. **Crucially, ensure the 'imagePrompt' is based on the current passage, strongly reflects the required Genre, Tone, and Visual Style, and describes the scene from a first-person perspective (do not show the protagonist).**`;
 
   return `${basePrompt}
-\\n${adventureStyleSection}
-\\n${initialContextSection}
-\\n${storySummarySection}
-\\n${recentHistoryText}
-\\nGenerate the next JSON step, adhering to the Adventure Style, Initial Context, Summary, and Recent Steps. Ensure 'updatedSummary' is included and 'imagePrompt' strongly matches the Genre, Tone, and Visual Style.`;
+\n${adventureStyleSection}
+\n${initialContextSection}
+\n${storySummarySection}
+\n${recentHistoryText}
+\nGenerate the next JSON step, adhering to the Adventure Style, Initial Context, Summary, and Recent Steps. Ensure 'updatedSummary' is included and 'imagePrompt' strongly matches the Genre, Tone, and Visual Style.`;
 }
 
 async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Promise<string> {
@@ -456,20 +461,20 @@ function buildStartingScenariosPrompt(): string {
   /* Repeat this structure for 4 highly diverse scenarios, leaning into the requested themes */
 ]`;
 
-  return `You are an extremely creative storyteller specializing in crafting unique adventure hooks, with a strong preference for **surreal, dreamlike scenarios reminiscent of 70s sci-fi/fantasy art and psychedelic imagery.** Generate a diverse list of 4 compelling starting scenarios for an interactive text adventure.
+  return `You are an extremely creative storyteller specializing in crafting unique adventure hooks. Generate a **highly diverse list of 4 compelling and unique** starting scenarios for an interactive text adventure. Each scenario must include specific, evocative text describing the initial situation, a well-defined genre, a distinct tone, and a specific visual style for potential images.
 
-**Primary Focus:**
-*   Prioritize scenarios that are **surreal, dreamlike, weird, or psychedelic.**
-*   Draw inspiration from **70s-era science fiction and fantasy aesthetics** (think Moebius, Frazetta, vintage book covers).
-*   Aim for **evocative, specific, and unconventional** starting situations.
+**Desired Styles & Themes (Include Among the Diverse Options):**
+*   Incorporate **surreal, dreamlike, weird, or psychedelic themes** in some scenarios.
+*   Include options inspired by **70s-era science fiction and fantasy aesthetics** (e.g., Moebius, Frazetta, vintage book covers) for visual style or genre.
+*   Aim for **evocative, specific, and unconventional** starting situations across all scenarios.
 
 **Key Requirements:**
-1.  **Thematic Emphasis:** While diversity is good, ensure **at least 2-3 scenarios strongly reflect the surreal/dreamlike/70s-psychedelic theme.**
-2.  **Specificity:** Use concrete, unusual details. Instead of "a strange planet", try "a planet where crystalline flora hums forgotten lullabies under a binary sunset".
-3.  **Creative Styles:** Explicitly use genres, tones, and visual styles reflecting the focus (e.g., Visual Style: '70s Sci-Fi Book Cover Art', Tone: 'Oneiric', Genre: 'Surreal Fantasy').
+1.  **High Variation:** The **most important goal** is that the 4 scenarios are significantly different from each other in theme, setting, genre, tone, and style. Do not repeat patterns.
+2.  **Specificity:** Use concrete, unusual details in the scenario text. Instead of "a mysterious artifact", try "a pulsating obsidian orb humming with discordant energy".
+3.  **Creative Styles:** Use varied and specific genres, tones, and visual styles, drawing inspiration from the desired themes above where appropriate.
 4.  **Strict JSON Output:** Respond ONLY with a valid JSON array matching this exact structure (do not add any text before or after the JSON):
 ${jsonStructure}
-Output only the JSON array. Focus on the requested surreal, dreamlike, and retro-psychedelic themes with high detail and creativity.`;
+Output only the JSON array. Focus on **maximum diversity, uniqueness, and detail** across the 4 scenarios.`;
 }
 
 export const generateStartingScenariosAction =

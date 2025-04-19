@@ -36,28 +36,28 @@ type Scenario = z.infer<typeof AdventureChoiceSchema>;
 
 const hardcodedScenarios: Scenario[] = [
   {
-    text: 'You awaken adrift in a void between dimensions. Geometric shapes pulse with faint light, whispering forgotten equations. A single, crystalline doorway hovers nearby, humming a discordant tune.',
-    genre: 'Surreal Sci-Fi',
-    tone: 'Eerie, Mysterious, Oneiric',
-    visualStyle: 'Psychedelic Illustration, Cosmic',
+    text: `You are a bio-luminescent fungus farmer on a rogue asteroid nearing a sentient gas giant. Your prize-winning giant mushroom has just started... singing.`,
+    genre: `Weird Sci-Fi`,
+    tone: `Curious, Slightly Ominous, Isolated`,
+    visualStyle: `Bioluminescent Art, Soft Focus`,
   },
   {
-    text: 'Following a map tattooed on your own hand, you find the entrance to the Ever-Shifting City. Buildings of impossible geometry phase in and out of reality under a sky of swirling nebulae.',
-    genre: 'Dreamlike Fantasy',
-    tone: 'Whimsical yet Unsettling, Exploratory',
-    visualStyle: '70s Fantasy Book Cover Art',
+    text: `As the royal poison taster, you've developed an unusual tolerance. Today's appetizer didn't kill you, but it *did* grant you the ability to taste secrets.`,
+    genre: `Low Fantasy / Intrigue`,
+    tone: `Suspenseful, Wry, Political`,
+    visualStyle: `Renaissance Painting, Dark Palette`,
   },
   {
-    text: 'You are a chrome detective in a city sculpted from solidified music. A jazz note containing a stolen memory has shattered, and its discordant echoes warp reality around the crime scene.',
-    genre: 'Psychedelic Noir',
-    tone: 'Intriguing, Bizarre, Synesthetic',
-    visualStyle: 'Retro Anime, Glitch Art influences',
+    text: `Your quantum cat has phased through the wrong reality again. You find yourself in a world where emotions manifest as tangible, and often dangerous, weather patterns.`,
+    genre: `Conceptual Fantasy / Adventure`,
+    tone: `Whimsical, Perilous, Urgent`,
+    visualStyle: `Surrealist Landscape, Vibrant Colors`,
   },
   {
-    text: 'Your consciousness is uploaded to an ancient starship powered by captured dreams. The vessel drifts through a sector where nebulae bloom like bio-luminescent fungi. Warning klaxons sound in rhythm with a distant heartbeat.',
-    genre: '70s Space Opera',
-    tone: 'Cosmic Horror Lite, Isolated, Retrofuturistic',
-    visualStyle: 'Vintage Sci-Fi Art (Moebius-esque)',
+    text: `You run a dusty pawn shop on the edge of the multiverse. A being made of shifting clockwork offers you a broken pocket watch that doesn't just tell time, it *sells* it.`,
+    genre: `Urban Fantasy / Mystery`,
+    tone: `Mysterious, Gritty, Esoteric`,
+    visualStyle: `Film Noir Photography, Steampunk Elements`,
   },
 ];
 
