@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import Image from 'next/image';
+import Script from 'next/script';
 import useAdventureStore from '@/store/adventureStore';
 import { AdventureChoiceSchema, AdventureNode } from '@/lib/domain/schemas';
 import { z } from 'zod';
@@ -11,6 +12,34 @@ import AuthButton from '@/components/AuthButton';
 
 type GamePhase = 'loading_scenarios' | 'selecting_scenario' | 'playing' | 'error';
 type Scenario = z.infer<typeof AdventureChoiceSchema>;
+
+// Define hardcoded scenarios for the logged-out experience
+const hardcodedScenarios: Scenario[] = [
+  {
+    text: 'The neon glow of Neo-Kyoto reflects in the slick, rain-streaked streets. You awaken with a data-chip implanted in your arm, a cryptic message flashing across your augmented reality display.',
+    genre: 'Cyberpunk',
+    tone: 'Gritty, Suspenseful',
+    visualStyle: 'Dark, Dynamic Anime',
+  },
+  {
+    text: 'You are a newly appointed village elder. The sacred spring has run dry, and the ancient prophecy foretells impending doom. A weathered map lies before you.',
+    genre: 'Fantasy',
+    tone: 'Hopeful, Somber',
+    visualStyle: 'Watercolor Illustration',
+  },
+  {
+    text: 'You are a detective, summoned to a lavish estate by an anonymous client. A priceless artifact has vanished, and the eccentric inhabitants are all prime suspects.',
+    genre: 'Mystery',
+    tone: 'Intriguing, Deceptive',
+    visualStyle: 'Film Noir Photography',
+  },
+  {
+    text: 'Your escape pod crash-lands on a desolate, uncharted planet. Scanners indicate a faint life-sign nearby. Your survival depends on finding its source.',
+    genre: 'Sci-Fi Survival',
+    tone: 'Isolated, Tense',
+    visualStyle: 'Photorealistic, Bleak Landscape',
+  },
+];
 
 const SCENARIO_CACHE_KEY = 'adventureGame_startingScenarios';
 
@@ -82,6 +111,15 @@ const AdventureGame = () => {
     try {
       const result = await generateStartingScenariosAction();
 
+      if (result.error === 'Unauthorized: User must be logged in.') {
+        console.log('[AdventureGame] User is not logged in. Using hardcoded scenarios.');
+        setScenarios(hardcodedScenarios);
+        setGamePhase('selecting_scenario');
+        useAdventureStore.setState({ error: null, isLoading: false });
+        setIsUnauthorized(true);
+        return;
+      }
+
       if (result.rateLimitError) {
         console.warn('Scenario Rate Limit Hit:', result.rateLimitError);
         useAdventureStore.setState({
@@ -90,17 +128,6 @@ const AdventureGame = () => {
         });
         setGamePhase('error');
         return;
-      }
-
-      if (result.error) {
-        if (result.error === 'Unauthorized: User must be logged in.') {
-          console.log('[AdventureGame] User is not logged in.');
-          setIsUnauthorized(true);
-          useAdventureStore.setState({ error: null, isLoading: false });
-          setGamePhase('error');
-          return;
-        }
-        throw new Error(result.error);
       }
 
       if (!result.scenarios) {
@@ -350,6 +377,20 @@ const AdventureGame = () => {
 
   return (
     <>
+      <Script
+        src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"
+        strategy="afterInteractive"
+        onLoad={() => {
+          // @ts-expect-error kofiWidgetOverlay is loaded externally
+          kofiWidgetOverlay.draw('robgilks', {
+            type: 'floating-chat',
+            'floating-chat.donateButton.text': 'Tip Me',
+            'floating-chat.donateButton.background-color': '#323842',
+            'floating-chat.donateButton.text-color': '#fff',
+          });
+        }}
+      />
+
       <audio ref={audioRef} loop hidden aria-hidden="true" />
       <audio ref={ttsAudioRef} hidden aria-hidden="true" />
 

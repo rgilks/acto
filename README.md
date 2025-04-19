@@ -122,6 +122,7 @@ acto implements strategies to manage AI API costs:
     **Optional (Remove if not used):**
 
     - `ADMIN_EMAILS`: For admin panel access.
+    - `ALLOWED_EMAILS`: Comma-separated list of additional emails allowed access when the waiting list/invite-only mode is implicitly active (i.e., if `ALLOWED_EMAILS` is set).
 
     # DATABASE_URL, COMMIT_SHA (See .env.example - typically not set manually)
 
@@ -180,7 +181,7 @@ The following commands will guide you through the initial setup. Run them in you
       fly secrets import --app acto < .env.production
       ```
     - **Important `NEXTAUTH_URL` Note:** For OAuth providers (Google, GitHub, Discord) to work correctly in production, the `NEXTAUTH_URL` secret **must** be set to the full base URL of your deployed application (e.g., `https://acto.fly.dev`). This is crucial for OAuth redirects.
-    - **Verify Secrets:** Check required secrets are listed (run `fly secrets list --app acto`). Ensure `GOOGLE_AI_API_KEY`, `GOOGLE_APP_CREDS_JSON`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_SENTRY_DSN` are present. Also check `AUTH_SECRET` and `NEXTAUTH_URL` if using authentication.
+    - **Verify Secrets:** Check required secrets are listed (run `fly secrets list --app acto`). Ensure `GOOGLE_AI_API_KEY`, `GOOGLE_APP_CREDS_JSON`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_SENTRY_DSN` are present. Also check `AUTH_SECRET` and `NEXTAUTH_URL` if using authentication. Check `ADMIN_EMAILS` and `ALLOWED_EMAILS` if those features are used.
 
 5.  **Deploy the Application:**
 
@@ -202,6 +203,29 @@ The following commands will guide you through the initial setup. Run them in you
 
 - If CI/CD is set up: `git push origin main`
 - Manually: `fly deploy --app acto`
+
+## Key Features Explained
+
+### Waiting List / Invite-Only Mode
+
+`acto` can be configured to operate in a restricted access mode, functioning like a waiting list or invite-only system.
+
+- **Activation**: This mode is implicitly activated whenever the `ALLOWED_EMAILS` environment variable is set and contains at least one email address.
+- **Access Control**: When active, only users whose email addresses are present in _either_ the `ALLOWED_EMAILS` or `ADMIN_EMAILS` environment variables will be allowed to sign in or complete the sign-up process.
+- **User Experience**: Users attempting to sign in who are not on either list will be redirected to a `/pending-approval` page indicating they are on the waiting list.
+- **Configuration**:
+  - Add non-admin allowed emails to the `ALLOWED_EMAILS` variable in your `.env.local` file (for local development) or as a Fly.io secret (for production), separated by commas.
+  - Add admin emails to the `ADMIN_EMAILS` variable (these users gain access regardless of the `ALLOWED_EMAILS` list).
+  - **Important**: If you update these secrets on Fly.io, you **must redeploy** the application (`fly deploy`) for the changes to take effect.
+- **Disabling**: To allow anyone to sign up, simply leave the `ALLOWED_EMAILS` environment variable unset or empty.
+
+### Static Starting Scenarios (Logged-Out Users)
+
+To improve performance and reduce unnecessary API calls for visitors who are not logged in, the application now displays a static, hardcoded list of starting scenarios (`app/components/AdventureGame.tsx`). Logged-in users will continue to receive dynamically generated starting scenarios for a unique experience.
+
+### Progressive Web App (PWA)
+
+The application is configured as a PWA using `@ducanh2912/next-pwa`. Users on compatible browsers may be prompted to install the app to their home screen or desktop via a custom, styled prompt (`app/components/PWAInstall.tsx`) for easier access and a more app-like experience.
 
 ## Development Workflow
 

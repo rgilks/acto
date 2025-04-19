@@ -232,7 +232,7 @@ async function generateImageWithGemini(
       throw new Error('Google AI Client (@google/genai) is not configured properly.');
     }
 
-    const modelName = 'imagen-3.0-generate-002';
+    const modelName = 'imagen-3.0-fast-generate-001';
     const result = await genAI.models.generateImages({
       model: modelName,
       prompt: finalImagePrompt,

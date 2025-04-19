@@ -19,6 +19,10 @@ const Page = () => {
           <p className="text-lg mb-3 text-gray-400 max-w-2xl mx-auto">
             An AI-powered interactive storytelling experience.
           </p>
+          <p className="text-md mb-5 text-amber-300/80 max-w-2xl mx-auto">
+            (We&apos;re currently onboarding users from our waiting list. Sign in to join or access
+            if you&apos;re already approved.)
+          </p>
         </div>
 
         <div className="fade-in w-full" style={{ animationDelay: '0.2s' }}>

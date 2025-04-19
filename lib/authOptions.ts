@@ -21,6 +21,7 @@ export const authEnvSchema = z
     AUTH_SECRET: z.string({ required_error: '[NextAuth] ERROR: AUTH_SECRET is missing!' }),
     NEXTAUTH_URL: z.string().url().optional(),
     ADMIN_EMAILS: z.string().optional(),
+    ALLOWED_EMAILS: z.string().optional(),
     NODE_ENV: z.enum(['development', 'production', 'test']).optional(),
   })
   .superRefine((data, ctx) => {
@@ -140,6 +141,47 @@ export const authOptions: NextAuthOptions = {
   pages: {},
   callbacks: {
     signIn: ({ user, account }: { user: User | AdapterUser; account: Account | null }) => {
+      // --- Invite Only / Admin Check ---
+      const rawAllowedEmails = validatedAuthEnv?.ALLOWED_EMAILS;
+      const rawAdminEmails = validatedAuthEnv?.ADMIN_EMAILS;
+      const inviteOnlyEnabled = typeof rawAllowedEmails === 'string' && rawAllowedEmails.length > 0;
+      const adminListExists = typeof rawAdminEmails === 'string' && rawAdminEmails.length > 0;
+
+      // Combine allowed and admin emails into a single set for checking
+      const combinedAllowedEmails = new Set<string>();
+      if (inviteOnlyEnabled) {
+        rawAllowedEmails
+          .split(',')
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean)
+          .forEach((email) => combinedAllowedEmails.add(email));
+      }
+      if (adminListExists) {
+        rawAdminEmails
+          .split(',')
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean)
+          .forEach((email) => combinedAllowedEmails.add(email));
+      }
+
+      // Only enforce the check if either ALLOWED_EMAILS or ADMIN_EMAILS is set
+      if (inviteOnlyEnabled || adminListExists) {
+        const userEmail = user?.email?.toLowerCase();
+        if (!userEmail || !combinedAllowedEmails.has(userEmail)) {
+          console.warn(
+            `[AUTH SignIn] Denied access for email: ${user.email || 'N/A'} (not in ALLOWED_EMAILS or ADMIN_EMAILS) - Redirecting to pending.`
+          );
+          return '/pending-approval'; // Redirect to pending page instead of returning false
+        }
+        console.log(
+          `[AUTH SignIn] Allowed access for email: ${user.email} (found in ALLOWED_EMAILS or ADMIN_EMAILS)`
+        );
+      } else {
+        // If neither ALLOWED_EMAILS nor ADMIN_EMAILS is set, allow everyone
+        // console.log('[AUTH SignIn] No ALLOWED_EMAILS or ADMIN_EMAILS set, allowing all users.');
+      }
+      // --- End Invite Only / Admin Check ---
+
       try {
         if (user && account) {
           db.prepare(
