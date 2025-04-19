@@ -199,9 +199,13 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
     },
 
     resetAdventure: () => {
-      // Keep the current TTS volume when resetting
       const currentVolume = get().ttsVolume;
-      set({ ...initialState, ttsVolume: currentVolume });
+      set((state) => {
+        // Reset all state fields to their initial values
+        Object.assign(state, initialState);
+        // Keep the current TTS volume
+        state.ttsVolume = currentVolume;
+      });
     },
 
     triggerReset: () => {
