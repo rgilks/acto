@@ -431,7 +431,7 @@ const AdventureGame = () => {
       {(() => {
         const containerClasses = fullscreenHandle.active
           ? 'fixed inset-0 z-50 bg-black flex items-center justify-center'
-          : 'bg-slate-800 rounded-lg p-2 sm:p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 relative mx-auto w-full flex flex-col';
+          : 'bg-slate-800 rounded-lg p-2 sm:p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 relative mx-4  flex flex-col';
 
         const showGameUI =
           gamePhase === 'playing' || gamePhase === 'loading_first_node' || gamePhase === 'error';
