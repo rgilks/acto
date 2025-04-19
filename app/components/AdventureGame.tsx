@@ -10,6 +10,8 @@ import {
   ArrowPathIcon,
   ArrowsPointingOutIcon,
   ArrowsPointingInIcon,
+  PlayIcon,
+  PauseIcon,
 } from '@heroicons/react/24/solid';
 import ScenarioSelector from './ScenarioSelector';
 import useTTSPlayer from '@/hooks/useTTSPlayer';
@@ -78,16 +80,18 @@ const AdventureGame = () => {
     isLoading: isNodeLoading,
     error: nodeError,
     makeChoice,
-    ttsVolume,
+    ttsVolume: storeTtsVolume,
+    setTTSVolume,
   } = useAdventureStore();
 
   const [gamePhase, setGamePhase] = useState<GamePhase>('selecting_scenario');
   const [displayNode, setDisplayNode] = useState<AdventureNode | null>(null);
   const [isCurrentImageLoading, setIsCurrentImageLoading] = useState<boolean>(true);
   const [showChoices, setShowChoices] = useState<boolean>(false);
-  const [showPassageText, setShowPassageText] = useState<boolean>(false);
   const [clickedChoiceIndex, setClickedChoiceIndex] = useState<number | null>(null);
   const [currentAudioData, setCurrentAudioData] = useState<string | null>(null);
+  const [localVolume, setLocalVolume] = useState<number>(storeTtsVolume);
+  const [isSelectingScenario, setIsSelectingScenario] = useState(false);
 
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
@@ -96,12 +100,14 @@ const AdventureGame = () => {
 
   const {
     play: playTTS,
+    pause: pauseTTS,
     stop: stopTTS,
+    isPlaying: isTTSPlaying,
     error: ttsPlayerError,
     audioRef: ttsAudioRef,
   } = useTTSPlayer({
     audioData: currentAudioData,
-    volume: ttsVolume,
+    volume: storeTtsVolume,
     onPlaybackEnd: useCallback(() => {
       console.log('[AdventureGame] onPlaybackEnd called. Setting showChoices = true.');
       setShowChoices(true);
@@ -117,16 +123,20 @@ const AdventureGame = () => {
     ),
   });
 
+  useEffect(() => {
+    setLocalVolume(storeTtsVolume);
+  }, [storeTtsVolume]);
+
   const [isIphone, setIsIphone] = useState(false);
 
   useEffect(() => {
-    // Check client-side if the user agent indicates iPhone
     const userAgent = window.navigator.userAgent;
     setIsIphone(/iPhone/i.test(userAgent));
   }, []);
 
   const handleScenarioSelect = useCallback(
     (scenario: Scenario) => {
+      setIsSelectingScenario(true);
       setGamePhase('loading_first_node');
       if (!hasUserInteracted) {
         setHasUserInteracted(true);
@@ -135,7 +145,6 @@ const AdventureGame = () => {
       setIsCurrentImageLoading(true);
       setCurrentAudioData(null);
       setShowChoices(false);
-      setShowPassageText(false);
       setClickedChoiceIndex(null);
       stopTTS();
 
@@ -151,10 +160,11 @@ const AdventureGame = () => {
         console.log('[AdventureGame handleImageLoad] Ready to potentially play.', {
           hasUserInteracted,
           hasAudio: !!currentAudioData,
+          isTTSPlaying,
         });
-        if (hasUserInteracted && currentAudioData) {
+        if (hasUserInteracted && currentAudioData && !isTTSPlaying) {
           console.log(
-            '[AdventureGame handleImageLoad] User has interacted and audio exists. Calling playTTS().'
+            '[AdventureGame handleImageLoad] User interacted, audio exists, not playing. Calling playTTS().'
           );
           playTTS();
         } else if (!currentAudioData) {
@@ -162,19 +172,16 @@ const AdventureGame = () => {
         }
       }
     },
-    [
-      displayNode,
-      hasUserInteracted,
-      currentAudioData,
-      setIsCurrentImageLoading,
-      setShowChoices,
-      playTTS,
-    ]
+    [displayNode, hasUserInteracted, currentAudioData, isTTSPlaying, playTTS, setShowChoices]
   );
 
   useEffect(() => {
     const newlyFetchedNode =
       gamePhase === 'playing' || gamePhase === 'loading_first_node' ? currentNode : null;
+
+    if (gamePhase !== 'loading_first_node' && isSelectingScenario) {
+      setIsSelectingScenario(false);
+    }
 
     if (newlyFetchedNode && newlyFetchedNode.passage !== displayNode?.passage) {
       stopTTS();
@@ -198,12 +205,12 @@ const AdventureGame = () => {
       if (!imageAvailable && !audioAvailable) {
         setShowChoices(true);
       } else if (!imageAvailable && audioAvailable) {
-        if (hasUserInteracted) {
-          console.log('[AdventureGame useEffect] No image, has audio. Playing TTS.');
+        if (hasUserInteracted && !isTTSPlaying) {
+          console.log('[AdventureGame useEffect] No image, has audio, not playing. Playing TTS.');
           playTTS();
         } else {
           console.log(
-            '[AdventureGame useEffect] No image, has audio, but no user interaction yet. Waiting.'
+            '[AdventureGame useEffect] No image, has audio, but no user interaction yet or already playing. Waiting.'
           );
         }
       } else if (imageAvailable) {
@@ -216,7 +223,16 @@ const AdventureGame = () => {
       stopTTS();
       setShowChoices(false);
     }
-  }, [currentNode, gamePhase, displayNode, stopTTS, playTTS, hasUserInteracted]);
+  }, [
+    currentNode,
+    gamePhase,
+    displayNode,
+    stopTTS,
+    playTTS,
+    hasUserInteracted,
+    isTTSPlaying,
+    isSelectingScenario,
+  ]);
 
   const handleChoiceClick = useCallback(
     (choice: Scenario, index: number) => {
@@ -240,25 +256,43 @@ const AdventureGame = () => {
     }
   }, [nodeError]);
 
+  const togglePlayPause = useCallback(() => {
+    if (isTTSPlaying) {
+      pauseTTS();
+    } else {
+      playTTS();
+    }
+  }, [isTTSPlaying, playTTS, pauseTTS]);
+
+  const handleVolumeChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const newVolume = parseFloat(event.target.value);
+      setLocalVolume(newVolume);
+      setTTSVolume(newVolume);
+    },
+    [setTTSVolume]
+  );
+
+  useEffect(() => {
+    if (
+      typeof kofiWidgetOverlay === 'object' &&
+      kofiWidgetOverlay !== null &&
+      typeof kofiWidgetOverlay.draw === 'function'
+    ) {
+      kofiWidgetOverlay.draw('robgilks', {
+        type: 'floating-chat',
+        'floating-chat.donateButton.text': 'Tip Me',
+        'floating-chat.donateButton.background-color': '#323842',
+        'floating-chat.donateButton.text-color': '#fff',
+      });
+    }
+  }, []);
+
   return (
     <>
       <Script
         src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"
         strategy="afterInteractive"
-        onLoad={() => {
-          if (
-            typeof kofiWidgetOverlay === 'object' &&
-            kofiWidgetOverlay !== null &&
-            typeof kofiWidgetOverlay.draw === 'function'
-          ) {
-            kofiWidgetOverlay.draw('robgilks', {
-              type: 'floating-chat',
-              'floating-chat.donateButton.text': 'Tip Me',
-              'floating-chat.donateButton.background-color': '#323842',
-              'floating-chat.donateButton.text-color': '#fff',
-            });
-          }
-        }}
       />
 
       {(() => {
@@ -280,8 +314,7 @@ const AdventureGame = () => {
             {gamePhase === 'selecting_scenario' && (
               <ScenarioSelector
                 onScenarioSelect={handleScenarioSelect}
-                // @ts-expect-error TS correctly identifies this state is impossible *while* selecting_scenario is true, but the prop needs to check for the *next* state.
-                isLoadingSelection={isNodeLoading && gamePhase === 'loading_first_node'}
+                isLoadingSelection={isSelectingScenario}
                 hardcodedScenarios={hardcodedScenarios}
               />
             )}
@@ -314,29 +347,24 @@ const AdventureGame = () => {
             {showGameUI && gamePhase !== 'error' && (
               <FullScreen handle={fullscreenHandle}>
                 <>
-                  <div className={fullscreenHandle.active ? 'p-4 w-full h-full flex flex-col' : ''}>
+                  <div
+                    className={
+                      fullscreenHandle.active
+                        ? 'p-4 w-full h-full flex flex-col'
+                        : 'w-full h-full flex flex-col'
+                    }
+                  >
                     {displayNode && (
                       <>
                         <div
                           className={`
-                            ${
-                              fullscreenHandle.active
-                                ? 'relative h-full aspect-video'
-                                : 'flex flex-col md:flex-row md:items-start md:gap-6 lg:gap-8 mb-6'
-                            }
+                            relative group overflow-hidden w-full flex-grow
+                            ${fullscreenHandle.active ? 'bg-black' : 'aspect-[16/10] rounded shadow-md bg-slate-700'}
+                            mb-4
                           `}
                         >
                           {displayNode.imageUrl && (
-                            <div
-                              className={`
-                                relative group overflow-hidden w-full h-full
-                                ${
-                                  fullscreenHandle.active
-                                    ? 'bg-black'
-                                    : `flex-shrink-0 mb-4 md:mb-0 aspect-[16/10] rounded shadow-md bg-slate-700 ${showPassageText ? 'w-full md:w-1/2 lg:w-5/12' : 'w-full'}`
-                                }
-                              `}
-                            >
+                            <>
                               {isCurrentImageLoading && (
                                 <div className="absolute inset-0 bg-slate-600 flex items-center justify-center z-10">
                                   <ArrowPathIcon className="h-8 w-8 text-slate-400 animate-spin" />
@@ -349,7 +377,7 @@ const AdventureGame = () => {
                                       ? fullscreenHandle.exit
                                       : fullscreenHandle.enter
                                   }
-                                  className="absolute top-2 left-2 z-20 p-1.5 bg-black/40 text-white/80 rounded-full hover:bg-black/60 hover:text-white transition-all"
+                                  className="absolute top-2 left-2 z-20 p-1.5 bg-black/40 text-white/80 rounded-full hover:bg-black/60 hover:text-white transition-all opacity-50 hover:opacity-100 transition-opacity duration-200"
                                   aria-label={
                                     fullscreenHandle.active ? 'Exit fullscreen' : 'Enter fullscreen'
                                   }
@@ -367,11 +395,7 @@ const AdventureGame = () => {
                                 alt="Adventure scene"
                                 fill
                                 className={`
-                                  ${
-                                    fullscreenHandle.active
-                                      ? 'absolute inset-0 w-full h-full object-cover'
-                                      : 'object-cover'
-                                  }
+                                  ${fullscreenHandle.active ? 'absolute inset-0 w-full h-full object-cover' : 'object-cover'}
                                   transition-opacity duration-500 ${isCurrentImageLoading ? 'opacity-0' : 'opacity-100'}
                                 `}
                                 priority
@@ -386,52 +410,72 @@ const AdventureGame = () => {
                                   setIsCurrentImageLoading(false);
                                 }}
                               />
-                              <audio
-                                ref={ttsAudioRef}
-                                aria-hidden="true"
-                                controls
-                                className="absolute top-2 right-2 z-20 w-48 max-w-[240px] rounded opacity-20 hover:opacity-100 transition-opacity duration-200"
-                              />
-                              <div
-                                className={`
-                                  absolute bottom-0 left-0 right-0 p-4 pt-8 z-10
-                                  bg-gradient-to-t from-black/80 via-black/60 to-transparent
-                                  transition-opacity duration-500 ease-in-out
-                                  ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
-                                `}
+                            </>
+                          )}
+
+                          {currentAudioData && (
+                            <div className="absolute top-2 right-2 z-20 flex items-center space-x-2 bg-black/40 rounded-full px-2 py-1 opacity-50 hover:opacity-100 transition-opacity duration-200">
+                              <button
+                                onClick={togglePlayPause}
+                                className="p-1 text-white/80 hover:text-white transition-all"
+                                aria-label={isTTSPlaying ? 'Pause narration' : 'Play narration'}
                               >
-                                {showChoices && (
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
-                                    {displayNode.choices.map((choice, index) => {
-                                      const isClicked = index === clickedChoiceIndex;
-                                      const isDisabled = isNodeLoading;
-                                      const isLoadingChoice = isNodeLoading && isClicked;
-                                      return (
-                                        <button
-                                          key={index}
-                                          onClick={() => handleChoiceClick(choice, index)}
-                                          className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
-                                          disabled={isDisabled}
-                                          data-testid={`choice-button-${index}`}
-                                        >
-                                          <span>{choice.text}</span>
-                                          {isLoadingChoice && (
-                                            <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
-                                          )}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
+                                {isTTSPlaying ? (
+                                  <PauseIcon className="h-5 w-5" />
+                                ) : (
+                                  <PlayIcon className="h-5 w-5" />
                                 )}
-                              </div>
+                              </button>
+                              <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.05"
+                                value={localVolume}
+                                onChange={handleVolumeChange}
+                                className="w-16 h-1 bg-slate-500 rounded-full appearance-none cursor-pointer accent-slate-400"
+                                aria-label="Narration volume"
+                              />
+                              {ttsPlayerError && (
+                                <span className="ml-2 text-xs text-red-400 bg-black/50 px-1.5 py-0.5 rounded">
+                                  Audio Error
+                                </span>
+                              )}
                             </div>
                           )}
 
-                          {ttsPlayerError && (
-                            <p className="absolute bottom-0 left-0 right-0 mb-2 text-xs text-red-400 text-center z-5">
-                              Speech Error: {ttsPlayerError}
-                            </p>
-                          )}
+                          <div
+                            className={`
+                              absolute bottom-0 left-0 right-0 p-4 pt-16 z-10
+                              bg-gradient-to-t from-black/80 via-black/60 to-transparent
+                              transition-opacity duration-500 ease-in-out
+                              ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+                            `}
+                          >
+                            {showChoices && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
+                                {displayNode.choices.map((choice, index) => {
+                                  const isClicked = index === clickedChoiceIndex;
+                                  const isDisabled = isNodeLoading;
+                                  const isLoadingChoice = isNodeLoading && isClicked;
+                                  return (
+                                    <button
+                                      key={index}
+                                      onClick={() => handleChoiceClick(choice, index)}
+                                      className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
+                                      disabled={isDisabled}
+                                      data-testid={`choice-button-${index}`}
+                                    >
+                                      <span>{choice.text}</span>
+                                      {isLoadingChoice && (
+                                        <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </>
                     )}
@@ -448,6 +492,7 @@ const AdventureGame = () => {
           </div>
         );
       })()}
+      <audio ref={ttsAudioRef} className="hidden" aria-hidden="true" />
     </>
   );
 };
