@@ -166,11 +166,11 @@ const checkRateLimit = async (
       error
     );
     Sentry.captureException(error, { tags: { rateLimitApiType: apiType, rateLimitUser: userId } });
-    // Fail open: Allow request but log error if rate limiter fails unexpectedly
+    // Fail CLOSED: Deny request if rate limiter fails unexpectedly
     return {
-      success: true, // Still true because we are failing open
+      success: false,
       limit: config.requests,
-      remaining: config.requests,
+      remaining: 0, // Assume limit reached if we can't check
       reset: now,
       errorType: 'InternalError',
       errorMessage: 'Rate limit check failed due to an internal error.',

@@ -7,9 +7,28 @@ import { TTS_VOICE_NAME } from '@/lib/constants';
 import { getSession } from '@/app/auth';
 import { checkTTSRateLimit } from '@/lib/rateLimitSqlite'; // Import TTS rate limit check
 
-// Instantiate the client
-// Make sure GOOGLE_APPLICATION_CREDENTIALS is set in your environment
-const client = new TextToSpeechClient();
+let client: TextToSpeechClient | null = null;
+
+const initializeTTSClient = () => {
+  if (client) return client;
+
+  try {
+    const credsJson = process.env.GOOGLE_APP_CREDS_JSON;
+    if (!credsJson) {
+      throw new Error('[TTS Client] GOOGLE_APP_CREDS_JSON environment variable not set.');
+    }
+    const credentials = JSON.parse(credsJson);
+    console.log('[TTS Client] Initializing with credentials from GOOGLE_APP_CREDS_JSON');
+    client = new TextToSpeechClient({ credentials });
+    return client;
+  } catch (error) {
+    console.error('[TTS Client] Failed to initialize TextToSpeechClient:', error);
+    Sentry.captureException(error);
+    // Fallback or rethrow depending on desired behavior if initialization fails
+    // For now, let operations fail later if client is null
+    return null;
+  }
+};
 
 interface SynthesizeSpeechParams {
   text: string;
@@ -72,8 +91,14 @@ export const synthesizeSpeechAction = async ({
       `[TTS Action] Requesting synthesis with voice: ${voiceName || 'Default'}, lang: ${languageCode}`
     );
 
+    // Ensure client is initialized
+    const ttsClient = initializeTTSClient();
+    if (!ttsClient) {
+      return { error: 'TTS client failed to initialize.' };
+    }
+
     // Performs the text-to-speech request
-    const [response] = await client.synthesizeSpeech(request);
+    const [response] = await ttsClient.synthesizeSpeech(request);
 
     if (!response.audioContent) {
       console.error('[TTS Action] No audio content received from Google.');

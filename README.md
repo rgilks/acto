@@ -106,7 +106,13 @@ acto implements strategies to manage AI API costs:
     **Required for Core Functionality:**
 
     - `GOOGLE_AI_API_KEY`: For Google AI (Gemini text generation & Imagen image generation via Gemini API). Get from [Google AI Studio](https://aistudio.google.com/app/apikey).
-    - `GOOGLE_APPLICATION_CREDENTIALS` (or `GOOGLE_APP_CREDS_JSON` secret): Path to (or JSON content of) your Google Cloud service account key file. Required for Google Cloud services like Cloud Text-to-Speech. See [Google Cloud Authentication Docs](https://cloud.google.com/docs/authentication/provide-credentials-adc#local-dev).
+    - `GOOGLE_APP_CREDS_JSON`: Contains the full JSON content of your Google Cloud service account key file. **Required for Cloud Text-to-Speech**. The application reads the credentials directly from this variable.
+      - **Formatting:** The JSON content must be provided as a **single line**. You can generate this format from your key file using `jq` (replace `/path/to/your/keyfile.json` with the actual path):
+        ```bash
+        jq -c . < /path/to/your/keyfile.json
+        ```
+      - Copy the entire single-line output of this command and paste it directly after the `=` sign for `GOOGLE_APP_CREDS_JSON` in your `.env.local` file (do **not** add surrounding quotes).
+    - `GOOGLE_APPLICATION_CREDENTIALS`: _Legacy variable, no longer used by the TTS client._ Previously pointed to the service account key file path. Can likely be removed from `.env.local` unless used by other SDKs.
 
     **Required for Authentication (if used):**
 

@@ -14,6 +14,7 @@ const middleware = async (req: import('next/server').NextRequest) => {
     if (isAdminRoute && !isAdmin) {
       console.log(`[Middleware] Redirecting non-admin from /admin to /`);
       const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = '/';
       return NextResponse.redirect(redirectUrl);
     }
     console.log(`[Middleware] Allowing access to ${pathname}`);

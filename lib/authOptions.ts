@@ -83,6 +83,18 @@ if (!authEnvVars.success) {
 
 const validatedAuthEnv = authEnvVars.success ? authEnvVars.data : undefined;
 
+// CRITICAL: Ensure AUTH_SECRET is present after validation
+if (!validatedAuthEnv?.AUTH_SECRET) {
+  const errorMessage =
+    '[NextAuth] CRITICAL ERROR: AUTH_SECRET is missing or invalid. Application cannot start securely.';
+  console.error(errorMessage);
+  Sentry.captureMessage(errorMessage, { level: 'fatal' }); // Send to Sentry if configured
+  // In a server environment, this forces a crash, preventing insecure operation.
+  // In serverless/edge, it might just log and potentially allow insecure operation,
+  // hence the explicit throw.
+  throw new Error(errorMessage);
+}
+
 interface UserWithEmail extends User {
   email?: string | null;
 }
