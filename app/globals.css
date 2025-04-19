@@ -64,7 +64,8 @@ body {
   /* Target iOS/touch devices in landscape */
 
   /* Reset body/html margins */
-  html, body {
+  html,
+  body {
     padding: 0 !important;
     margin: 0 !important;
   }
@@ -90,6 +91,16 @@ body {
     padding-right: env(safe-area-inset-right);
     padding-bottom: env(safe-area-inset-bottom);
     box-sizing: border-box !important; /* Include padding in width/height */
+  }
+
+  /* Reset styles on the direct image wrapper */
+  .game-image-wrapper {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background-color: black !important; /* Match fullscreen container bg */
+    /* Ensure it fills its container fully */
+    min-height: 100%;
+    aspect-ratio: auto !important; /* Override aspect ratio if needed */
   }
 
   /* Hide header/footer elements */

@@ -444,17 +444,28 @@ type GenerateStartingScenariosResult = {
 function buildStartingScenariosPrompt(): string {
   const jsonStructure = `[
   {
-    "text": "(string) Engaging starting scenario text for a new adventure.",
-    "genre": "(string) The primary genre (e.g., Fantasy, Sci-Fi, Mystery, Cyberpunk).",
-    "tone": "(string) The overall tone (e.g., Gritty, Hopeful, Humorous, Tense).",
-    "visualStyle": "(string) The desired visual style for images (e.g., Photorealistic, Anime, Watercolor, Film Noir)."
+    "text": "(string) Engaging, specific, and imaginative starting situation text, often surreal or dreamlike.",
+    "genre": "(string) Genre (e.g., Surreal Sci-Fi, Dreamlike Fantasy, Psychedelic Mystery, 70s Space Opera). Be specific.",
+    "tone": "(string) Tone (e.g., Eerie, Oneiric, Hypnagogic, Cosmic Horror, Retrofuturistic, Whimsical yet unsettling). Be specific.",
+    "visualStyle": "(string) Visual style (e.g., 70s Sci-Fi Book Cover Art, Psychedelic Illustration, Surrealist Painting, Retro Anime, Vintage Fantasy Art). Be specific."
   }
-  /* Repeat this structure for 3-4 diverse scenarios */
+  /* Repeat this structure for 4 highly diverse scenarios, leaning into the requested themes */
 ]`;
 
-  return `You are a creative storyteller. Generate a diverse list of 4 unique and compelling starting scenarios for an interactive text adventure. Each scenario should include text describing the initial situation, a genre, a tone, and a visual style for potential images. Respond ONLY with a valid JSON array matching this structure:
+  return `You are an extremely creative storyteller specializing in crafting unique adventure hooks, with a strong preference for **surreal, dreamlike scenarios reminiscent of 70s sci-fi/fantasy art and psychedelic imagery.** Generate a diverse list of 4 compelling starting scenarios for an interactive text adventure.
+
+**Primary Focus:**
+*   Prioritize scenarios that are **surreal, dreamlike, weird, or psychedelic.**
+*   Draw inspiration from **70s-era science fiction and fantasy aesthetics** (think Moebius, Frazetta, vintage book covers).
+*   Aim for **evocative, specific, and unconventional** starting situations.
+
+**Key Requirements:**
+1.  **Thematic Emphasis:** While diversity is good, ensure **at least 2-3 scenarios strongly reflect the surreal/dreamlike/70s-psychedelic theme.**
+2.  **Specificity:** Use concrete, unusual details. Instead of "a strange planet", try "a planet where crystalline flora hums forgotten lullabies under a binary sunset".
+3.  **Creative Styles:** Explicitly use genres, tones, and visual styles reflecting the focus (e.g., Visual Style: '70s Sci-Fi Book Cover Art', Tone: 'Oneiric', Genre: 'Surreal Fantasy').
+4.  **Strict JSON Output:** Respond ONLY with a valid JSON array matching this exact structure (do not add any text before or after the JSON):
 ${jsonStructure}
-Output only the JSON array. Ensure the scenarios are varied in theme and style.`;
+Output only the JSON array. Focus on the requested surreal, dreamlike, and retro-psychedelic themes with high detail and creativity.`;
 }
 
 export const generateStartingScenariosAction =

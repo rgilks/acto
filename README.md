@@ -14,7 +14,7 @@ _(Placeholder for a new screenshot of the application interface)_
 
 - **AI-Generated Narrative**: Unique story passages and scenarios crafted by Google AI (Gemini models) based on user choices and story history.
 - **Dynamic Choices**: AI generates relevant choices for the user at each step, influencing the story progression.
-- **Starting Scenarios**: Generates diverse starting points for new stories across different genres.
+- **Starting Scenarios**: Generates diverse starting points for new stories across different genres (now with enhanced prompt emphasizing specific themes like surreal/dreamlike/70s sci-fi).
 - **AI-Generated Images**: Images created based on the narrative using Imagen via the Gemini API.
 - **Text-to-Speech (TTS)**: Reads story passages aloud using Google Cloud TTS. Audio begins playing automatically when ready.
 - **Stateful Interaction**: The application maintains the story history to provide context for the AI.
@@ -23,6 +23,7 @@ _(Placeholder for a new screenshot of the application interface)_
 - **Responsive Design**: Optimized for both desktop and mobile devices using Tailwind CSS.
 - **Modern UI**: Clean interface built with React and Next.js.
 - **Enhanced & Responsive Game UI**: Improved image-centric layout that adapts to different screen sizes, featuring integrated minimal audio controls (play/pause, volume), a subtle glow effect, and a fullscreen option to enhance visual immersion.
+- **Improved Landscape/Fullscreen View**: Enhanced CSS to provide a near edge-to-edge image experience on mobile devices (like iPhones) in landscape mode.
 - **Robust Validation**: Uses Zod for validating AI responses.
 - **State Management**: Uses `zustand` for managing client-side application state.
 - **Continuous Deployment**: Automatic deployment to Fly.io via GitHub Actions.

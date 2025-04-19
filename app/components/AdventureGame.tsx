@@ -453,19 +453,17 @@ const AdventureGame = () => {
                 className="flex-grow flex flex-col game-fullscreen-container"
               >
                 <>
-                  <div
-                    className={
-                      fullscreenHandle.active
-                        ? 'p-4 w-full h-full flex flex-col'
-                        : 'w-full h-full flex flex-col'
-                    }
-                  >
+                  <div className={'w-full h-full flex flex-col'}>
                     {displayNode && (
                       <>
                         <div
                           className={`
-                            relative group overflow-hidden w-full flex-grow min-h-[200px] aspect-[16/10]
-                            ${fullscreenHandle.active ? 'bg-black' : 'rounded shadow-md bg-slate-700 flex items-center justify-center shadow-xl shadow-amber-300/20'}
+                            relative group overflow-hidden w-full flex-grow
+                            ${
+                              fullscreenHandle.active
+                                ? 'bg-black h-full w-full'
+                                : 'min-h-[200px] aspect-[16/10] rounded shadow-md bg-slate-700 flex items-center justify-center shadow-xl shadow-amber-300/20 game-image-wrapper'
+                            }
                           `}
                         >
                           {displayNode.imageUrl && (
