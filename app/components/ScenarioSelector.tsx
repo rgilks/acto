@@ -134,7 +134,7 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
         <h2 className="text-2xl font-semibold text-amber-100/90 mb-4 font-serif">
           Choose your starting scenario:
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl m-4">
           {scenariosToDisplay.map((scenario, index) => (
             <button
               key={index}
@@ -153,19 +153,6 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
             </button>
           ))}
         </div>
-        {isUserLoggedIn && (
-          <button
-            onClick={onFetchNewScenarios}
-            className={`${buttonBaseClasses} border-sky-600 text-sky-300 hover:bg-sky-500/20 mt-2`}
-            disabled={isLoadingScenarios || isLoadingSelection}
-          >
-            {isLoadingScenarios ? (
-              <ArrowPathIcon className="h-5 w-5 animate-spin mx-auto" />
-            ) : (
-              'Generate New Scenarios'
-            )}
-          </button>
-        )}
       </div>
     );
   };

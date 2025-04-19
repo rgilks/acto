@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import Image from 'next/image';
-import Script from 'next/script';
 import useAdventureStore from '@/store/adventureStore';
 import { AdventureChoiceSchema, AdventureNode } from '@/lib/domain/schemas';
 import { z } from 'zod';
@@ -24,12 +23,6 @@ interface RateLimitError {
   resetTimestamp: number;
   apiType?: 'text' | 'image' | 'tts';
 }
-
-interface KofiWidgetOverlay {
-  draw(username: string, config: Record<string, string>): void;
-}
-
-declare const kofiWidgetOverlay: KofiWidgetOverlay | undefined;
 
 type GamePhase = 'selecting_scenario' | 'loading_first_node' | 'playing' | 'error';
 type Scenario = z.infer<typeof AdventureChoiceSchema>;
@@ -307,21 +300,6 @@ const AdventureGame = () => {
     [setTTSVolume]
   );
 
-  useEffect(() => {
-    if (
-      typeof kofiWidgetOverlay === 'object' &&
-      kofiWidgetOverlay !== null &&
-      typeof kofiWidgetOverlay.draw === 'function'
-    ) {
-      kofiWidgetOverlay.draw('robgilks', {
-        type: 'floating-chat',
-        'floating-chat.donateButton.text': 'Tip Me',
-        'floating-chat.donateButton.background-color': '#323842',
-        'floating-chat.donateButton.text-color': '#fff',
-      });
-    }
-  }, []);
-
   const effectiveError = nodeError || fetchScenariosError;
 
   const rateLimitInfo =
@@ -423,11 +401,6 @@ const AdventureGame = () => {
 
   return (
     <>
-      <Script
-        src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"
-        strategy="afterInteractive"
-      />
-
       {(() => {
         const containerClasses = fullscreenHandle.active
           ? 'fixed inset-0 z-50 bg-black flex items-center justify-center'

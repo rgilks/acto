@@ -105,8 +105,8 @@ body {
     /* top: 50%; */ /* Removed */
     /* left: 50%; */ /* Removed */
     /* transform: translate(-50%, -50%); */ /* Removed */
-    width: 96vw !important;
-    height: 96vh !important;
+    width: 100vw !important;
+    height: 100vh !important;
     background-color: black !important;
     /* z-index: 9998; */ /* No longer needed? */
     display: flex !important; /* Keep flex */
