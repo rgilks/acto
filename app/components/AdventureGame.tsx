@@ -89,7 +89,6 @@ const AdventureGame = () => {
   const [clickedChoiceIndex, setClickedChoiceIndex] = useState<number | null>(null);
   const [currentAudioData, setCurrentAudioData] = useState<string | null>(null);
 
-  const audioRef = useRef<HTMLAudioElement>(null);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
 
   const fullscreenHandle = useFullScreenHandle();
@@ -106,13 +105,16 @@ const AdventureGame = () => {
     onPlaybackEnd: useCallback(() => {
       console.log('[AdventureGame] onPlaybackEnd called. Setting showChoices = true.');
       setShowChoices(true);
-    }, []),
-    onPlaybackError: useCallback((errorMsg: string) => {
-      console.log(
-        `[AdventureGame] onPlaybackError called with error: ${errorMsg}. Setting showChoices = true.`
-      );
-      setShowChoices(true);
-    }, []),
+    }, [setShowChoices]),
+    onPlaybackError: useCallback(
+      (errorMsg: string) => {
+        console.log(
+          `[AdventureGame] onPlaybackError called with error: ${errorMsg}. Setting showChoices = true.`
+        );
+        setShowChoices(true);
+      },
+      [setShowChoices]
+    ),
   });
 
   const [isIphone, setIsIphone] = useState(false);
@@ -259,8 +261,6 @@ const AdventureGame = () => {
         }}
       />
 
-      <audio ref={audioRef} loop hidden aria-hidden="true" />
-
       {(() => {
         const rateLimitInfo =
           typeof nodeError === 'object' && nodeError !== null && 'rateLimitError' in nodeError
@@ -392,41 +392,40 @@ const AdventureGame = () => {
                                 controls
                                 className="absolute top-2 right-2 z-20 w-48 max-w-[240px] rounded opacity-20 hover:opacity-100 transition-opacity duration-200"
                               />
+                              <div
+                                className={`
+                                  absolute bottom-0 left-0 right-0 p-4 pt-8 z-10
+                                  bg-gradient-to-t from-black/80 via-black/60 to-transparent
+                                  transition-opacity duration-500 ease-in-out
+                                  ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+                                `}
+                              >
+                                {showChoices && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
+                                    {displayNode.choices.map((choice, index) => {
+                                      const isClicked = index === clickedChoiceIndex;
+                                      const isDisabled = isNodeLoading;
+                                      const isLoadingChoice = isNodeLoading && isClicked;
+                                      return (
+                                        <button
+                                          key={index}
+                                          onClick={() => handleChoiceClick(choice, index)}
+                                          className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
+                                          disabled={isDisabled}
+                                          data-testid={`choice-button-${index}`}
+                                        >
+                                          <span>{choice.text}</span>
+                                          {isLoadingChoice && (
+                                            <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
+                                          )}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
-
-                          <div
-                            className={`
-                              absolute bottom-0 left-0 right-0 p-4 pt-8 z-10
-                              bg-gradient-to-t from-black/80 via-black/60 to-transparent
-                              transition-opacity duration-500 ease-in-out
-                              ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
-                            `}
-                          >
-                            {showChoices && (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
-                                {displayNode.choices.map((choice, index) => {
-                                  const isClicked = index === clickedChoiceIndex;
-                                  const isDisabled = isNodeLoading;
-                                  const isLoadingChoice = isNodeLoading && isClicked;
-                                  return (
-                                    <button
-                                      key={index}
-                                      onClick={() => handleChoiceClick(choice, index)}
-                                      className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
-                                      disabled={isDisabled}
-                                      data-testid={`choice-button-${index}`}
-                                    >
-                                      <span>{choice.text}</span>
-                                      {isLoadingChoice && (
-                                        <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
-                                      )}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
 
                           {ttsPlayerError && (
                             <p className="absolute bottom-0 left-0 right-0 mb-2 text-xs text-red-400 text-center z-5">
