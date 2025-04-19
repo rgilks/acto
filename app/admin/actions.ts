@@ -5,6 +5,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import * as Sentry from '@sentry/nextjs';
 
+// Define allowed table names for the admin explorer
+const ALLOWED_ADMIN_TABLES = ['users', 'rate_limits_user']; // Add other known/safe tables if needed
+
 const isAdmin = async (): Promise<boolean> => {
   const session = await getServerSession(authOptions);
 
@@ -65,10 +68,10 @@ export const getTableData = async (
     return { error: 'Unauthorized' };
   }
 
-  const allowedTableNames = getAllTableNames();
-  if (!allowedTableNames.includes(tableName)) {
+  // Validate against the hardcoded allowlist INSTEAD of getAllTableNames()
+  if (!ALLOWED_ADMIN_TABLES.includes(tableName)) {
     console.warn(`[Admin Actions] Attempt to access disallowed table: ${tableName}`);
-    return { error: 'Invalid table name' };
+    return { error: 'Invalid or disallowed table name' };
   }
 
   const safePage = Math.max(1, Math.floor(page));
@@ -77,10 +80,13 @@ export const getTableData = async (
 
   try {
     let orderByClause = 'ORDER BY ROWID DESC';
-    if (tableName === 'users' && allowedTableNames.includes('users')) {
+    // Check against allowlist here too for safety before special casing
+    if (tableName === 'users' && ALLOWED_ADMIN_TABLES.includes('users')) {
       orderByClause = 'ORDER BY last_login DESC';
     }
 
+    // Since tableName is now validated against a safe allowlist,
+    // direct interpolation with double quotes is safe here.
     const result = db.transaction(() => {
       const countResult = db
         .prepare(`SELECT COUNT(*) as totalRows FROM "${tableName}"`)
