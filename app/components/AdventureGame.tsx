@@ -17,6 +17,12 @@ import {
 } from '@heroicons/react/24/solid';
 import { generateStartingScenariosAction } from '../actions/adventure';
 
+interface KofiWidgetOverlay {
+  draw(username: string, config: Record<string, string>): void;
+}
+
+declare const kofiWidgetOverlay: KofiWidgetOverlay | undefined;
+
 type GamePhase =
   | 'loading_scenarios'
   | 'selecting_scenario'
@@ -25,7 +31,6 @@ type GamePhase =
   | 'error';
 type Scenario = z.infer<typeof AdventureChoiceSchema>;
 
-// Define hardcoded scenarios for the logged-out experience
 const hardcodedScenarios: Scenario[] = [
   {
     text: 'The neon glow of Neo-Kyoto reflects in the slick, rain-streaked streets. You awaken with a data-chip implanted in your arm, a cryptic message flashing across your augmented reality display.',
@@ -312,8 +317,6 @@ const AdventureGame = () => {
         setGamePhase('playing');
       }
 
-      // If there's no image loading and no audio available, show choices immediately.
-      // Otherwise, choices wait for handleImageLoad or stopTTSSpeech.
       if (!imageAvailable && !audioAvailable) {
         setShowChoices(true);
       }
@@ -371,11 +374,16 @@ const AdventureGame = () => {
 
     if (!document.fullscreenElement) {
       elem.requestFullscreen().catch((err) => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-        // Maybe show an error message to the user
+        const message = err instanceof Error ? err.message : String(err);
+        const name = err instanceof Error ? err.name : 'UnknownError';
+        console.error(`Error attempting to enable full-screen mode: ${message} (${name})`);
       });
     } else {
-      document.exitFullscreen();
+      document.exitFullscreen().catch((err) => {
+        const message = err instanceof Error ? err.message : String(err);
+        const name = err instanceof Error ? err.name : 'UnknownError';
+        console.error(`Error attempting to exit full-screen mode: ${message} (${name})`);
+      });
     }
   }, []);
 
@@ -397,13 +405,18 @@ const AdventureGame = () => {
         src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"
         strategy="afterInteractive"
         onLoad={() => {
-          // @ts-expect-error kofiWidgetOverlay is loaded externally
-          kofiWidgetOverlay.draw('robgilks', {
-            type: 'floating-chat',
-            'floating-chat.donateButton.text': 'Tip Me',
-            'floating-chat.donateButton.background-color': '#323842',
-            'floating-chat.donateButton.text-color': '#fff',
-          });
+          if (
+            typeof kofiWidgetOverlay === 'object' &&
+            kofiWidgetOverlay !== null &&
+            typeof kofiWidgetOverlay.draw === 'function'
+          ) {
+            kofiWidgetOverlay.draw('robgilks', {
+              type: 'floating-chat',
+              'floating-chat.donateButton.text': 'Tip Me',
+              'floating-chat.donateButton.background-color': '#323842',
+              'floating-chat.donateButton.text-color': '#fff',
+            });
+          }
         }}
       />
 
@@ -616,9 +629,9 @@ const AdventureGame = () => {
 
                           <div
                             className={`
-                              absolute bottom-0 left-0 right-0 p-4 pt-16 
+                              absolute bottom-0 left-0 right-0 p-4 pt-16
                               bg-gradient-to-t from-black/90 via-black/70 to-transparent
-                              transition-opacity duration-500 ease-in-out 
+                              transition-opacity duration-500 ease-in-out
                               ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
                             `}
                           >
