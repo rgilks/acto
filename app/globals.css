@@ -73,6 +73,14 @@ body {
     /* Add vendor prefixes if needed, though often handled by autoprefixers */
   }
 
+  /* Hide header/footer elements */
+  main > div.z-10 > div.text-center,
+  main > div.z-10 > footer,
+  main > div[class*="absolute top-"][class*="right-"] /* Target the top-right AuthButton */
+  {
+    display: none !important;
+  }
+
   /* Optional: Hide other elements like headers/footers if necessary */
   /* Example: */
   /* body > header, body > footer { */
