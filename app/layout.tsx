@@ -3,7 +3,7 @@ import { Poppins } from 'next/font/google';
 import './globals.css';
 import AuthProvider from '@/components/AuthProvider';
 import ClientPWAWrapper from '@/components/ClientPWAWrapper';
-import Script from 'next/script';
+import KofiWidgetScript from '@/components/KofiWidgetScript';
 
 const poppins = Poppins({
   weight: ['400', '500', '600', '700'],
@@ -67,21 +67,7 @@ export default function RootLayout({
           {children}
           <ClientPWAWrapper />
         </AuthProvider>
-        <Script
-          src="https://storage.ko-fi.com/cdn/scripts/overlay-widget.js"
-          strategy="lazyOnload"
-          id="kofi-overlay-widget"
-        />
-        <Script id="kofi-config" strategy="lazyOnload">
-          {`
-            kofiWidgetOverlay.draw('robgilks', {
-              'type': 'floating-chat',
-              'floating-chat.donateButton.text': 'Tip Me',
-              'floating-chat.donateButton.background-color': '#323842',
-              'floating-chat.donateButton.text-color': '#fff'
-            });
-          `}
-        </Script>
+        <KofiWidgetScript />
       </body>
     </html>
   );
