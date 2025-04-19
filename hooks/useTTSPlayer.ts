@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useRef, RefObject } from 'react';
 
 interface UseTTSPlayerProps {
-  audioData: string | null; // Base64 encoded audio data
+  audioData: string | null;
   volume: number;
-  onPlaybackEnd?: () => void; // Optional callback when audio finishes naturally
-  onPlaybackError?: (errorMsg: string) => void; // Optional callback on playback error
+  onPlaybackEnd?: () => void;
+  onPlaybackError?: (errorMsg: string) => void;
 }
 
 interface UseTTSPlayerReturn {
@@ -13,7 +13,7 @@ interface UseTTSPlayerReturn {
   stop: () => void;
   isPlaying: boolean;
   error: string | null;
-  audioRef: RefObject<HTMLAudioElement | null>; // Allow null in return type
+  audioRef: RefObject<HTMLAudioElement | null>;
 }
 
 function useTTSPlayer({
@@ -22,12 +22,11 @@ function useTTSPlayer({
   onPlaybackEnd,
   onPlaybackError,
 }: UseTTSPlayerProps): UseTTSPlayerReturn {
-  const audioRef = useRef<HTMLAudioElement | null>(null); // Initialize as null
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [currentAudioSrc, setCurrentAudioSrc] = useState<string | null>(null);
-  // New state for autoplay trigger
-  const [isReadyToPlay, setIsReadyToPlay] = useState(false);
+  const [isAudioInitialized, setIsAudioInitialized] = useState<boolean>(false);
 
   const handleEnded = useCallback(() => {
     setIsPlaying(false);
@@ -57,7 +56,6 @@ function useTTSPlayer({
             errorMsg = `Audio error code: ${audioElement.error.code}`;
         }
       }
-      console.error('[useTTSPlayer] Audio Error:', errorMsg, audioElement.error);
       setError(errorMsg);
       setIsPlaying(false);
       onPlaybackError?.(errorMsg);
@@ -71,10 +69,8 @@ function useTTSPlayer({
 
     if (!audioElement || !latestSrc) {
       const msg = 'Audio element or source not available for playback.';
-      console.warn('[useTTSPlayer] Playback warning:', msg);
       setError(msg);
       onPlaybackError?.(msg);
-      // Ensure isPlaying is false if we can't play
       setIsPlaying(false);
       return;
     }
@@ -85,23 +81,20 @@ function useTTSPlayer({
 
     setError(null);
 
-    // Check if already playing before attempting to play
-    if (!isPlaying) {
+    if (audioElement.paused && !isPlaying) {
       audioElement
         .play()
         .then(() => {
           setIsPlaying(true);
         })
-        .catch((err) => {
-          // Revert to simpler error logging
+        .catch(() => {
           const msg = 'Audio playback failed.';
-          console.error('[useTTSPlayer] Error starting playback:', err);
           setError(msg);
           setIsPlaying(false);
           onPlaybackError?.(msg);
         });
     }
-  }, [audioData, onPlaybackError, isPlaying]); // Added isPlaying dependency
+  }, [audioData, onPlaybackError, audioRef]);
 
   const pause = useCallback(() => {
     const audioElement = audioRef.current;
@@ -109,88 +102,72 @@ function useTTSPlayer({
       audioElement.pause();
       setIsPlaying(false);
     }
-  }, [isPlaying]);
+  }, [isPlaying, audioRef]);
 
   const stop = useCallback(() => {
     const audioElement = audioRef.current;
     if (audioElement) {
       audioElement.pause();
       audioElement.currentTime = 0;
-      // Don't reset src here, let the audioData useEffect handle it
+      const wasPlaying = isPlaying;
       setIsPlaying(false);
-      // Explicitly call onPlaybackEnd if defined, as 'ended' event won't fire
-      // But only if it was actually playing to avoid redundant calls
-      if (isPlaying) {
+      if (wasPlaying) {
         handleEnded();
       }
     }
-    // isPlaying dependency needed to ensure correct call to handleEnded
-    // handleEnded dependency avoids potential stale closure
-  }, [isPlaying, handleEnded]);
+  }, [isPlaying, handleEnded, audioRef]);
 
-  // Effect to update audio source when audioData changes and trigger ready state
   useEffect(() => {
     const newSrc = audioData ? `data:audio/mp3;base64,${audioData}` : null;
 
-    // Only update src and trigger play logic if the source actually changed
     if (newSrc !== currentAudioSrc) {
       setCurrentAudioSrc(newSrc);
 
-      // If audio data changes while playing, stop playback
-      if (isPlaying) {
-        stop();
+      const audioElement = audioRef.current;
+      if (audioElement) {
+        if (!audioElement.paused || isPlaying) {
+          stop();
+        }
+        audioElement.src = newSrc ?? '';
       }
-      // Reset error when new audio comes in
+
       setError(null);
-
-      // Set ready to play if we have a valid new source
-      setIsReadyToPlay(!!newSrc);
     }
-  }, [audioData, stop, isPlaying, currentAudioSrc]); // Added currentAudioSrc, isPlaying dependencies
+  }, [audioData, currentAudioSrc, audioRef, stop, isPlaying]);
 
-  // Effect to handle actual autoplay when ready
-  useEffect(() => {
-    if (isReadyToPlay) {
-      play();
-      setIsReadyToPlay(false); // Reset trigger after attempting play
-    }
-  }, [isReadyToPlay, play]); // Dependencies: the trigger state and the play function
-
-  // Effect to handle setting volume
   useEffect(() => {
     const audioElement = audioRef.current;
     if (audioElement) {
       const clampedVolume = Math.max(0, Math.min(1, volume));
       audioElement.volume = clampedVolume;
     }
-  }, [volume]);
+  }, [volume, audioRef]);
 
-  // Effect to attach/detach event listeners
   useEffect(() => {
     const audioElement = audioRef.current;
-    if (!audioElement) return;
+    if (!audioElement) {
+      return;
+    }
 
     audioElement.addEventListener('ended', handleEnded);
     audioElement.addEventListener('error', handleError);
 
-    // Cleanup
     return () => {
-      // Check again in cleanup in case element was removed
-      if (audioElement) {
-        audioElement.removeEventListener('ended', handleEnded);
-        audioElement.removeEventListener('error', handleError);
+      const currentAudioElement = audioRef.current;
+      if (currentAudioElement) {
+        currentAudioElement.removeEventListener('ended', handleEnded);
+        currentAudioElement.removeEventListener('error', handleError);
       }
     };
-  }, [handleEnded, handleError]); // Removed dependency on audioRef.current
+  }, [handleEnded, handleError, isAudioInitialized]);
 
-  // Effect to initialize audio element client-side
   useEffect(() => {
     if (!audioRef.current && typeof Audio !== 'undefined') {
       audioRef.current = new Audio();
+      audioRef.current.volume = Math.max(0, Math.min(1, volume));
+      setIsAudioInitialized(true);
     }
-    // Optional: Cleanup ref if component unmounts, though useRef usually handles this
-    // return () => { audioRef.current = null; };
-  }, []);
+  }, [volume]);
 
   return { play, pause, stop, isPlaying, error, audioRef };
 }
