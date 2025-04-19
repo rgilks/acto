@@ -15,7 +15,13 @@ import {
   ArrowsPointingOutIcon,
   ArrowsPointingInIcon,
 } from '@heroicons/react/24/solid';
-import { generateStartingScenariosAction } from '../actions/adventure';
+import ScenarioSelector from './ScenarioSelector';
+
+interface RateLimitError {
+  message: string;
+  resetTimestamp: number;
+  apiType?: 'text' | 'image' | 'tts';
+}
 
 interface KofiWidgetOverlay {
   draw(username: string, config: Record<string, string>): void;
@@ -23,12 +29,7 @@ interface KofiWidgetOverlay {
 
 declare const kofiWidgetOverlay: KofiWidgetOverlay | undefined;
 
-type GamePhase =
-  | 'loading_scenarios'
-  | 'selecting_scenario'
-  | 'loading_first_node'
-  | 'playing'
-  | 'error';
+type GamePhase = 'selecting_scenario' | 'loading_first_node' | 'playing' | 'error';
 type Scenario = z.infer<typeof AdventureChoiceSchema>;
 
 const hardcodedScenarios: Scenario[] = [
@@ -57,8 +58,6 @@ const hardcodedScenarios: Scenario[] = [
     visualStyle: 'Photorealistic, Bleak Landscape',
   },
 ];
-
-const SCENARIO_CACHE_KEY = 'adventureGame_startingScenarios';
 
 function formatResetTime(timestamp: number): string {
   if (!timestamp) return 'an unknown time';
@@ -96,7 +95,6 @@ const AdventureGame = () => {
     currentNode,
     isLoading: isNodeLoading,
     error: nodeError,
-    storyHistory,
     makeChoice,
     isSpeaking,
     ttsError,
@@ -106,9 +104,7 @@ const AdventureGame = () => {
     setTTSVolume,
   } = useAdventureStore();
 
-  const [gamePhase, setGamePhase] = useState<GamePhase>('loading_scenarios');
-  const [scenarios, setScenarios] = useState<Scenario[]>([]);
-  const [isUnauthorized, setIsUnauthorized] = useState(false);
+  const [gamePhase, setGamePhase] = useState<GamePhase>('selecting_scenario');
   const [displayNode, setDisplayNode] = useState<AdventureNode | null>(null);
   const [isCurrentImageLoading, setIsCurrentImageLoading] = useState<boolean>(true);
   const [showChoices, setShowChoices] = useState<boolean>(false);
@@ -123,69 +119,6 @@ const AdventureGame = () => {
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [clickedChoiceIndex, setClickedChoiceIndex] = useState<number | null>(null);
   const [currentAudioData, setCurrentAudioData] = useState<string | null>(null);
-
-  const fetchScenarios = useCallback(async () => {
-    try {
-      const cachedData = sessionStorage.getItem(SCENARIO_CACHE_KEY);
-      if (cachedData) {
-        const parsedData = JSON.parse(cachedData) as Scenario[];
-        setScenarios(parsedData);
-        setGamePhase('selecting_scenario');
-        useAdventureStore.setState({ isLoading: false, error: null });
-        setIsUnauthorized(false);
-        return;
-      }
-    } catch (error) {
-      console.error('Error reading scenarios from sessionStorage:', error);
-      sessionStorage.removeItem(SCENARIO_CACHE_KEY);
-    }
-
-    setGamePhase('loading_scenarios');
-    setIsUnauthorized(false);
-    useAdventureStore.setState({ error: null, isLoading: true });
-
-    try {
-      const result = await generateStartingScenariosAction();
-
-      if (result.error === 'Unauthorized: User must be logged in.') {
-        setScenarios(hardcodedScenarios);
-        setGamePhase('selecting_scenario');
-        useAdventureStore.setState({ error: null, isLoading: false });
-        setIsUnauthorized(true);
-        return;
-      }
-
-      if (result.rateLimitError) {
-        useAdventureStore.setState({
-          error: { rateLimitError: result.rateLimitError },
-          isLoading: false,
-        });
-        setGamePhase('error');
-        return;
-      }
-
-      if (!result.scenarios) {
-        throw new Error('No scenarios generated.');
-      }
-
-      setScenarios(result.scenarios);
-      try {
-        sessionStorage.setItem(SCENARIO_CACHE_KEY, JSON.stringify(result.scenarios));
-      } catch (error) {
-        console.error('Error saving scenarios to sessionStorage:', error);
-      }
-
-      setGamePhase('selecting_scenario');
-      useAdventureStore.setState({ isLoading: false, error: null });
-    } catch (err) {
-      console.error('Error fetching scenarios:', err);
-      useAdventureStore.setState({
-        error: err instanceof Error ? err.message : 'Failed to load starting scenarios.',
-        isLoading: false,
-      });
-      setGamePhase('error');
-    }
-  }, []);
 
   const stopTTSSpeech = useCallback(() => {
     const audioElement = ttsAudioRef.current;
@@ -214,41 +147,27 @@ const AdventureGame = () => {
     }
   }, [setSpeaking]);
 
-  useEffect(() => {
-    const shouldFetch =
-      gamePhase === 'loading_scenarios' ||
-      (currentNode === null && storyHistory.length === 0 && gamePhase !== 'selecting_scenario');
-
-    if (shouldFetch) {
-      if (gamePhase !== 'loading_scenarios') {
-        setGamePhase('loading_scenarios');
-      }
-      setScenarios([]);
-      setClickedChoiceIndex(null);
-      setDisplayNode(null);
-      setIsCurrentImageLoading(true);
-      setCurrentAudioData(null);
-      setShowChoices(false);
-      setShowPassageText(false);
-      if (readingTimerRef.current) {
-        clearTimeout(readingTimerRef.current);
-        readingTimerRef.current = null;
-      }
-      stopTTSSpeech();
-
-      void fetchScenarios();
-    }
-  }, [fetchScenarios, currentNode, storyHistory, gamePhase, stopTTSSpeech]);
-
   const handleScenarioSelect = useCallback(
     (scenario: Scenario) => {
       setGamePhase('loading_first_node');
       if (!hasUserInteracted) {
         setHasUserInteracted(true);
       }
+      setDisplayNode(null);
+      setIsCurrentImageLoading(true);
+      setCurrentAudioData(null);
+      setShowChoices(false);
+      setShowPassageText(false);
+      setClickedChoiceIndex(null);
+      if (readingTimerRef.current) {
+        clearTimeout(readingTimerRef.current);
+        readingTimerRef.current = null;
+      }
+      stopTTSSpeech();
+
       makeChoice(scenario);
     },
-    [makeChoice, hasUserInteracted]
+    [makeChoice, hasUserInteracted, stopTTSSpeech]
   );
 
   const handleImageLoad = useCallback(
@@ -527,7 +446,7 @@ const AdventureGame = () => {
       {(() => {
         const rateLimitInfo =
           typeof nodeError === 'object' && nodeError !== null && 'rateLimitError' in nodeError
-            ? nodeError.rateLimitError
+            ? (nodeError.rateLimitError as RateLimitError)
             : null;
         const genericErrorMessage = typeof nodeError === 'string' ? nodeError : null;
 
@@ -535,32 +454,31 @@ const AdventureGame = () => {
           ? 'fixed inset-0 z-50 bg-black flex items-center justify-center'
           : 'bg-slate-800 rounded-lg p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 min-h-[350px] relative mx-auto w-full flex flex-col';
 
+        // Determine if the main game UI or the selector should be shown
+        const showGameUI =
+          gamePhase === 'playing' || gamePhase === 'loading_first_node' || gamePhase === 'error';
+
         return (
           <div ref={gameContainerRef} className={containerClasses}>
-            {gamePhase === 'loading_scenarios' && (
-              <div className="flex-grow flex flex-col items-center justify-center">
-                <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin mb-4" />
-                <p className="text-gray-400">Generating starting adventures...</p>
-              </div>
+            {/* Scenario Selector */}
+            {gamePhase === 'selecting_scenario' && (
+              <ScenarioSelector
+                onScenarioSelect={handleScenarioSelect}
+                // @ts-expect-error TS correctly identifies this state is impossible *while* selecting_scenario is true, but the prop needs to check for the *next* state.
+                isLoadingSelection={isNodeLoading && gamePhase === 'loading_first_node'} // Loading state for the *first* node fetch
+                hardcodedScenarios={hardcodedScenarios}
+              />
             )}
 
+            {/* Loading Overlay for First Node */}
             {gamePhase === 'loading_first_node' && (
               <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80 rounded-lg z-20">
                 <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin" />
               </div>
             )}
 
-            {gamePhase === 'error' && isUnauthorized && (
-              <div className="text-center text-amber-100/90 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
-                <p className="text-xl font-semibold mb-4">Please Sign In</p>
-                <p className="mb-6 text-gray-400">
-                  Please sign in to join the waiting list. Once approved, you can start your
-                  adventure!
-                </p>
-              </div>
-            )}
-
-            {gamePhase === 'error' && rateLimitInfo && (
+            {/* Rate Limit Error Display (Gameplay) */}
+            {gamePhase === 'error' && rateLimitInfo && !rateLimitInfo.apiType && (
               <div className="text-center text-amber-300 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
                 <p className="text-xl font-semibold mb-4">Time for a Break?</p>
                 <p className="mb-6 text-gray-400">
@@ -570,49 +488,18 @@ const AdventureGame = () => {
               </div>
             )}
 
-            {gamePhase === 'error' &&
-              !rateLimitInfo &&
-              !(
-                typeof nodeError === 'string' &&
-                nodeError === 'Unauthorized: User must be logged in.'
-              ) &&
-              genericErrorMessage && (
-                <div className="text-center text-red-400 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
-                  <p className="text-xl font-semibold mb-4">An Error Occurred</p>
-                  <p className="mb-6 text-gray-400">
-                    {genericErrorMessage || 'An unknown error occurred.'}
-                  </p>
-                </div>
-              )}
-
-            {gamePhase === 'selecting_scenario' && !nodeError && (
-              <div className="flex-grow flex flex-col items-center">
-                <h2 className="text-2xl font-semibold text-amber-100/90 mb-6 font-serif">
-                  Choose your starting scenario:
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
-                  {scenarios.map((scenario, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleScenarioSelect(scenario)}
-                      className={`${buttonBaseClasses} ${choiceButtonClasses}`}
-                      disabled={isNodeLoading}
-                    >
-                      <span>{scenario.text}</span>
-                      <div className="text-xs mt-1 text-amber-200/50">
-                        {scenario.genre && <span>Genre: {scenario.genre}</span>}
-                        {scenario.tone && <span className="ml-2">Tone: {scenario.tone}</span>}
-                        {scenario.visualStyle && (
-                          <span className="ml-2">Style: {scenario.visualStyle}</span>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
+            {/* Generic Error Display (Gameplay) */}
+            {gamePhase === 'error' && !rateLimitInfo && genericErrorMessage && (
+              <div className="text-center text-red-400 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
+                <p className="text-xl font-semibold mb-4">An Error Occurred</p>
+                <p className="mb-6 text-gray-400">
+                  {genericErrorMessage || 'An unknown error occurred during the adventure.'}
+                </p>
               </div>
             )}
 
-            {gamePhase === 'playing' && !nodeError && (
+            {/* Main Game Playing UI */}
+            {showGameUI && gamePhase !== 'error' && (
               <>
                 {displayNode && (
                   <>
@@ -785,8 +672,10 @@ const AdventureGame = () => {
                     </div>
                   </>
                 )}
+                {/* Loading Indicator specifically for *subsequent* nodes */}
                 {!displayNode && isNodeLoading && gamePhase === 'playing' && (
                   <div className="flex-grow flex flex-col items-center justify-center">
+                    <ArrowPathIcon className="h-8 w-8 text-amber-300 animate-spin mb-2" />
                     <p className="text-gray-400 italic">Loading next part...</p>
                   </div>
                 )}
