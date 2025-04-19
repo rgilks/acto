@@ -7,14 +7,15 @@ type ApiType = 'text' | 'image' | 'tts';
 
 interface RateLimitConfig {
   requests: number;
-  durationSeconds: number; // Window duration in seconds
+  // durationSeconds is no longer used for daily limit logic, but kept for structure
+  durationSeconds: number;
 }
 
-// Production limits
+// Production limits (DAILY)
 const LIMITS: Record<ApiType, RateLimitConfig> = {
-  text: { requests: 100, durationSeconds: 3600 }, // 100 requests per 1 hour
-  image: { requests: 100, durationSeconds: 3600 }, // 100 requests per 1 hour
-  tts: { requests: 100, durationSeconds: 3600 }, // 100 requests per 1 hour
+  text: { requests: 100, durationSeconds: 24 * 60 * 60 }, // 100 requests per day
+  image: { requests: 100, durationSeconds: 24 * 60 * 60 }, // 100 requests per day
+  tts: { requests: 100, durationSeconds: 24 * 60 * 60 }, // 100 requests per day
 };
 
 type RateLimitErrorType = 'RateLimitExceeded' | 'AuthenticationRequired' | 'InternalError';
@@ -24,9 +25,24 @@ type RateLimitResult = {
   success: boolean;
   limit: number;
   remaining: number;
-  reset: number; // Timestamp in milliseconds when the limit *would* reset
+  reset: number; // Timestamp in milliseconds when the limit *would* reset (start of next day UTC)
   errorType?: RateLimitErrorType;
   errorMessage?: string;
+};
+
+// Helper to get the start of the current day in UTC milliseconds
+const getStartOfDayUTC = (timestamp: number): number => {
+  const date = new Date(timestamp);
+  date.setUTCHours(0, 0, 0, 0);
+  return date.getTime();
+};
+
+// Helper to get the start of the next day in UTC milliseconds
+const getStartOfNextDayUTC = (timestamp: number): number => {
+  const date = new Date(timestamp);
+  date.setUTCDate(date.getUTCDate() + 1);
+  date.setUTCHours(0, 0, 0, 0);
+  return date.getTime();
 };
 
 // --- Rate Limit Check Function (using SQLite) ---
@@ -50,11 +66,11 @@ const checkRateLimit = async (
     };
   }
 
-  console.log(`[RateLimitSQLite] Checking ${apiType} limit for user DB ID ${userId}`);
+  console.log(`[RateLimitSQLite] Checking DAILY ${apiType} limit for user DB ID ${userId}`);
 
   const now = Date.now();
-  const windowStartThreshold = now - config.durationSeconds * 1000;
-  let actualResetTime = now + config.durationSeconds * 1000;
+  const startOfCurrentDay = getStartOfDayUTC(now);
+  let actualResetTime = getStartOfNextDayUTC(now); // Default reset is next day
 
   try {
     const result = db.transaction((currentUserId: number, currentApiType: ApiType) => {
@@ -94,34 +110,37 @@ const checkRateLimit = async (
         }
       }
 
-      const windowStartTime = row.window_start_time;
+      const lastRequestTime = row.window_start_time; // Renamed for clarity
       const requestCount = row.request_count;
+      const startOfLastRequestDay = getStartOfDayUTC(lastRequestTime);
 
-      // Check if window is expired
-      if (windowStartTime < windowStartThreshold) {
+      // Check if last request was from a previous day
+      if (startOfLastRequestDay < startOfCurrentDay) {
+        // Reset the count and update the timestamp to now
         stmtUpdateReset.run(now, currentUserId, currentApiType);
-        actualResetTime = now + config.durationSeconds * 1000;
+        actualResetTime = getStartOfNextDayUTC(now); // Reset is start of next day
         return { success: true, remaining: config.requests - 1 };
       } else {
-        // Window is current
-        actualResetTime = windowStartTime + config.durationSeconds * 1000;
+        // Request is from the current day
+        actualResetTime = getStartOfNextDayUTC(now); // Reset is still start of next day
         if (requestCount < config.requests) {
+          // Increment count, keep same start time (timestamp not updated on increment)
           stmtUpdateIncrement.run(currentUserId, currentApiType);
           return { success: true, remaining: config.requests - (requestCount + 1) };
         } else {
-          // Limit reached
+          // Limit reached for today
           return { success: false, remaining: 0 };
         }
       }
     })(userId, apiType) as { success: boolean; remaining: number };
 
     console.log(
-      `[RateLimitSQLite] ${apiType} check for user ${userId}: success=${result.success}, remaining=${result.remaining}`
+      `[RateLimitSQLite] DAILY ${apiType} check for user ${userId}: success=${result.success}, remaining=${result.remaining}`
     );
 
     if (!result.success) {
       console.warn(
-        `[RateLimitSQLite] User ${userId} exceeded ${apiType} limit. Limit resets at ${new Date(actualResetTime).toISOString()}`
+        `[RateLimitSQLite] User ${userId} exceeded DAILY ${apiType} limit. Limit resets at ${new Date(actualResetTime).toISOString()} (UTC)`
       );
       return {
         success: false,
@@ -129,11 +148,11 @@ const checkRateLimit = async (
         remaining: 0,
         reset: actualResetTime,
         errorType: 'RateLimitExceeded',
-        errorMessage: `Rate limit exceeded for ${apiType}.`,
+        errorMessage: `Daily rate limit exceeded for ${apiType}.`,
       };
     }
 
-    // On success, the reset time still refers to when the current window *would* end
+    // On success, the reset time refers to the start of the next day
     return {
       ...result,
       limit: config.requests,
@@ -142,7 +161,10 @@ const checkRateLimit = async (
       errorMessage: undefined,
     };
   } catch (error) {
-    console.error(`[RateLimitSQLite] Error checking ${apiType} limit for user ${userId}:`, error);
+    console.error(
+      `[RateLimitSQLite] Error checking DAILY ${apiType} limit for user ${userId}:`,
+      error
+    );
     Sentry.captureException(error, { tags: { rateLimitApiType: apiType, rateLimitUser: userId } });
     // Fail open: Allow request but log error if rate limiter fails unexpectedly
     return {
