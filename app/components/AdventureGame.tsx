@@ -467,7 +467,7 @@ const AdventureGame = () => {
                             showPassageText ? 'w-full md:w-1/2 lg:w-5/12' : 'w-full'
                           }`}
                         >
-                          <div className="aspect-[16/10] bg-slate-700 rounded overflow-hidden shadow-md mb-4 relative group">
+                          <div className="aspect-[16/10] bg-slate-700 rounded overflow-hidden shadow-md relative group">
                             {isCurrentImageLoading && (
                               <div className="absolute inset-0 bg-slate-600 flex items-center justify-center z-10">
                                 <ArrowPathIcon className="h-8 w-8 text-slate-400 animate-spin" />
@@ -534,6 +534,39 @@ const AdventureGame = () => {
                                 )}
                               </button>
                             </div>
+
+                            <div
+                              className={`
+                                absolute bottom-0 left-0 right-0 p-4 pt-16 
+                                bg-gradient-to-t from-black/90 via-black/70 to-transparent
+                                transition-opacity duration-500 ease-in-out 
+                                ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+                              `}
+                            >
+                              {showChoices && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
+                                  {displayNode.choices.map((choice, index) => {
+                                    const isClicked = index === clickedChoiceIndex;
+                                    const isDisabled = isNodeLoading;
+                                    const isLoadingChoice = isNodeLoading && isClicked;
+                                    return (
+                                      <button
+                                        key={index}
+                                        onClick={() => handleChoiceClick(choice, index)}
+                                        className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
+                                        disabled={isDisabled}
+                                        data-testid={`choice-button-${index}`}
+                                      >
+                                        <span>{choice.text}</span>
+                                        {isLoadingChoice && (
+                                          <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </div>
                           {ttsError && (
                             <p className="mt-2 text-xs text-red-400 text-center">
@@ -554,42 +587,6 @@ const AdventureGame = () => {
                               <p className="text-gray-500 italic">Loading passage...</p>
                             )}
                           </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div
-                      className={`
-                      transition-opacity duration-500 ease-in-out 
-                      ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
-                      ${
-                        !showPassageText
-                          ? 'absolute bottom-0 left-0 right-0 p-4 pt-16 bg-gradient-to-t from-black/90 via-black/70 to-transparent'
-                          : 'mt-6'
-                      }
-                    `}
-                    >
-                      {showChoices && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
-                          {displayNode.choices.map((choice, index) => {
-                            const isClicked = index === clickedChoiceIndex;
-                            const isDisabled = isNodeLoading;
-                            const isLoadingChoice = isNodeLoading && isClicked;
-                            return (
-                              <button
-                                key={index}
-                                onClick={() => handleChoiceClick(choice, index)}
-                                className={`${buttonBaseClasses} ${choiceButtonClasses} flex items-center justify-between ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
-                                disabled={isDisabled}
-                                data-testid={`choice-button-${index}`}
-                              >
-                                <span>{choice.text}</span>
-                                {isLoadingChoice && (
-                                  <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-4" />
-                                )}
-                              </button>
-                            );
-                          })}
                         </div>
                       )}
                     </div>
