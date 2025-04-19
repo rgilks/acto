@@ -427,7 +427,8 @@ export const generateAdventureNodeAction = async (
   }
 };
 
-const StartingScenariosSchema = z.array(AdventureChoiceSchema).min(3).max(5);
+// Schema for the array of starting scenarios
+const StartingScenariosSchema = z.array(AdventureChoiceSchema);
 
 type GenerateStartingScenariosResult = {
   scenarios?: z.infer<typeof StartingScenariosSchema>;
@@ -439,89 +440,98 @@ type GenerateStartingScenariosResult = {
   };
 };
 
+// Helper function to build the prompt for generating starting scenarios
+function buildStartingScenariosPrompt(): string {
+  const jsonStructure = `[
+  {
+    "text": "(string) Engaging starting scenario text for a new adventure.",
+    "genre": "(string) The primary genre (e.g., Fantasy, Sci-Fi, Mystery, Cyberpunk).",
+    "tone": "(string) The overall tone (e.g., Gritty, Hopeful, Humorous, Tense).",
+    "visualStyle": "(string) The desired visual style for images (e.g., Photorealistic, Anime, Watercolor, Film Noir)."
+  }
+  /* Repeat this structure for 3-4 diverse scenarios */
+]`;
+
+  return `You are a creative storyteller. Generate a diverse list of 4 unique and compelling starting scenarios for an interactive text adventure. Each scenario should include text describing the initial situation, a genre, a tone, and a visual style for potential images. Respond ONLY with a valid JSON array matching this structure:
+${jsonStructure}
+Output only the JSON array. Ensure the scenarios are varied in theme and style.`;
+}
+
 export const generateStartingScenariosAction =
   async (): Promise<GenerateStartingScenariosResult> => {
+    console.log('[Adventure] Generating starting scenarios...');
     const session = await getSession();
-    if (!session?.user) {
-      console.warn('[Adventure Scenarios] Unauthorized attempt.');
-      return { error: 'Unauthorized: User must be logged in.' };
+    if (!session?.user?.id) {
+      return { error: 'User not authenticated.' };
     }
 
-    const textLimitCheck = await checkTextRateLimit();
-    if (!textLimitCheck.success) {
-      console.warn(
-        `[Adventure Scenarios] Text rate limit exceeded for user. Error: ${textLimitCheck.errorMessage}`
-      );
+    const limitCheck = await checkTextRateLimit();
+    if (!limitCheck.success) {
+      console.warn(`[Adventure] Rate limit exceeded for user ${session.user.id}.`);
       return {
+        error: limitCheck.errorMessage ?? 'Rate limit exceeded.',
         rateLimitError: {
-          message: textLimitCheck.errorMessage ?? 'Starting scenario rate limit exceeded.',
-          resetTimestamp: textLimitCheck.reset,
+          message: limitCheck.errorMessage ?? 'Rate limit exceeded.',
+          resetTimestamp: limitCheck.reset,
           apiType: 'text',
         },
       };
     }
 
-    console.log('[Adventure Scenarios] Generating starting scenarios with metadata...');
     try {
-      const jsonStructure = `[\n  { "text": "(string) Brief (1-2 sentence) starting scenario description.", "genre": "(string) e.g., Sci-Fi", "tone": "(string) e.g., Mysterious", "visualStyle": "(string) e.g., Realistic Digital Painting" },\n  { "text": "...", "genre": "...", "tone": "...", "visualStyle": "..." },\n  ...
-]`;
+      const modelConfig = getActiveModel();
+      const prompt = buildStartingScenariosPrompt();
+      const aiResponseText = await callAIForAdventure(prompt, modelConfig);
 
-      const prompt = `You are an AI creating starting points for a text adventure. Generate 3-4 diverse starting scenarios across different genres (sci-fi, fantasy, mystery, etc.). For each scenario, provide a brief description ('text'), a suitable 'genre', 'tone', and 'visualStyle'.
-Respond ONLY with a valid JSON array matching this structure, filling in all details:
-${jsonStructure}
-Ensure the output is only the JSON array string. Examples for text field: "Awake on an alien spaceship medical table.", "Standing at a dark forest entrance with a map.", "Coded message hints at 1920s Paris conspiracy."
-Examples for other fields: genre: "Fantasy", tone: "Epic", visualStyle: "Impressionist Oil Painting"`;
-
-      const activeModel = getActiveModel();
-      const aiResponseContent = await callAIForAdventure(prompt, activeModel);
-
-      let parsedAiContent: unknown;
+      // Attempt to parse the AI response
+      let parsedScenarios: unknown;
       try {
-        const cleanedResponse = aiResponseContent
-          .replace(/^```json\s*/, '')
-          .replace(/```\s*$/, '')
-          .trim();
-        parsedAiContent = JSON.parse(cleanedResponse);
+        // Clean the response text if necessary (remove potential markdown backticks)
+        const cleanedText = aiResponseText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        parsedScenarios = JSON.parse(cleanedText);
       } catch (parseError) {
         console.error(
-          '[Adventure Scenarios] Failed to parse AI response JSON:',
+          '[Adventure] Failed to parse scenarios JSON:',
           parseError,
-          '\nRaw Response:\n',
-          aiResponseContent
+          'Raw response:',
+          aiResponseText
         );
-        Sentry.captureException(parseError, { extra: { aiResponseContent } });
-        return { error: 'Failed to parse AI starting scenarios response.' };
+        Sentry.captureException(parseError, {
+          extra: { aiResponse: aiResponseText, prompt: prompt },
+        });
+        return { error: 'Failed to parse scenarios from AI response.' };
       }
 
-      const validationResult = StartingScenariosSchema.safeParse(parsedAiContent);
+      // Validate the parsed response against the Zod schema
+      const validationResult = StartingScenariosSchema.safeParse(parsedScenarios);
+
       if (!validationResult.success) {
         console.error(
-          '[Adventure Scenarios] Schema validation failed (with metadata):',
-          validationResult.error.format()
+          '[Adventure] Scenarios validation failed:',
+          validationResult.error.errors,
+          'Parsed Data:',
+          parsedScenarios
         );
-        console.error(
-          '[Adventure Scenarios] Failing AI Response Content (parsed): ',
-          parsedAiContent
-        );
-        Sentry.captureException(new Error('Starting Scenarios AI Response Validation Failed'), {
+        Sentry.captureException(new Error('AI response validation failed for starting scenarios'), {
           extra: {
-            validationErrors: validationResult.error.format(),
-            aiResponseContent: parsedAiContent,
+            errors: validationResult.error.errors,
+            aiResponse: parsedScenarios,
+            prompt: prompt,
           },
         });
-        return { error: 'Starting scenarios AI response validation failed.' };
+        return { error: 'Received invalid scenario data structure from AI.' };
       }
 
-      console.log('[Adventure Scenarios] Successfully generated starting scenarios with metadata.');
+      console.log('[Adventure] Successfully generated and validated starting scenarios.');
       return { scenarios: validationResult.data };
     } catch (error) {
-      console.error('[Adventure Scenarios] Error generating starting scenarios:', error);
+      console.error('[Adventure] Error generating starting scenarios:', error);
       Sentry.captureException(error);
       return {
         error:
           error instanceof Error
             ? error.message
-            : 'An unexpected error occurred while generating scenarios.',
+            : 'An unknown error occurred while generating scenarios.',
       };
     }
   };

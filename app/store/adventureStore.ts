@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { type AdventureNode, AdventureChoiceSchema } from '@/lib/domain/schemas';
-import { generateAdventureNodeAction } from '../actions/adventure';
+import { generateAdventureNodeAction, generateStartingScenariosAction } from '../actions/adventure';
 import { z } from 'zod';
 
 // Simplified History Item
@@ -21,6 +21,8 @@ interface RateLimitError {
 // Type for the error state, which can be a string or a structured rate limit error
 type ErrorState = string | { rateLimitError: RateLimitError } | null;
 
+type Scenario = z.infer<typeof AdventureChoiceSchema>;
+
 // Type for the metadata to be stored and passed
 interface AdventureMetadata {
   genre?: string | null;
@@ -38,6 +40,11 @@ interface AdventureState {
   currentTone: string | null;
   currentVisualStyle: string | null;
 
+  // State for dynamic starting scenarios
+  dynamicScenarios: Scenario[] | null;
+  isFetchingScenarios: boolean;
+  fetchScenariosError: ErrorState;
+
   // --- TTS State --- (Keep)
   isSpeaking: boolean;
   ttsError: string | null;
@@ -47,6 +54,7 @@ interface AdventureState {
 
 interface AdventureActions {
   fetchAdventureNode: (choiceText?: string, metadata?: AdventureMetadata) => Promise<void>;
+  fetchStartingScenarios: () => Promise<void>;
   setCurrentMetadata: (metadata: AdventureMetadata) => void;
   // TTS Actions (Keep)
   stopSpeaking: () => void;
@@ -68,6 +76,11 @@ const initialState: AdventureState = {
   currentTone: null,
   currentVisualStyle: null,
 
+  // State for dynamic starting scenarios
+  dynamicScenarios: null,
+  isFetchingScenarios: false,
+  fetchScenariosError: null,
+
   // --- Initial TTS State --- (Keep)
   isSpeaking: false,
   ttsError: null,
@@ -85,6 +98,49 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         state.currentTone = metadata.tone ?? null;
         state.currentVisualStyle = metadata.visualStyle ?? null;
       });
+    },
+
+    fetchStartingScenarios: async () => {
+      set((state) => {
+        state.isFetchingScenarios = true;
+        state.fetchScenariosError = null;
+        // Optionally clear old scenarios immediately
+        // state.dynamicScenarios = null;
+      });
+
+      try {
+        const result = await generateStartingScenariosAction();
+
+        if (result.rateLimitError) {
+          console.warn('Rate limit hit fetching scenarios:', result.rateLimitError);
+          set((state) => {
+            state.fetchScenariosError = { rateLimitError: result.rateLimitError! };
+            state.isFetchingScenarios = false;
+          });
+          return;
+        }
+
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        if (!result.scenarios) {
+          throw new Error('No scenarios received from the server.');
+        }
+
+        set((state) => {
+          state.dynamicScenarios = result.scenarios ?? null;
+          state.isFetchingScenarios = false;
+          state.fetchScenariosError = null;
+        });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Failed to fetch starting scenarios.';
+        console.error('Error fetching starting scenarios:', error);
+        set((state) => {
+          state.fetchScenariosError = errorMessage;
+          state.isFetchingScenarios = false;
+        });
+      }
     },
 
     fetchAdventureNode: async (choiceText, metadata) => {

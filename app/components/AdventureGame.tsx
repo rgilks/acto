@@ -16,6 +16,7 @@ import {
 import ScenarioSelector from './ScenarioSelector';
 import useTTSPlayer from '@/hooks/useTTSPlayer';
 import { FullScreen, useFullScreenHandle } from 'react-full-screen';
+import { useSession } from 'next-auth/react';
 
 interface RateLimitError {
   message: string;
@@ -82,7 +83,14 @@ const AdventureGame = () => {
     makeChoice,
     ttsVolume: storeTtsVolume,
     setTTSVolume,
+    dynamicScenarios,
+    isFetchingScenarios,
+    fetchScenariosError,
+    fetchStartingScenarios,
   } = useAdventureStore();
+
+  const { data: _session, status: sessionStatus } = useSession();
+  const isUserLoggedIn = sessionStatus === 'authenticated';
 
   const [gamePhase, setGamePhase] = useState<GamePhase>('selecting_scenario');
   const [displayNode, setDisplayNode] = useState<AdventureNode | null>(null);
@@ -133,6 +141,29 @@ const AdventureGame = () => {
     const userAgent = window.navigator.userAgent;
     setIsIphone(/iPhone/i.test(userAgent));
   }, []);
+
+  useEffect(() => {
+    if (
+      sessionStatus === 'authenticated' &&
+      !dynamicScenarios &&
+      !isFetchingScenarios &&
+      !fetchScenariosError
+    ) {
+      console.log('[AdventureGame] User logged in, fetching dynamic scenarios...');
+      void fetchStartingScenarios();
+    }
+  }, [
+    sessionStatus,
+    dynamicScenarios,
+    isFetchingScenarios,
+    fetchScenariosError,
+    fetchStartingScenarios,
+  ]);
+
+  const handleFetchNewScenarios = useCallback(() => {
+    setGamePhase('selecting_scenario');
+    void fetchStartingScenarios();
+  }, [fetchStartingScenarios]);
 
   const handleScenarioSelect = useCallback(
     (scenario: Scenario) => {
@@ -309,19 +340,26 @@ const AdventureGame = () => {
         const showGameUI =
           gamePhase === 'playing' || gamePhase === 'loading_first_node' || gamePhase === 'error';
 
+        const scenariosToDisplay = isUserLoggedIn ? dynamicScenarios : hardcodedScenarios;
+
         return (
           <div ref={gameContainerRef} className={containerClasses}>
             {gamePhase === 'selecting_scenario' && (
               <ScenarioSelector
                 onScenarioSelect={handleScenarioSelect}
                 isLoadingSelection={isSelectingScenario}
-                hardcodedScenarios={hardcodedScenarios}
+                scenariosToDisplay={scenariosToDisplay}
+                isLoadingScenarios={isFetchingScenarios}
+                fetchError={fetchScenariosError}
+                onFetchNewScenarios={handleFetchNewScenarios}
+                isUserLoggedIn={isUserLoggedIn}
               />
             )}
 
             {gamePhase === 'loading_first_node' && (
-              <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80 rounded-lg z-20">
-                <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-800/80 rounded-lg z-20">
+                <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin mb-2" />
+                <p className="text-gray-400 italic">Starting your adventure...</p>
               </div>
             )}
 
