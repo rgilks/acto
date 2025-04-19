@@ -12,7 +12,7 @@ _(Placeholder for a new screenshot of the application interface)_
 
 ## Features
 
-- **AI-Generated Narrative**: Unique story passages and scenarios crafted by Google AI (Gemini models) based on user choices and story history (prompt refined for better narrative cohesion).
+- **AI-Generated Narrative**: Unique story passages and scenarios crafted by Google AI (Gemini models) based on user choices and story history (prompt refined for better narrative cohesion and conclusion).
 - **Dynamic Choices**: AI generates relevant choices for the user at each step, influencing the story progression.
 - **Starting Scenarios**: Generates diverse starting points for new stories across different genres (prompt refined for better variation; hardcoded scenarios updated for variety).
 - **AI-Generated Images**: Images created based on the narrative using Imagen via the Gemini API (prompt now explicitly requests first-person perspective).

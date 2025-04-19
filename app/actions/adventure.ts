@@ -69,10 +69,10 @@ function buildAdventurePrompt(
   const jsonStructure = `{\n  "passage": "(string) Next part of the adventure, describing outcome of last choice and current situation.",\n  "choices": [ /* Array of 3-4 { "text": string } objects for player choices. */ ],\n  "imagePrompt": "(string) Concise visual prompt (max 50 words) based ONLY on the \\\"passage\\\" but strongly reflecting the specified Adventure Style (Genre: ${genre ?? 'any'}, Tone: ${tone ?? 'any'}, Visual Style: ${visualStyle ?? 'any'}). E.g., for sci-fi/mysterious/digital painting: \\\"Dim alien spaceship corridor, digital painting\\\"",\n  "updatedSummary": "(string) A brief (1-2 sentence) summary encompassing the entire story so far, updated with the events of this new 'passage'.\n}`;
 
   const initialContextSection = initialContextText
-    ? `Initial Scenario Context:\\n${initialContextText}`
+    ? `Initial Scenario Context/Goal:\n${initialContextText}`
     : 'No initial scenario provided.';
 
-  let adventureStyleSection = 'Adventure Style:\\n';
+  let adventureStyleSection = 'Adventure Style:\n';
   let styleDefined = false;
   if (genre) {
     adventureStyleSection += `Genre: ${genre}\\n`;
@@ -90,7 +90,7 @@ function buildAdventurePrompt(
     adventureStyleSection += '(Not specified)\\n';
   }
 
-  let recentHistoryText = 'Most Recent Steps:\\n';
+  let recentHistoryText = 'Most Recent Steps:\n';
   if (history.length === 0) {
     recentHistoryText += '(No steps taken yet. Refer to Initial Scenario Context.)\\n';
   } else {
@@ -127,15 +127,16 @@ function buildAdventurePrompt(
   }
 
   const storySummarySection = latestSummary
-    ? `Summary of story before recent steps:\\n${latestSummary}`
+    ? `Summary of story before recent steps:\n${latestSummary}`
     : 'No summary yet.';
 
-  const basePrompt = `You are a storyteller for an interactive text adventure, focused on creating a **cohesive and engaging narrative arc**. Adhere strictly to the specified Adventure Style (Genre, Tone, Visual Style). Maintain the tone and details from the Initial Scenario Context. Continue the story based on the provided Summary and Most Recent Steps, ensuring choices have meaningful consequences.
+  const basePrompt = `You are a storyteller for an interactive text adventure, focused on creating a cohesive and engaging narrative arc **that builds towards a satisfying conclusion**. Adhere strictly to the specified Adventure Style (Genre, Tone, Visual Style). Maintain the tone and details from the **Initial Scenario Context/Goal**. Continue the story based on the provided Summary and Most Recent Steps, ensuring choices have meaningful consequences.
 
 **Key Directives:**
-1.  **Narrative Cohesion:** Ensure the story develops logically, building upon previous events and moving towards **some form of progression or goal** relevant to the initial scenario and established themes. Avoid abrupt, unrelated shifts.
-2.  **Summary Guidance:** Pay close attention to the \`updatedSummary\` to maintain **consistency and narrative direction**.
-3.  **Strict JSON Output:** Respond ONLY with a valid JSON object matching this structure:
+1.  **Narrative Cohesion & Arc:** Ensure the story develops logically, building upon previous events. Guide the narrative towards **resolving the core conflict or goal** established in the **Initial Scenario Context/Goal**. Think in terms of setup, rising action, and eventual resolution. Avoid indefinite meandering.
+2.  **Summary Guidance:** The next passage **MUST** logically follow from and build upon the \`updatedSummary\`. Maintain consistency and narrative direction using this summary.
+3.  **Meaningful Choices:** Choices offered should ideally provide distinct paths, potentially influencing the direction towards resolution.
+4.  **Strict JSON Output:** Respond ONLY with a valid JSON object matching this structure:
 ${jsonStructure}
 Output only the JSON object. Provide an 'updatedSummary' reflecting the entire story including the new 'passage'. **Crucially, ensure the 'imagePrompt' is based on the current passage, strongly reflects the required Genre, Tone, and Visual Style, and describes the scene from a first-person perspective (do not show the protagonist).**`;
 
