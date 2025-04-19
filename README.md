@@ -4,7 +4,7 @@ An interactive storytelling application powered by Next.js and generative AI (Go
 
 [![CI/CD](https://github.com/rgilks/acto/actions/workflows/fly.yml/badge.svg)](https://github.com/rgilks/acto/actions/workflows/fly.yml)
 
-_(Placeholder for a new screenshot of the application interface)_
+![acto Screenshot](/public/screenshot.png)
 
 ## Overview
 
