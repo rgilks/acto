@@ -32,7 +32,7 @@ const Page = () => {
         </div>
 
         <footer
-          className="m-8 m-8 md:m-16 text-center text-sm text-gray-500 fade-in"
+          className="m-8 mb-16 md:m-16 text-center text-sm text-gray-500 fade-in"
           style={{ animationDelay: '0.3s' }}
         >
           <p>
