@@ -6,7 +6,13 @@ import Script from 'next/script';
 import useAdventureStore from '@/store/adventureStore';
 import { AdventureChoiceSchema, AdventureNode } from '@/lib/domain/schemas';
 import { z } from 'zod';
-import { ArrowPathIcon, SpeakerWaveIcon, SpeakerXMarkIcon } from '@heroicons/react/24/solid';
+import {
+  ArrowPathIcon,
+  SpeakerWaveIcon,
+  SpeakerXMarkIcon,
+  EyeIcon,
+  EyeSlashIcon,
+} from '@heroicons/react/24/solid';
 import { generateStartingScenariosAction } from '../actions/adventure';
 import AuthButton from '@/components/AuthButton';
 
@@ -80,6 +86,7 @@ const AdventureGame = () => {
   const [displayNode, setDisplayNode] = useState<AdventureNode | null>(null);
   const [isCurrentImageLoading, setIsCurrentImageLoading] = useState<boolean>(true);
   const [showChoices, setShowChoices] = useState<boolean>(false);
+  const [showPassageText, setShowPassageText] = useState<boolean>(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const ttsAudioRef = useRef<HTMLAudioElement>(null);
@@ -462,8 +469,12 @@ const AdventureGame = () => {
                   <>
                     <div className="flex flex-col md:flex-row md:items-start md:gap-6 lg:gap-8 mb-6">
                       {displayNode.imageUrl && (
-                        <div className="w-full md:w-1/2 lg:w-5/12 flex-shrink-0 mb-4 md:mb-0">
-                          <div className="aspect-[16/10] bg-slate-700 rounded overflow-hidden shadow-md mb-4 relative">
+                        <div
+                          className={`flex-shrink-0 mb-4 md:mb-0 ${
+                            showPassageText ? 'w-full md:w-1/2 lg:w-5/12' : 'w-full'
+                          }`}
+                        >
+                          <div className="aspect-[16/10] bg-slate-700 rounded overflow-hidden shadow-md mb-4 relative group">
                             {isCurrentImageLoading && (
                               <div className="absolute inset-0 bg-slate-600 flex items-center justify-center z-10">
                                 <ArrowPathIcon className="h-8 w-8 text-slate-400 animate-spin" />
@@ -483,39 +494,53 @@ const AdventureGame = () => {
                                 setIsCurrentImageLoading(false);
                               }}
                             />
-                          </div>
-                          <div className="flex items-center justify-center space-x-4 w-full">
-                            <button
-                              onClick={handleToggleSpeak}
-                              title={
-                                currentAudioData
-                                  ? isSpeaking
-                                    ? 'Stop reading aloud'
-                                    : 'Read passage aloud'
-                                  : 'Audio not available'
-                              }
-                              aria-label={isSpeaking ? 'Stop reading aloud' : 'Read passage aloud'}
-                              className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full ${!currentAudioData ? 'opacity-50 cursor-not-allowed' : ''}`}
-                              disabled={isNodeLoading || !currentAudioData}
-                            >
-                              {isSpeaking ? (
-                                <SpeakerXMarkIcon className="h-5 w-5" />
-                              ) : (
-                                <SpeakerWaveIcon className="h-5 w-5" />
-                              )}
-                            </button>
-                            <input
-                              type="range"
-                              min="0"
-                              max="1"
-                              step="0.1"
-                              value={ttsVolume}
-                              onChange={(e) => setTTSVolume(parseFloat(e.target.value))}
-                              className="h-1 w-24 cursor-pointer accent-amber-400"
-                              title={`Volume: ${Math.round(ttsVolume * 100)}%`}
-                              aria-label="Speech volume"
-                              disabled={isNodeLoading}
-                            />
+                            <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/50 flex items-center justify-center space-x-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <button
+                                onClick={handleToggleSpeak}
+                                title={
+                                  currentAudioData
+                                    ? isSpeaking
+                                      ? 'Stop reading aloud'
+                                      : 'Read passage aloud'
+                                    : 'Audio not available'
+                                }
+                                aria-label={
+                                  isSpeaking ? 'Stop reading aloud' : 'Read passage aloud'
+                                }
+                                className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full ${!currentAudioData ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                disabled={isNodeLoading || !currentAudioData}
+                              >
+                                {isSpeaking ? (
+                                  <SpeakerXMarkIcon className="h-5 w-5" />
+                                ) : (
+                                  <SpeakerWaveIcon className="h-5 w-5" />
+                                )}
+                              </button>
+                              <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.1"
+                                value={ttsVolume}
+                                onChange={(e) => setTTSVolume(parseFloat(e.target.value))}
+                                className="h-1 w-24 cursor-pointer appearance-none rounded-full bg-transparent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:w-full [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-gray-400 [&::-moz-range-track]:h-1 [&::-moz-range-track]:w-full [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-gray-400 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-400 [&::-webkit-slider-thumb]:-mt-1 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-amber-400 [&::-moz-range-thumb]:-mt-1"
+                                title={`Volume: ${Math.round(ttsVolume * 100)}%`}
+                                aria-label="Speech volume"
+                                disabled={isNodeLoading}
+                              />
+                              <button
+                                onClick={() => setShowPassageText((prev) => !prev)}
+                                title={showPassageText ? 'Hide text' : 'Show text'}
+                                aria-label={showPassageText ? 'Hide text' : 'Show text'}
+                                className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full`}
+                              >
+                                {showPassageText ? (
+                                  <EyeSlashIcon className="h-5 w-5" />
+                                ) : (
+                                  <EyeIcon className="h-5 w-5" />
+                                )}
+                              </button>
+                            </div>
                           </div>
                           {ttsError && (
                             <p className="mt-2 text-xs text-red-400 text-center">
@@ -525,22 +550,26 @@ const AdventureGame = () => {
                         </div>
                       )}
 
-                      <div className={`${!displayNode.imageUrl ? 'w-full' : 'md:w-1/2 lg:w-7/12'}`}>
-                        <div className="mb-4 text-xl leading-relaxed text-left w-full text-gray-300 relative">
-                          {displayNode.passage ? (
-                            <p style={{ whiteSpace: 'pre-wrap' }}>{displayNode.passage}</p>
-                          ) : (
-                            <p className="text-gray-500 italic">Loading passage...</p>
-                          )}
+                      {showPassageText && (
+                        <div
+                          className={`${!displayNode.imageUrl ? 'w-full' : 'md:w-1/2 lg:w-7/12'}`}
+                        >
+                          <div className="mb-4 text-xl leading-relaxed text-left w-full text-gray-300 relative">
+                            {displayNode.passage ? (
+                              <p style={{ whiteSpace: 'pre-wrap' }}>{displayNode.passage}</p>
+                            ) : (
+                              <p className="text-gray-500 italic">Loading passage...</p>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
 
-                    {/* Choices Container with Conditional Rendering & Animation */}
+                    {/* Choices Container */}
                     <div
                       className={`transition-opacity duration-500 ease-in-out ${showChoices ? 'opacity-100' : 'opacity-0'}`}
                     >
-                      {showChoices && ( // Render grid only when showChoices is true
+                      {showChoices && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
                           {displayNode.choices.map((choice, index) => {
                             const isClicked = index === clickedChoiceIndex;
