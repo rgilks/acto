@@ -36,7 +36,7 @@ type Scenario = z.infer<typeof AdventureChoiceSchema>;
 
 const hardcodedScenarios: Scenario[] = [
   {
-    text: `You are a bio-luminescent fungus farmer on a rogue asteroid nearing a sentient gas giant. Your prize-winning giant mushroom has just started... singing.`,
+    text: `You farm bio-luminescent fungi on a rogue asteroid nearing a sentient gas giant. Your prize mushroom has started singing.`,
     genre: `Weird Sci-Fi`,
     tone: `Curious, Slightly Ominous, Isolated`,
     visualStyle: `Bioluminescent Art, Soft Focus`,

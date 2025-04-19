@@ -205,9 +205,9 @@ async function generateImageWithGemini(
     stylePrefix += `Tone: ${tone}. `;
   }
 
-  // Add constraint to exclude the player character
+  // Add constraint to exclude the player character and hands
   const sceneConstraint =
-    " The image should represent the scene from the protagonist's point of view. Do NOT depict the protagonist, player character, or any representation of 'self'.";
+    " The image should represent the scene from the protagonist's point of view. Do NOT depict the protagonist, player character, player's hands, or any representation of 'self'.";
 
   const finalImagePrompt = `${stylePrefix}${imagePrompt}${sceneConstraint}`;
 
@@ -454,7 +454,7 @@ type GenerateStartingScenariosResult = {
 function buildStartingScenariosPrompt(): string {
   const jsonStructure = `[
   {
-    "text": "(string) Engaging, specific, and imaginative starting situation text, often surreal or dreamlike.",
+    "text": "(string) Engaging, specific, and imaginative starting situation text, often surreal or dreamlike. **Keep concise (1-2 sentences max).**",
     "genre": "(string) Genre (e.g., Surreal Sci-Fi, Dreamlike Fantasy, Psychedelic Mystery, 70s Space Opera). Be specific.",
     "tone": "(string) Tone (e.g., Eerie, Oneiric, Hypnagogic, Cosmic Horror, Retrofuturistic, Whimsical yet unsettling). Be specific.",
     "visualStyle": "(string) Visual style (e.g., 70s Sci-Fi Book Cover Art, Psychedelic Illustration, Surrealist Painting, Retro Anime, Vintage Fantasy Art). Be specific."
@@ -471,7 +471,7 @@ function buildStartingScenariosPrompt(): string {
 
 **Key Requirements:**
 1.  **High Variation:** The **most important goal** is that the 4 scenarios are significantly different from each other in theme, setting, genre, tone, and style. Do not repeat patterns.
-2.  **Specificity:** Use concrete, unusual details in the scenario text. Instead of "a mysterious artifact", try "a pulsating obsidian orb humming with discordant energy".
+2.  **Specificity & Conciseness:** Use concrete, unusual details in the scenario text, **keeping it brief (1-2 sentences)**. Instead of "a mysterious artifact", try "a pulsating obsidian orb humming discordant energy".
 3.  **Creative Styles:** Use varied and specific genres, tones, and visual styles, drawing inspiration from the desired themes above where appropriate.
 4.  **Strict JSON Output:** Respond ONLY with a valid JSON array matching this exact structure (do not add any text before or after the JSON):
 ${jsonStructure}
