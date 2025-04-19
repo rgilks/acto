@@ -223,7 +223,7 @@ The following commands will guide you through the initial setup. Run them in you
 
 ### Static Starting Scenarios (Logged-Out Users)
 
-To improve performance and reduce unnecessary API calls for visitors who are not logged in, the application now displays a static, hardcoded list of starting scenarios (`app/components/AdventureGame.tsx`). Logged-in users will continue to receive dynamically generated starting scenarios for a unique experience.
+To improve performance and reduce unnecessary API calls for visitors who are not logged in, the application now displays a static, hardcoded list of starting scenarios (`app/components/AdventureGame.tsx`). These have been updated to align with the more specific and evocative themes (surreal, dreamlike, 70s sci-fi/fantasy) generated for logged-in users. Logged-in users will continue to receive dynamically generated starting scenarios for a unique experience.
 
 ### Progressive Web App (PWA)
 

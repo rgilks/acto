@@ -36,28 +36,28 @@ type Scenario = z.infer<typeof AdventureChoiceSchema>;
 
 const hardcodedScenarios: Scenario[] = [
   {
-    text: 'The neon glow of Neo-Kyoto reflects in the slick, rain-streaked streets. You awaken with a data-chip implanted in your arm, a cryptic message flashing across your augmented reality display.',
-    genre: 'Cyberpunk',
-    tone: 'Gritty, Suspenseful',
-    visualStyle: 'Dark, Dynamic Anime',
+    text: 'You awaken adrift in a void between dimensions. Geometric shapes pulse with faint light, whispering forgotten equations. A single, crystalline doorway hovers nearby, humming a discordant tune.',
+    genre: 'Surreal Sci-Fi',
+    tone: 'Eerie, Mysterious, Oneiric',
+    visualStyle: 'Psychedelic Illustration, Cosmic',
   },
   {
-    text: 'You are a newly appointed village elder. The sacred spring has run dry, and the ancient prophecy foretells impending doom. A weathered map lies before you.',
-    genre: 'Fantasy',
-    tone: 'Hopeful, Somber',
-    visualStyle: 'Watercolor Illustration',
+    text: 'Following a map tattooed on your own hand, you find the entrance to the Ever-Shifting City. Buildings of impossible geometry phase in and out of reality under a sky of swirling nebulae.',
+    genre: 'Dreamlike Fantasy',
+    tone: 'Whimsical yet Unsettling, Exploratory',
+    visualStyle: '70s Fantasy Book Cover Art',
   },
   {
-    text: 'You are a detective, summoned to a lavish estate by an anonymous client. A priceless artifact has vanished, and the eccentric inhabitants are all prime suspects.',
-    genre: 'Mystery',
-    tone: 'Intriguing, Deceptive',
-    visualStyle: 'Film Noir Photography',
+    text: 'You are a chrome detective in a city sculpted from solidified music. A jazz note containing a stolen memory has shattered, and its discordant echoes warp reality around the crime scene.',
+    genre: 'Psychedelic Noir',
+    tone: 'Intriguing, Bizarre, Synesthetic',
+    visualStyle: 'Retro Anime, Glitch Art influences',
   },
   {
-    text: 'Your escape pod crash-lands on a desolate, uncharted planet. Scanners indicate a faint life-sign nearby. Your survival depends on finding its source.',
-    genre: 'Sci-Fi Survival',
-    tone: 'Isolated, Tense',
-    visualStyle: 'Photorealistic, Bleak Landscape',
+    text: 'Your consciousness is uploaded to an ancient starship powered by captured dreams. The vessel drifts through a sector where nebulae bloom like bio-luminescent fungi. Warning klaxons sound in rhythm with a distant heartbeat.',
+    genre: '70s Space Opera',
+    tone: 'Cosmic Horror Lite, Isolated, Retrofuturistic',
+    visualStyle: 'Vintage Sci-Fi Art (Moebius-esque)',
   },
 ];
 
