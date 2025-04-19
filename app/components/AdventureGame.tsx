@@ -93,7 +93,6 @@ const AdventureGame = () => {
       const cachedData = sessionStorage.getItem(SCENARIO_CACHE_KEY);
       if (cachedData) {
         const parsedData = JSON.parse(cachedData) as Scenario[];
-        console.log('[AdventureGame] Using cached scenarios.');
         setScenarios(parsedData);
         setGamePhase('selecting_scenario');
         useAdventureStore.setState({ isLoading: false, error: null });
@@ -105,7 +104,6 @@ const AdventureGame = () => {
       sessionStorage.removeItem(SCENARIO_CACHE_KEY);
     }
 
-    console.log('[AdventureGame] No valid cached scenarios found. Fetching from backend.');
     setGamePhase('loading_scenarios');
     setIsUnauthorized(false);
     useAdventureStore.setState({ error: null, isLoading: true });
@@ -114,7 +112,6 @@ const AdventureGame = () => {
       const result = await generateStartingScenariosAction();
 
       if (result.error === 'Unauthorized: User must be logged in.') {
-        console.log('[AdventureGame] User is not logged in. Using hardcoded scenarios.');
         setScenarios(hardcodedScenarios);
         setGamePhase('selecting_scenario');
         useAdventureStore.setState({ error: null, isLoading: false });
@@ -123,7 +120,6 @@ const AdventureGame = () => {
       }
 
       if (result.rateLimitError) {
-        console.warn('Scenario Rate Limit Hit:', result.rateLimitError);
         useAdventureStore.setState({
           error: { rateLimitError: result.rateLimitError },
           isLoading: false,
@@ -139,7 +135,6 @@ const AdventureGame = () => {
       setScenarios(result.scenarios);
       try {
         sessionStorage.setItem(SCENARIO_CACHE_KEY, JSON.stringify(result.scenarios));
-        console.log('[AdventureGame] Scenarios fetched and cached.');
       } catch (error) {
         console.error('Error saving scenarios to sessionStorage:', error);
       }
@@ -162,7 +157,6 @@ const AdventureGame = () => {
 
   const handleScenarioSelect = useCallback(
     (scenario: Scenario) => {
-      console.log('Selected scenario:', scenario);
       setGamePhase('playing');
       if (!hasUserInteracted) {
         setHasUserInteracted(true);
@@ -174,8 +168,6 @@ const AdventureGame = () => {
 
   const handleReset = useCallback(() => {
     sessionStorage.removeItem(SCENARIO_CACHE_KEY);
-    console.log('[AdventureGame] Resetting adventure and clearing scenario cache.');
-
     resetStore();
     setScenarios([]);
     setIsUnauthorized(false);
@@ -189,33 +181,21 @@ const AdventureGame = () => {
   const handleImageLoad = useCallback(
     (loadedImageUrl?: string) => {
       if (displayNode?.imageUrl && loadedImageUrl === displayNode.imageUrl) {
-        console.log('[ImageLoad] Matching image loaded. Setting loading state to false.');
         setIsCurrentImageLoading(false);
 
         if (hasUserInteracted && currentAudioData && ttsAudioRef.current && !isSpeaking) {
-          console.log('[ImageLoad] Conditions met, attempting to play pre-fetched audio.');
           const audioSrc = `data:audio/mp3;base64,${currentAudioData}`;
           ttsAudioRef.current.src = audioSrc;
           ttsAudioRef.current
             .play()
             .then(() => {
-              console.log('[ImageLoad] Audio playback started successfully.');
               setSpeaking(true);
             })
-            .catch((err) => {
-              console.error('[ImageLoad] Error playing audio:', err);
+            .catch((_err) => {
               setTTSError('Failed to auto-play audio after image load.');
               setSpeaking(false);
             });
-        } else {
-          console.log(
-            `[ImageLoad] Conditions not met for audio auto-play: interacted=${hasUserInteracted}, hasAudio=${!!currentAudioData}, isSpeaking=${isSpeaking}`
-          );
         }
-      } else {
-        console.log(
-          `[ImageLoad] Mismatch or no display node URL. Loaded: ${loadedImageUrl}, Display Node URL: ${displayNode?.imageUrl}`
-        );
       }
     },
     [displayNode, hasUserInteracted, currentAudioData, setSpeaking, setTTSError, isSpeaking]
@@ -262,10 +242,6 @@ const AdventureGame = () => {
         console.warn('[ToggleSpeak] No audio data available to play.');
         setTTSError('Audio not available for this passage.');
       }
-      const ambientAudio = audioRef.current;
-      if (ambientAudio && ambientAudio.paused) {
-        ambientAudio.play().catch((e) => console.warn('Ambient audio play failed:', e));
-      }
       if (!hasUserInteracted) {
         setHasUserInteracted(true);
       }
@@ -288,23 +264,9 @@ const AdventureGame = () => {
       readingTimerRef.current = null;
     }
 
-    console.log(
-      '[Display Node Effect] Checking for node update. Current displayNode:',
-      displayNode?.passage?.substring(0, 30),
-      'Newly fetched node:',
-      newlyFetchedNode?.passage?.substring(0, 30)
-    );
-
     if (newlyFetchedNode && newlyFetchedNode.passage !== displayNode?.passage) {
-      console.log(
-        '[Display Node Effect] New node detected. TTS Available:',
-        !!newlyFetchedNode.audioBase64
-      );
-
       if (newlyFetchedNode.audioBase64 !== undefined) {
-        console.log('[Display Node Effect] TTS ready or not required. Updating displayNode.');
         if (isSpeaking) {
-          console.log('[Display Node Effect] New passage, stopping current speech.');
           stopTTSSpeech();
         }
 
@@ -312,9 +274,6 @@ const AdventureGame = () => {
         setCurrentAudioData(newlyFetchedNode.audioBase64 ?? null);
 
         if (newlyFetchedNode.imageUrl) {
-          console.log(
-            '[Display Node Effect] New image URL detected. Setting image loading to true.'
-          );
           setIsCurrentImageLoading(true);
         } else {
           setIsCurrentImageLoading(false);
@@ -325,20 +284,13 @@ const AdventureGame = () => {
           const wordCount = passageText.split(/\s+/).filter(Boolean).length;
           const wordsPerMinute = 200;
           const delay = Math.max(1500, (wordCount / wordsPerMinute) * 60 * 1000);
-          console.log(
-            `[Display Node Effect] No audio. Setting reading timer for ${wordCount} words: ${delay.toFixed(0)}ms`
-          );
           readingTimerRef.current = setTimeout(() => {
-            console.log('[Display Node Effect] Reading timer elapsed. Showing choices.');
             setShowChoices(true);
             readingTimerRef.current = null;
           }, delay);
         }
-      } else {
-        console.log('[Display Node Effect] TTS data not yet available for new node. Waiting...');
       }
     } else if (!newlyFetchedNode && displayNode) {
-      console.log('[Display Node Effect] Clearing display node.');
       setDisplayNode(null);
       setIsCurrentImageLoading(true);
       setCurrentAudioData(null);
@@ -347,29 +299,9 @@ const AdventureGame = () => {
     }
   }, [currentNode, gamePhase, displayNode, isSpeaking, stopTTSSpeech]);
 
-  useEffect(() => {
-    const audioElement = audioRef.current;
-    if (!audioElement) return;
-
-    const targetSoundSrc = '/sounds/entrance_chamber_ambient.mp3';
-
-    if (audioElement.src.endsWith(targetSoundSrc)) {
-      console.log('Ambient audio source already set.');
-    } else {
-      console.log('Setting ambient audio source:', targetSoundSrc);
-      audioElement.src = targetSoundSrc;
-      audioElement.load();
-    }
-
-    return () => {
-      audioElement?.pause();
-    };
-  }, []);
-
   const handleChoiceClick = useCallback(
     (choice: Scenario, index: number) => {
       if (!hasUserInteracted) {
-        console.log('User interaction registered via choice click.');
         setHasUserInteracted(true);
       }
       setClickedChoiceIndex(index);
@@ -386,13 +318,6 @@ const AdventureGame = () => {
     'border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600 focus:ring-gray-500 shadow-sm';
   const ghostButtonClasses =
     'border-transparent text-gray-400 hover:bg-gray-700/50 hover:text-gray-300 focus:ring-gray-500';
-
-  useEffect(() => {
-    const ambientAudio = audioRef.current;
-    if (ambientAudio) {
-      ambientAudio.volume = ttsVolume;
-    }
-  }, [ttsVolume]);
 
   useEffect(() => {
     const ttsAudio = ttsAudioRef.current;
