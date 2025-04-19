@@ -448,7 +448,10 @@ const AdventureGame = () => {
         return (
           <div ref={gameContainerRef} className={containerClasses}>
             {showGameUI && gamePhase !== 'error' && (
-              <FullScreen handle={fullscreenHandle} className="flex-grow flex flex-col">
+              <FullScreen
+                handle={fullscreenHandle}
+                className="flex-grow flex flex-col game-fullscreen-container"
+              >
                 <>
                   <div
                     className={

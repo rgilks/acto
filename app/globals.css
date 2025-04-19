@@ -57,3 +57,25 @@ body {
 .fade-in {
   animation: fadeIn 0.5s ease-out forwards;
 }
+
+/* Add styles at the end of the file */
+
+@media (orientation: landscape) and (hover: none) and (pointer: coarse) {
+  /* Target iOS/touch devices in landscape */
+  .game-fullscreen-container {
+    position: fixed !important; /* Override existing styles */
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh; /* Consider using dvh if browser support allows and is needed */
+    z-index: 9999; /* Ensure it's on top */
+    background-color: black; /* Optional: Set a background */
+    /* Add vendor prefixes if needed, though often handled by autoprefixers */
+  }
+
+  /* Optional: Hide other elements like headers/footers if necessary */
+  /* Example: */
+  /* body > header, body > footer { */
+  /*   display: none !important; */
+  /* } */
+}
