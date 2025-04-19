@@ -8,7 +8,7 @@ _(Placeholder for a new screenshot of the application interface)_
 
 ## Overview
 
-`acto` is an AI-powered interactive storytelling application. Users can start with an initial scenario (either chosen or generated) and make choices that influence the direction of the narrative. The application uses Google's Gemini AI models to generate story passages, subsequent choices, and relevant imagery based on the user's input and the story's history. It also features Text-to-Speech (TTS) capabilities to read passages aloud.
+`acto` is an AI-powered interactive storytelling application. Users can start with an initial scenario (either chosen or generated) and make choices that influence the direction of the narrative. The application uses Google's Gemini AI models to generate story passages, subsequent choices, and relevant imagery based on the user's input and the story's history. It also features Text-to-Speech (TTS) capabilities to read passages aloud. Audio begins playing automatically when ready.
 
 ## Features
 
@@ -16,7 +16,7 @@ _(Placeholder for a new screenshot of the application interface)_
 - **Dynamic Choices**: AI generates relevant choices for the user at each step, influencing the story progression.
 - **Starting Scenarios**: Generates diverse starting points for new stories across different genres.
 - **AI-Generated Images**: Images created based on the narrative using Imagen via the Gemini API.
-- **Text-to-Speech (TTS)**: Reads story passages aloud using Google Cloud TTS.
+- **Text-to-Speech (TTS)**: Reads story passages aloud using Google Cloud TTS. Audio begins playing automatically when ready.
 - **Stateful Interaction**: The application maintains the story history to provide context for the AI.
 - **User Authentication**: (Optional) Secure login via GitHub, Google, and Discord OAuth using NextAuth.
 - **Data Persistence**: (Likely, uses SQLite) Store user data or potentially story progress.

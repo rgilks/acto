@@ -22,10 +22,12 @@ function useTTSPlayer({
   onPlaybackEnd,
   onPlaybackError,
 }: UseTTSPlayerProps): UseTTSPlayerReturn {
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null); // Initialize as null
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [currentAudioSrc, setCurrentAudioSrc] = useState<string | null>(null);
+  // New state for autoplay trigger
+  const [isReadyToPlay, setIsReadyToPlay] = useState(false);
 
   const handleEnded = useCallback(() => {
     setIsPlaying(false);
@@ -64,48 +66,42 @@ function useTTSPlayer({
   );
 
   const play = useCallback(() => {
-    // Log entry into the play function
-    // console.log('[useTTSPlayer] play function called.'); // Cleaned up
     const audioElement = audioRef.current;
-
-    // Derive the source directly from the prop for this check
     const latestSrc = audioData ? `data:audio/mp3;base64,${audioData}` : null;
 
     if (!audioElement || !latestSrc) {
       const msg = 'Audio element or source not available for playback.';
-      // Simplified logging
       console.warn('[useTTSPlayer] Playback warning:', msg);
       setError(msg);
       onPlaybackError?.(msg);
+      // Ensure isPlaying is false if we can't play
+      setIsPlaying(false);
       return;
     }
 
-    // Use the derived latestSrc when setting/checking the element's source
     if (audioElement.src !== latestSrc) {
-      // console.log('[useTTSPlayer] Setting audio element src'); // Cleaned up
       audioElement.src = latestSrc;
     }
 
-    // Log volume just before attempting play
-    // console.log(`[useTTSPlayer] Attempting play(). Volume: ${audioElement.volume}`); // Cleaned up
-
-    // Reset error before attempting play
     setError(null);
 
-    audioElement
-      .play()
-      .then(() => {
-        setIsPlaying(true);
-      })
-      .catch((err) => {
-        // Revert to simpler error logging
-        const msg = 'Audio playback failed.';
-        console.error('[useTTSPlayer] Error starting playback:', err);
-        setError(msg);
-        setIsPlaying(false);
-        onPlaybackError?.(msg);
-      });
-  }, [audioData, onPlaybackError, currentAudioSrc]);
+    // Check if already playing before attempting to play
+    if (!isPlaying) {
+      audioElement
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch((err) => {
+          // Revert to simpler error logging
+          const msg = 'Audio playback failed.';
+          console.error('[useTTSPlayer] Error starting playback:', err);
+          setError(msg);
+          setIsPlaying(false);
+          onPlaybackError?.(msg);
+        });
+    }
+  }, [audioData, onPlaybackError, isPlaying]); // Added isPlaying dependency
 
   const pause = useCallback(() => {
     const audioElement = audioRef.current;
@@ -132,18 +128,33 @@ function useTTSPlayer({
     // handleEnded dependency avoids potential stale closure
   }, [isPlaying, handleEnded]);
 
-  // Effect to update audio source when audioData changes
+  // Effect to update audio source when audioData changes and trigger ready state
   useEffect(() => {
     const newSrc = audioData ? `data:audio/mp3;base64,${audioData}` : null;
-    setCurrentAudioSrc(newSrc);
 
-    // If audio data changes while playing, stop playback
-    if (isPlaying) {
-      stop();
+    // Only update src and trigger play logic if the source actually changed
+    if (newSrc !== currentAudioSrc) {
+      setCurrentAudioSrc(newSrc);
+
+      // If audio data changes while playing, stop playback
+      if (isPlaying) {
+        stop();
+      }
+      // Reset error when new audio comes in
+      setError(null);
+
+      // Set ready to play if we have a valid new source
+      setIsReadyToPlay(!!newSrc);
     }
-    // Reset error when new audio comes in
-    setError(null);
-  }, [audioData, stop]); // Add stop dependency
+  }, [audioData, stop, isPlaying, currentAudioSrc]); // Added currentAudioSrc, isPlaying dependencies
+
+  // Effect to handle actual autoplay when ready
+  useEffect(() => {
+    if (isReadyToPlay) {
+      play();
+      setIsReadyToPlay(false); // Reset trigger after attempting play
+    }
+  }, [isReadyToPlay, play]); // Dependencies: the trigger state and the play function
 
   // Effect to handle setting volume
   useEffect(() => {
@@ -164,10 +175,22 @@ function useTTSPlayer({
 
     // Cleanup
     return () => {
-      audioElement.removeEventListener('ended', handleEnded);
-      audioElement.removeEventListener('error', handleError);
+      // Check again in cleanup in case element was removed
+      if (audioElement) {
+        audioElement.removeEventListener('ended', handleEnded);
+        audioElement.removeEventListener('error', handleError);
+      }
     };
-  }, [handleEnded, handleError]);
+  }, [handleEnded, handleError]); // Removed dependency on audioRef.current
+
+  // Effect to initialize audio element client-side
+  useEffect(() => {
+    if (!audioRef.current && typeof Audio !== 'undefined') {
+      audioRef.current = new Audio();
+    }
+    // Optional: Cleanup ref if component unmounts, though useRef usually handles this
+    // return () => { audioRef.current = null; };
+  }, []);
 
   return { play, pause, stop, isPlaying, error, audioRef };
 }
