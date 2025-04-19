@@ -114,6 +114,7 @@ const AdventureGame = () => {
   const [showChoices, setShowChoices] = useState<boolean>(false);
   const [showPassageText, setShowPassageText] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isIOS, setIsIOS] = useState<boolean>(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const ttsAudioRef = useRef<HTMLAudioElement>(null);
@@ -396,86 +397,99 @@ const AdventureGame = () => {
     };
   }, []);
 
-  const handleToggleFullscreen = useCallback(() => {
-    const elem = gameContainerRef.current;
-    if (!elem) return;
-
-    // Use interfaces with type assertions
-    const fullscreenElem = elem as FullscreenElement;
-    const fullscreenDoc = document as FullscreenDocument;
-
-    // Define potential requestFullscreen methods with vendor prefixes
-    const requestFullscreen =
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      fullscreenElem.requestFullscreen ||
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      fullscreenElem.webkitRequestFullscreen ||
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      fullscreenElem.mozRequestFullScreen ||
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      fullscreenElem.msRequestFullscreen;
-
-    // Define potential exitFullscreen methods with vendor prefixes
-    const exitFullscreen =
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      fullscreenDoc.exitFullscreen ||
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      fullscreenDoc.webkitExitFullscreen ||
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      fullscreenDoc.mozCancelFullScreen ||
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      fullscreenDoc.msExitFullscreen;
-
-    // Define potential fullscreenElement properties with vendor prefixes
-    const fullscreenElement =
-      fullscreenDoc.fullscreenElement ||
-      fullscreenDoc.webkitFullscreenElement ||
-      fullscreenDoc.mozFullScreenElement ||
-      fullscreenDoc.msFullscreenElement;
-
-    if (!fullscreenElement) {
-      if (requestFullscreen) {
-        // Bind 'this' to the element
-        requestFullscreen.call(fullscreenElem).catch((err: unknown) => {
-          const message = err instanceof Error ? err.message : String(err);
-          const name = err instanceof Error ? err.name : 'UnknownError';
-          console.error(`Error attempting to enable full-screen mode: ${message} (${name})`);
-        });
-      } else {
-        console.error('Fullscreen API is not supported by this browser.');
-      }
-    } else {
-      if (exitFullscreen) {
-        // Bind 'this' to the document
-        exitFullscreen.call(fullscreenDoc).catch((err: unknown) => {
-          const message = err instanceof Error ? err.message : String(err);
-          const name = err instanceof Error ? err.name : 'UnknownError';
-          console.error(`Error attempting to exit full-screen mode: ${message} (${name})`);
-        });
-      } else {
-        console.error('Fullscreen API is not supported by this browser.');
-      }
-    }
+  useEffect(() => {
+    // Client-side only checks
+    const agent = window.navigator.userAgent;
+    const platform = window.navigator.platform;
+    // Basic iOS detection (covers iPhone, iPad, iPod)
+    const iosCheck =
+      /iPad|iPhone|iPod/.test(agent) ||
+      (platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+    setIsIOS(iosCheck);
   }, []);
 
+  const handleToggleFullscreen = useCallback(() => {
+    if (isIOS) {
+      // On iOS, just toggle the state to apply CSS changes
+      setIsFullscreen((prev) => !prev);
+    } else {
+      // On non-iOS, use the Fullscreen API
+      const elem = gameContainerRef.current;
+      if (!elem) return;
+
+      const fullscreenElem = elem as FullscreenElement;
+      const fullscreenDoc = document as FullscreenDocument;
+
+      const requestFullscreen =
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        fullscreenElem.requestFullscreen ||
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        fullscreenElem.webkitRequestFullscreen ||
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        fullscreenElem.mozRequestFullScreen ||
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        fullscreenElem.msRequestFullscreen;
+
+      const exitFullscreen =
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        fullscreenDoc.exitFullscreen ||
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        fullscreenDoc.webkitExitFullscreen ||
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        fullscreenDoc.mozCancelFullScreen ||
+        // eslint-disable-next-line @typescript-eslint/unbound-method
+        fullscreenDoc.msExitFullscreen;
+
+      const fullscreenElement =
+        fullscreenDoc.fullscreenElement ||
+        fullscreenDoc.webkitFullscreenElement ||
+        fullscreenDoc.mozFullScreenElement ||
+        fullscreenDoc.msFullscreenElement;
+
+      if (!fullscreenElement) {
+        if (requestFullscreen) {
+          requestFullscreen.call(fullscreenElem).catch((err: unknown) => {
+            const message = err instanceof Error ? err.message : String(err);
+            const name = err instanceof Error ? err.name : 'UnknownError';
+            console.error(`Error attempting to enable full-screen mode: ${message} (${name})`);
+          });
+        } else {
+          console.error('Fullscreen API is not supported by this browser.');
+        }
+      } else {
+        if (exitFullscreen) {
+          exitFullscreen.call(fullscreenDoc).catch((err: unknown) => {
+            const message = err instanceof Error ? err.message : String(err);
+            const name = err instanceof Error ? err.name : 'UnknownError';
+            console.error(`Error attempting to exit full-screen mode: ${message} (${name})`);
+          });
+        } else {
+          console.error('Fullscreen API is not supported by this browser.');
+        }
+      }
+    }
+  }, [isIOS]); // Add isIOS to dependency array
+
   useEffect(() => {
+    // Only attach Fullscreen API listeners if not on iOS
+    if (isIOS) return;
+
     const handleFullscreenChange = () => {
       const fullscreenDoc = document as FullscreenDocument;
-      // Check multiple vendor-prefixed fullscreenElement properties
       const isCurrentlyFullscreen = !!(
         fullscreenDoc.fullscreenElement ||
         fullscreenDoc.webkitFullscreenElement ||
         fullscreenDoc.mozFullScreenElement ||
         fullscreenDoc.msFullscreenElement
       );
+      // Update state based on actual Fullscreen API state change (e.g., ESC key)
       setIsFullscreen(isCurrentlyFullscreen);
     };
 
-    // Listen to vendor-prefixed fullscreenchange events
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange); // Note: no capital 'S'
-    document.addEventListener('MSFullscreenChange', handleFullscreenChange); // Note: capital 'MSF'
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
@@ -483,7 +497,8 @@ const AdventureGame = () => {
       document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
-  }, []);
+    // Rerun this effect if isIOS changes (though unlikely after initial render)
+  }, [isIOS]);
 
   return (
     <>
