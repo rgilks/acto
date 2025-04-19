@@ -8,12 +8,14 @@ import { AdventureChoiceSchema, AdventureNode } from '@/lib/domain/schemas';
 import { z } from 'zod';
 import {
   ArrowPathIcon,
+  /*
   SpeakerWaveIcon,
   SpeakerXMarkIcon,
   EyeIcon,
   EyeSlashIcon,
   ArrowsPointingOutIcon,
   ArrowsPointingInIcon,
+  */
 } from '@heroicons/react/24/solid';
 import ScenarioSelector from './ScenarioSelector';
 import useTTSPlayer from '@/hooks/useTTSPlayer';
@@ -83,7 +85,6 @@ const AdventureGame = () => {
     error: nodeError,
     makeChoice,
     ttsVolume,
-    setTTSVolume,
   } = useAdventureStore();
 
   const [gamePhase, setGamePhase] = useState<GamePhase>('selecting_scenario');
@@ -102,9 +103,7 @@ const AdventureGame = () => {
 
   const {
     play: playTTS,
-    pause: pauseTTS,
     stop: stopTTS,
-    isPlaying: isTTSSpeaking,
     error: ttsPlayerError,
     audioRef: ttsAudioRef,
   } = useTTSPlayer({
@@ -141,7 +140,10 @@ const AdventureGame = () => {
     (loadedImageUrl?: string) => {
       if (displayNode?.imageUrl && loadedImageUrl === displayNode.imageUrl) {
         setIsCurrentImageLoading(false);
-
+        console.log('[AdventureGame handleImageLoad] Ready to potentially play.', {
+          hasUserInteracted,
+          hasAudio: !!currentAudioData,
+        });
         if (hasUserInteracted && currentAudioData) {
           playTTS();
         } else if (!currentAudioData) {
@@ -159,33 +161,22 @@ const AdventureGame = () => {
     ]
   );
 
-  const handleToggleSpeak = useCallback(() => {
-    if (isTTSSpeaking) {
-      pauseTTS();
-    } else {
-      if (currentAudioData) {
-        playTTS();
-      } else {
-        console.warn('[ToggleSpeak] No audio data available to play.');
-      }
-      if (!hasUserInteracted) {
-        setHasUserInteracted(true);
-      }
-    }
-  }, [isTTSSpeaking, pauseTTS, playTTS, currentAudioData, hasUserInteracted]);
-
   useEffect(() => {
     const newlyFetchedNode =
       gamePhase === 'playing' || gamePhase === 'loading_first_node' ? currentNode : null;
 
     if (newlyFetchedNode && newlyFetchedNode.passage !== displayNode?.passage) {
-      if (isTTSSpeaking) {
-        stopTTS();
-      }
+      stopTTS();
       setShowChoices(false);
 
       setDisplayNode(newlyFetchedNode);
       setCurrentAudioData(newlyFetchedNode.audioBase64 ?? null);
+      console.log(
+        '[AdventureGame useEffect] Setting currentAudioData:',
+        newlyFetchedNode.audioBase64
+          ? `Exists (${newlyFetchedNode.audioBase64.substring(0, 30)}...)`
+          : 'null'
+      );
       const imageAvailable = !!newlyFetchedNode.imageUrl;
       const audioAvailable = !!newlyFetchedNode.audioBase64;
       setIsCurrentImageLoading(imageAvailable);
@@ -201,10 +192,10 @@ const AdventureGame = () => {
       setDisplayNode(null);
       setIsCurrentImageLoading(true);
       setCurrentAudioData(null);
-      if (isTTSSpeaking) stopTTS();
+      stopTTS();
       setShowChoices(false);
     }
-  }, [currentNode, gamePhase, displayNode, isTTSSpeaking, stopTTS]);
+  }, [currentNode, gamePhase, displayNode, stopTTS]);
 
   const handleChoiceClick = useCallback(
     (choice: Scenario, index: number) => {
@@ -221,8 +212,6 @@ const AdventureGame = () => {
     'px-4 py-2 rounded-md border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800';
   const choiceButtonClasses =
     'w-full text-left justify-start p-4 h-auto border-amber-800/50 bg-gradient-to-br from-amber-100/5 via-amber-100/10 to-amber-100/5 text-amber-100/80 hover:text-amber-100 hover:border-amber-700 hover:from-amber-100/10 hover:to-amber-100/10 focus:ring-amber-500 shadow-md hover:shadow-lg';
-  const ghostButtonClasses =
-    'border-transparent text-gray-400 hover:bg-gray-700/50 hover:text-gray-300 focus:ring-gray-500';
 
   useEffect(() => {
     if (nodeError !== null) {
@@ -252,7 +241,13 @@ const AdventureGame = () => {
       />
 
       <audio ref={audioRef} loop hidden aria-hidden="true" />
-      <audio ref={ttsAudioRef} hidden aria-hidden="true" />
+      {/* Use styled native controls - MOVED INSIDE displayNode block */}
+      {/* <audio
+        ref={ttsAudioRef}
+        aria-hidden="true"
+        controls
+        className="absolute top-2 right-2 z-20 w-60 rounded opacity-75 hover:opacity-100 transition-opacity duration-200"
+      /> */}
 
       {(() => {
         const rateLimitInfo =
@@ -365,75 +360,13 @@ const AdventureGame = () => {
                                 setIsCurrentImageLoading(false);
                               }}
                             />
-                            <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between space-x-3 p-2 bg-gradient-to-b from-black/80 to-transparent">
-                              <button
-                                onClick={
-                                  fullscreenHandle.active
-                                    ? fullscreenHandle.exit
-                                    : fullscreenHandle.enter
-                                }
-                                title={
-                                  fullscreenHandle.active ? 'Exit fullscreen' : 'Enter fullscreen'
-                                }
-                                aria-label={
-                                  fullscreenHandle.active ? 'Exit fullscreen' : 'Enter fullscreen'
-                                }
-                                className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full text-white hover:opacity-80 drop-shadow-sm`}
-                              >
-                                {fullscreenHandle.active ? (
-                                  <ArrowsPointingInIcon className="h-5 w-5" />
-                                ) : (
-                                  <ArrowsPointingOutIcon className="h-5 w-5" />
-                                )}
-                              </button>
-                              <div className="flex items-center space-x-3">
-                                <button
-                                  onClick={handleToggleSpeak}
-                                  title={
-                                    currentAudioData
-                                      ? isTTSSpeaking
-                                        ? 'Stop reading aloud'
-                                        : 'Read passage aloud'
-                                      : 'Audio not available'
-                                  }
-                                  aria-label={
-                                    isTTSSpeaking ? 'Stop reading aloud' : 'Read passage aloud'
-                                  }
-                                  className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full text-white hover:opacity-80 drop-shadow-sm ${!currentAudioData ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                  disabled={isNodeLoading || !currentAudioData}
-                                >
-                                  {isTTSSpeaking ? (
-                                    <SpeakerXMarkIcon className="h-5 w-5" />
-                                  ) : (
-                                    <SpeakerWaveIcon className="h-5 w-5" />
-                                  )}
-                                </button>
-                                <input
-                                  type="range"
-                                  min="0"
-                                  max="1"
-                                  step="0.1"
-                                  value={ttsVolume}
-                                  onChange={(e) => setTTSVolume(parseFloat(e.target.value))}
-                                  className="h-1 w-20 md:w-24 cursor-pointer appearance-none rounded-full bg-transparent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black/50 focus:ring-amber-500 [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:w-full [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-gray-400/70 [&::-moz-range-track]:h-1 [&::-moz-range-track]:w-full [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-gray-400/70 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-400 [&::-webkit-slider-thumb]:-mt-1 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-amber-400 [&::-moz-range-thumb]:-mt-1"
-                                  title={`Volume: ${Math.round(ttsVolume * 100)}%`}
-                                  aria-label="Speech volume"
-                                  disabled={isNodeLoading}
-                                />
-                                <button
-                                  onClick={() => setShowPassageText((prev) => !prev)}
-                                  title={showPassageText ? 'Hide text' : 'Show text'}
-                                  aria-label={showPassageText ? 'Hide text' : 'Show text'}
-                                  className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full text-white hover:opacity-80 drop-shadow-sm`}
-                                >
-                                  {showPassageText ? (
-                                    <EyeSlashIcon className="h-5 w-5" />
-                                  ) : (
-                                    <EyeIcon className="h-5 w-5" />
-                                  )}
-                                </button>
-                              </div>
-                            </div>
+                            {/* Move the audio element inside the image container */}
+                            <audio
+                              ref={ttsAudioRef}
+                              aria-hidden="true"
+                              controls
+                              className="absolute top-2 right-2 z-20 w-60 rounded opacity-75 hover:opacity-100 transition-opacity duration-200"
+                            />
                           </div>
                         )}
 

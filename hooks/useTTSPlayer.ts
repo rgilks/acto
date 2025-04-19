@@ -64,18 +64,30 @@ function useTTSPlayer({
   );
 
   const play = useCallback(() => {
+    // Log entry into the play function
+    // console.log('[useTTSPlayer] play function called.'); // Cleaned up
     const audioElement = audioRef.current;
-    if (!audioElement || !currentAudioSrc) {
+
+    // Derive the source directly from the prop for this check
+    const latestSrc = audioData ? `data:audio/mp3;base64,${audioData}` : null;
+
+    if (!audioElement || !latestSrc) {
       const msg = 'Audio element or source not available for playback.';
+      // Simplified logging
       console.warn('[useTTSPlayer] Playback warning:', msg);
       setError(msg);
       onPlaybackError?.(msg);
       return;
     }
 
-    if (audioElement.src !== currentAudioSrc) {
-      audioElement.src = currentAudioSrc;
+    // Use the derived latestSrc when setting/checking the element's source
+    if (audioElement.src !== latestSrc) {
+      // console.log('[useTTSPlayer] Setting audio element src'); // Cleaned up
+      audioElement.src = latestSrc;
     }
+
+    // Log volume just before attempting play
+    // console.log(`[useTTSPlayer] Attempting play(). Volume: ${audioElement.volume}`); // Cleaned up
 
     // Reset error before attempting play
     setError(null);
@@ -86,13 +98,14 @@ function useTTSPlayer({
         setIsPlaying(true);
       })
       .catch((err) => {
+        // Revert to simpler error logging
         const msg = 'Audio playback failed.';
         console.error('[useTTSPlayer] Error starting playback:', err);
         setError(msg);
         setIsPlaying(false);
         onPlaybackError?.(msg);
       });
-  }, [currentAudioSrc, onPlaybackError]);
+  }, [audioData, onPlaybackError, currentAudioSrc]);
 
   const pause = useCallback(() => {
     const audioElement = audioRef.current;
