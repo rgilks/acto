@@ -22,30 +22,54 @@ export const MODELS: Record<ModelName, ModelConfig> = {
 
 export const LanguageLevels = z.enum(['A1', 'A2', 'B1', 'B2', 'C1', 'C2']);
 
+// Keep schema definition for potential other uses (like OpenRouter)
 const envSchema = z.object({
-  GOOGLE_AI_API_KEY: z.string().optional(),
+  // GOOGLE_AI_API_KEY is now read directly in getGoogleAIClient
+  // GOOGLE_AI_API_KEY: z.string().optional(),
   OPENROUTER_API_KEY: z.string().optional(),
 });
 
+// Parse only relevant env vars if needed elsewhere
 const envVars = envSchema.safeParse(process.env);
 
 if (!envVars.success) {
   console.error(
-    '❌ Invalid environment variables:',
+    '❌ Invalid environment variables for non-Google keys:',
     JSON.stringify(envVars.error.format(), null, 4)
   );
 }
 
-const validatedEnv = envVars.success ? envVars.data : {};
+// const validatedEnv = envVars.success ? envVars.data : {}; // Removed as GOOGLE_AI_API_KEY usage was removed
 
-export const getGoogleAIClient = () => {
-  const apiKey = validatedEnv.GOOGLE_AI_API_KEY;
+// --- Lazy Client Initialization ---
+let genAIClient: GoogleGenAI | null = null;
 
-  if (!apiKey) {
-    console.warn('Warning: GOOGLE_AI_API_KEY is not set or invalid');
+export const getGoogleAIClient = (): GoogleGenAI => {
+  // Return existing client if already initialized
+  if (genAIClient) {
+    return genAIClient;
   }
 
-  return new GoogleGenAI({ apiKey: apiKey || '' });
+  // Read API key from environment at runtime
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
+
+  if (!apiKey) {
+    const errorMsg =
+      '[GoogleAI Client] CRITICAL: GOOGLE_AI_API_KEY environment variable is not set. Cannot initialize client.';
+    console.error(errorMsg);
+    // Throw an error to prevent proceeding without a key
+    throw new Error(errorMsg);
+  }
+
+  console.log('[GoogleAI Client] Initializing GoogleGenAI client...');
+  try {
+    genAIClient = new GoogleGenAI({ apiKey });
+    return genAIClient;
+  } catch (error) {
+    console.error('[GoogleAI Client] Failed to initialize GoogleGenAI client:', error);
+    // Re-throw the error to indicate failure
+    throw error;
+  }
 };
 
 export const getActiveModel = (): ModelConfig => {

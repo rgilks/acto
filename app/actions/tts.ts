@@ -7,6 +7,33 @@ import { TTS_VOICE_NAME } from '@/lib/constants';
 import { getSession } from '@/app/auth';
 import { checkTTSRateLimit } from '@/lib/rateLimitSqlite'; // Import TTS rate limit check
 
+// Interface for expected service account structure
+interface ServiceAccountCredentials {
+  type: string;
+  project_id: string;
+  private_key_id: string;
+  private_key: string;
+  client_email: string;
+  client_id: string;
+  auth_uri: string;
+  token_uri: string;
+  auth_provider_x509_cert_url: string;
+  client_x509_cert_url: string;
+  universe_domain: string;
+}
+
+// Type guard to check if an object matches the ServiceAccountCredentials interface
+function isServiceAccountCredentials(obj: unknown): obj is ServiceAccountCredentials {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    typeof (obj as ServiceAccountCredentials).project_id === 'string' &&
+    typeof (obj as ServiceAccountCredentials).private_key === 'string' &&
+    typeof (obj as ServiceAccountCredentials).client_email === 'string'
+    // Add checks for other essential fields if needed
+  );
+}
+
 let client: TextToSpeechClient | null = null;
 
 const initializeTTSClient = () => {
@@ -17,16 +44,37 @@ const initializeTTSClient = () => {
     if (!credsJson) {
       throw new Error('[TTS Client] GOOGLE_APP_CREDS_JSON environment variable not set.');
     }
-    const credentials = JSON.parse(credsJson);
+
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(credsJson);
+    } catch (parseError) {
+      console.error('[TTS Client] Failed to parse GOOGLE_APP_CREDS_JSON:', parseError);
+      throw new Error(
+        '[TTS Client] Failed to parse service account credentials. Ensure it is valid JSON.'
+      );
+    }
+
+    // Validate the parsed JSON using the type guard
+    if (!isServiceAccountCredentials(parsedJson)) {
+      console.error(
+        '[TTS Client] Parsed GOOGLE_APP_CREDS_JSON is invalid or missing required fields.'
+      );
+      throw new Error('[TTS Client] Invalid service account credentials structure.');
+    }
+
+    // Now parsedJson is safely typed as ServiceAccountCredentials
+    const credentials = parsedJson;
+
     console.log('[TTS Client] Initializing with credentials from GOOGLE_APP_CREDS_JSON');
     client = new TextToSpeechClient({ credentials });
     return client;
   } catch (error) {
+    // Catch errors from initialization or the type guard check
     console.error('[TTS Client] Failed to initialize TextToSpeechClient:', error);
-    Sentry.captureException(error);
-    // Fallback or rethrow depending on desired behavior if initialization fails
-    // For now, let operations fail later if client is null
-    return null;
+    Sentry.captureException(error); // Capture initialization errors
+    // Re-throw or handle appropriately - for now, let it bubble up
+    throw error;
   }
 };
 
