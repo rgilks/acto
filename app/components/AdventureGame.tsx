@@ -486,7 +486,8 @@ const AdventureGame = () => {
                                 setIsCurrentImageLoading(false);
                               }}
                             />
-                            <div className="absolute bottom-0 left-0 right-0 p-2 bg-black/50 flex items-center justify-center space-x-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            {/* Absolutely Positioned Controls Container (Overlaying Image) */}
+                            <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-end space-x-3 p-2 bg-gradient-to-b from-black/80 to-transparent">
                               <button
                                 onClick={handleToggleSpeak}
                                 title={
@@ -499,7 +500,7 @@ const AdventureGame = () => {
                                 aria-label={
                                   isSpeaking ? 'Stop reading aloud' : 'Read passage aloud'
                                 }
-                                className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full ${!currentAudioData ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full text-white hover:opacity-80 drop-shadow-sm ${!currentAudioData ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 disabled={isNodeLoading || !currentAudioData}
                               >
                                 {isSpeaking ? (
@@ -515,7 +516,7 @@ const AdventureGame = () => {
                                 step="0.1"
                                 value={ttsVolume}
                                 onChange={(e) => setTTSVolume(parseFloat(e.target.value))}
-                                className="h-1 w-24 cursor-pointer appearance-none rounded-full bg-transparent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:w-full [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-gray-400 [&::-moz-range-track]:h-1 [&::-moz-range-track]:w-full [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-gray-400 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-400 [&::-webkit-slider-thumb]:-mt-1 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-amber-400 [&::-moz-range-thumb]:-mt-1"
+                                className="h-1 w-20 md:w-24 cursor-pointer appearance-none rounded-full bg-transparent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black/50 focus:ring-amber-500 [&::-webkit-slider-runnable-track]:h-1 [&::-webkit-slider-runnable-track]:w-full [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-gray-400/70 [&::-moz-range-track]:h-1 [&::-moz-range-track]:w-full [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-gray-400/70 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-amber-400 [&::-webkit-slider-thumb]:-mt-1 [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:bg-amber-400 [&::-moz-range-thumb]:-mt-1"
                                 title={`Volume: ${Math.round(ttsVolume * 100)}%`}
                                 aria-label="Speech volume"
                                 disabled={isNodeLoading}
@@ -524,7 +525,7 @@ const AdventureGame = () => {
                                 onClick={() => setShowPassageText((prev) => !prev)}
                                 title={showPassageText ? 'Hide text' : 'Show text'}
                                 aria-label={showPassageText ? 'Hide text' : 'Show text'}
-                                className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full`}
+                                className={`${buttonBaseClasses} ${ghostButtonClasses} p-1 rounded-full text-white hover:opacity-80 drop-shadow-sm`}
                               >
                                 {showPassageText ? (
                                   <EyeSlashIcon className="h-5 w-5" />
@@ -557,15 +558,22 @@ const AdventureGame = () => {
                       )}
                     </div>
 
-                    {/* Choices Container */}
                     <div
-                      className={`transition-opacity duration-500 ease-in-out ${showChoices ? 'opacity-100' : 'opacity-0'}`}
+                      className={`
+                      ${
+                        !showPassageText
+                          ? 'absolute bottom-0 left-0 right-0 p-4 pt-16 bg-gradient-to-t from-black/90 via-black/70 to-transparent pointer-events-none'
+                          : 'mt-6'
+                      }
+                    `}
                     >
-                      {showChoices && (
+                      <div
+                        className={`transition-opacity duration-500 ease-in-out ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+                      >
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
                           {displayNode.choices.map((choice, index) => {
                             const isClicked = index === clickedChoiceIndex;
-                            const isDisabled = isNodeLoading;
+                            const isDisabled = isNodeLoading || !showChoices;
                             const isLoadingChoice = isNodeLoading && isClicked;
                             return (
                               <button
@@ -583,9 +591,8 @@ const AdventureGame = () => {
                             );
                           })}
                         </div>
-                      )}
+                      </div>
                     </div>
-                    {/* End Choices Container */}
                   </>
                 )}
                 {!displayNode && !isNodeLoading && gamePhase === 'playing' && (
