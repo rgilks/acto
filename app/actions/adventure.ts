@@ -326,13 +326,11 @@ export const generateAdventureNodeAction = async (
 
     const validationResult = AdventureNodeSchema.safeParse(parsedAiContent);
     if (!validationResult.success) {
-      console.error('[Adventure] Schema validation failed:', validationResult.error.format());
-      console.error('[Adventure] Failing AI Response Content (raw): ', aiResponseContent);
-      console.error('[Adventure] Failing AI Response Content (parsed): ', parsedAiContent);
+      const validationErrors = validationResult.error.format();
+      console.error('[Adventure] Schema validation failed:', validationErrors);
       Sentry.captureException(new Error('Adventure AI Response Validation Failed'), {
         extra: {
-          validationErrors: validationResult.error.format(),
-          aiResponseContent: parsedAiContent,
+          validationErrors: validationErrors,
         },
       });
       return { error: 'AI response validation failed.' };
