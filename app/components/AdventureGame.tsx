@@ -104,12 +104,24 @@ const AdventureGame = () => {
     audioData: currentAudioData,
     volume: ttsVolume,
     onPlaybackEnd: useCallback(() => {
+      console.log('[AdventureGame] onPlaybackEnd called. Setting showChoices = true.');
       setShowChoices(true);
     }, []),
-    onPlaybackError: useCallback((_errorMsg: string) => {
+    onPlaybackError: useCallback((errorMsg: string) => {
+      console.log(
+        `[AdventureGame] onPlaybackError called with error: ${errorMsg}. Setting showChoices = true.`
+      );
       setShowChoices(true);
     }, []),
   });
+
+  const [isIphone, setIsIphone] = useState(false);
+
+  useEffect(() => {
+    // Check client-side if the user agent indicates iPhone
+    const userAgent = window.navigator.userAgent;
+    setIsIphone(/iPhone/i.test(userAgent));
+  }, []);
 
   const handleScenarioSelect = useCallback(
     (scenario: Scenario) => {
@@ -139,6 +151,9 @@ const AdventureGame = () => {
           hasAudio: !!currentAudioData,
         });
         if (hasUserInteracted && currentAudioData) {
+          console.log(
+            '[AdventureGame handleImageLoad] User has interacted and audio exists. Calling playTTS().'
+          );
           playTTS();
         } else if (!currentAudioData) {
           setShowChoices(true);
@@ -164,15 +179,14 @@ const AdventureGame = () => {
       setShowChoices(false);
 
       setDisplayNode(newlyFetchedNode);
-      setCurrentAudioData(newlyFetchedNode.audioBase64 ?? null);
+      const newAudioData = newlyFetchedNode.audioBase64 ?? null;
+      setCurrentAudioData(newAudioData);
       console.log(
         '[AdventureGame useEffect] Setting currentAudioData:',
-        newlyFetchedNode.audioBase64
-          ? `Exists (${newlyFetchedNode.audioBase64.substring(0, 30)}...)`
-          : 'null'
+        newAudioData ? `Exists (${newAudioData.substring(0, 30)}...)` : 'null'
       );
       const imageAvailable = !!newlyFetchedNode.imageUrl;
-      const audioAvailable = !!newlyFetchedNode.audioBase64;
+      const audioAvailable = !!newAudioData;
       setIsCurrentImageLoading(imageAvailable);
 
       if (gamePhase === 'loading_first_node') {
@@ -181,6 +195,17 @@ const AdventureGame = () => {
 
       if (!imageAvailable && !audioAvailable) {
         setShowChoices(true);
+      } else if (!imageAvailable && audioAvailable) {
+        if (hasUserInteracted) {
+          console.log('[AdventureGame useEffect] No image, has audio. Playing TTS.');
+          playTTS();
+        } else {
+          console.log(
+            '[AdventureGame useEffect] No image, has audio, but no user interaction yet. Waiting.'
+          );
+        }
+      } else if (imageAvailable) {
+        console.log('[AdventureGame useEffect] Has image. Waiting for handleImageLoad.');
       }
     } else if (!newlyFetchedNode && displayNode && gamePhase === 'playing') {
       setDisplayNode(null);
@@ -189,7 +214,7 @@ const AdventureGame = () => {
       stopTTS();
       setShowChoices(false);
     }
-  }, [currentNode, gamePhase, displayNode, stopTTS]);
+  }, [currentNode, gamePhase, displayNode, stopTTS, playTTS, hasUserInteracted]);
 
   const handleChoiceClick = useCallback(
     (choice: Scenario, index: number) => {
@@ -317,23 +342,25 @@ const AdventureGame = () => {
                                   <ArrowPathIcon className="h-8 w-8 text-slate-400 animate-spin" />
                                 </div>
                               )}
-                              <button
-                                onClick={
-                                  fullscreenHandle.active
-                                    ? fullscreenHandle.exit
-                                    : fullscreenHandle.enter
-                                }
-                                className="absolute top-2 left-2 z-20 p-1.5 bg-black/40 text-white/80 rounded-full hover:bg-black/60 hover:text-white transition-all"
-                                aria-label={
-                                  fullscreenHandle.active ? 'Exit fullscreen' : 'Enter fullscreen'
-                                }
-                              >
-                                {fullscreenHandle.active ? (
-                                  <ArrowsPointingInIcon className="h-5 w-5" />
-                                ) : (
-                                  <ArrowsPointingOutIcon className="h-5 w-5" />
-                                )}
-                              </button>
+                              {!isIphone && (
+                                <button
+                                  onClick={
+                                    fullscreenHandle.active
+                                      ? fullscreenHandle.exit
+                                      : fullscreenHandle.enter
+                                  }
+                                  className="absolute top-2 left-2 z-20 p-1.5 bg-black/40 text-white/80 rounded-full hover:bg-black/60 hover:text-white transition-all"
+                                  aria-label={
+                                    fullscreenHandle.active ? 'Exit fullscreen' : 'Enter fullscreen'
+                                  }
+                                >
+                                  {fullscreenHandle.active ? (
+                                    <ArrowsPointingInIcon className="h-5 w-5" />
+                                  ) : (
+                                    <ArrowsPointingOutIcon className="h-5 w-5" />
+                                  )}
+                                </button>
+                              )}
                               <Image
                                 key={displayNode.imageUrl}
                                 src={displayNode.imageUrl}
@@ -370,8 +397,8 @@ const AdventureGame = () => {
 
                           <div
                             className={`
-                              absolute bottom-0 left-0 right-0 p-4 pt-16
-                              bg-gradient-to-t from-black/90 via-black/70 to-transparent
+                              absolute bottom-0 left-0 right-0 p-4 pt-8 z-10
+                              bg-gradient-to-t from-black/80 via-black/60 to-transparent
                               transition-opacity duration-500 ease-in-out
                               ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
                             `}
