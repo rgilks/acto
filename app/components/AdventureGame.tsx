@@ -15,7 +15,12 @@ import {
 } from '@heroicons/react/24/solid';
 import { generateStartingScenariosAction } from '../actions/adventure';
 
-type GamePhase = 'loading_scenarios' | 'selecting_scenario' | 'playing' | 'error';
+type GamePhase =
+  | 'loading_scenarios'
+  | 'selecting_scenario'
+  | 'loading_first_node'
+  | 'playing'
+  | 'error';
 type Scenario = z.infer<typeof AdventureChoiceSchema>;
 
 // Define hardcoded scenarios for the logged-out experience
@@ -180,6 +185,7 @@ const AdventureGame = () => {
       if (gamePhase !== 'loading_scenarios') {
         setGamePhase('loading_scenarios');
       }
+      setScenarios([]);
       setClickedChoiceIndex(null);
       setDisplayNode(null);
       setIsCurrentImageLoading(true);
@@ -198,7 +204,7 @@ const AdventureGame = () => {
 
   const handleScenarioSelect = useCallback(
     (scenario: Scenario) => {
-      setGamePhase('playing');
+      setGamePhase('loading_first_node');
       if (!hasUserInteracted) {
         setHasUserInteracted(true);
       }
@@ -223,11 +229,23 @@ const AdventureGame = () => {
             .catch((_err) => {
               setTTSError('Failed to auto-play audio after image load.');
               setSpeaking(false);
+              setShowChoices(true);
             });
+        } else if (!currentAudioData) {
+          setShowChoices(true);
         }
       }
     },
-    [displayNode, hasUserInteracted, currentAudioData, setSpeaking, setTTSError, isSpeaking]
+    [
+      displayNode,
+      hasUserInteracted,
+      currentAudioData,
+      setSpeaking,
+      setTTSError,
+      isSpeaking,
+      setIsCurrentImageLoading,
+      setShowChoices,
+    ]
   );
 
   const handleToggleSpeak = useCallback(() => {
@@ -271,40 +289,23 @@ const AdventureGame = () => {
   }, [stopTTSSpeech]);
 
   useEffect(() => {
-    const newlyFetchedNode = gamePhase === 'playing' ? currentNode : null;
-
-    if (readingTimerRef.current) {
-      clearTimeout(readingTimerRef.current);
-      readingTimerRef.current = null;
-    }
+    const newlyFetchedNode =
+      gamePhase === 'playing' || gamePhase === 'loading_first_node' ? currentNode : null;
 
     if (newlyFetchedNode && newlyFetchedNode.passage !== displayNode?.passage) {
-      if (newlyFetchedNode.audioBase64 !== undefined) {
-        if (isSpeaking) {
-          stopTTSSpeech();
-        }
-
-        setDisplayNode(newlyFetchedNode);
-        setCurrentAudioData(newlyFetchedNode.audioBase64 ?? null);
-
-        if (newlyFetchedNode.imageUrl) {
-          setIsCurrentImageLoading(true);
-        } else {
-          setIsCurrentImageLoading(false);
-        }
-
-        if (!newlyFetchedNode.audioBase64) {
-          const passageText = newlyFetchedNode.passage || '';
-          const wordCount = passageText.split(/\s+/).filter(Boolean).length;
-          const wordsPerMinute = 200;
-          const delay = Math.max(1500, (wordCount / wordsPerMinute) * 60 * 1000);
-          readingTimerRef.current = setTimeout(() => {
-            setShowChoices(true);
-            readingTimerRef.current = null;
-          }, delay);
-        }
+      if (isSpeaking) {
+        stopTTSSpeech();
       }
-    } else if (!newlyFetchedNode && displayNode) {
+      setShowChoices(false);
+
+      setDisplayNode(newlyFetchedNode);
+      setCurrentAudioData(newlyFetchedNode.audioBase64 ?? null);
+      setIsCurrentImageLoading(!!newlyFetchedNode.imageUrl);
+
+      if (gamePhase === 'loading_first_node') {
+        setGamePhase('playing');
+      }
+    } else if (!newlyFetchedNode && displayNode && gamePhase === 'playing') {
       setDisplayNode(null);
       setIsCurrentImageLoading(true);
       setCurrentAudioData(null);
@@ -387,6 +388,12 @@ const AdventureGame = () => {
               </div>
             )}
 
+            {gamePhase === 'loading_first_node' && (
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80 rounded-lg z-20">
+                <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin" />
+              </div>
+            )}
+
             {gamePhase === 'error' && isUnauthorized && (
               <div className="text-center text-amber-100/90 flex flex-col items-center justify-center absolute inset-0 bg-slate-800/90 z-10 rounded-lg p-4">
                 <p className="text-xl font-semibold mb-4">Please Sign In</p>
@@ -451,12 +458,6 @@ const AdventureGame = () => {
 
             {gamePhase === 'playing' && !nodeError && (
               <>
-                {isNodeLoading && !displayNode && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-slate-800/80 rounded-lg z-20">
-                    <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin" />
-                  </div>
-                )}
-
                 {displayNode && (
                   <>
                     <div className="flex flex-col md:flex-row md:items-start md:gap-6 lg:gap-8 mb-6">
@@ -486,7 +487,6 @@ const AdventureGame = () => {
                                 setIsCurrentImageLoading(false);
                               }}
                             />
-                            {/* Absolutely Positioned Controls Container (Overlaying Image) */}
                             <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-end space-x-3 p-2 bg-gradient-to-b from-black/80 to-transparent">
                               <button
                                 onClick={handleToggleSpeak}
@@ -560,20 +560,20 @@ const AdventureGame = () => {
 
                     <div
                       className={`
+                      transition-opacity duration-500 ease-in-out 
+                      ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
                       ${
                         !showPassageText
-                          ? 'absolute bottom-0 left-0 right-0 p-4 pt-16 bg-gradient-to-t from-black/90 via-black/70 to-transparent pointer-events-none'
+                          ? 'absolute bottom-0 left-0 right-0 p-4 pt-16 bg-gradient-to-t from-black/90 via-black/70 to-transparent'
                           : 'mt-6'
                       }
                     `}
                     >
-                      <div
-                        className={`transition-opacity duration-500 ease-in-out ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-                      >
+                      {showChoices && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full">
                           {displayNode.choices.map((choice, index) => {
                             const isClicked = index === clickedChoiceIndex;
-                            const isDisabled = isNodeLoading || !showChoices;
+                            const isDisabled = isNodeLoading;
                             const isLoadingChoice = isNodeLoading && isClicked;
                             return (
                               <button
@@ -591,13 +591,13 @@ const AdventureGame = () => {
                             );
                           })}
                         </div>
-                      </div>
+                      )}
                     </div>
                   </>
                 )}
-                {!displayNode && !isNodeLoading && gamePhase === 'playing' && (
+                {!displayNode && isNodeLoading && gamePhase === 'playing' && (
                   <div className="flex-grow flex flex-col items-center justify-center">
-                    <p className="text-gray-400">Generating your adventure...</p>
+                    <p className="text-gray-400 italic">Loading next part...</p>
                   </div>
                 )}
               </>
