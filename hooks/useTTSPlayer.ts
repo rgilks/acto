@@ -29,10 +29,21 @@ function useTTSPlayer({
   const [isAudioInitialized, setIsAudioInitialized] = useState<boolean>(false);
 
   const handleEnded = useCallback(() => {
+    if (!isPlaying) return;
     setIsPlaying(false);
     setError(null);
     onPlaybackEnd?.();
-  }, [onPlaybackEnd]);
+  }, [onPlaybackEnd, isPlaying]);
+
+  const handleTimeUpdate = useCallback(
+    (event: Event) => {
+      const audioElement = event.target as HTMLAudioElement;
+      if (audioElement.duration > 0 && audioElement.currentTime >= audioElement.duration) {
+        handleEnded();
+      }
+    },
+    [handleEnded]
+  );
 
   const handleError = useCallback(
     (event: Event) => {
@@ -151,15 +162,17 @@ function useTTSPlayer({
 
     audioElement.addEventListener('ended', handleEnded);
     audioElement.addEventListener('error', handleError);
+    audioElement.addEventListener('timeupdate', handleTimeUpdate);
 
     return () => {
       const currentAudioElement = audioRef.current;
       if (currentAudioElement) {
         currentAudioElement.removeEventListener('ended', handleEnded);
         currentAudioElement.removeEventListener('error', handleError);
+        currentAudioElement.removeEventListener('timeupdate', handleTimeUpdate);
       }
     };
-  }, [handleEnded, handleError, isAudioInitialized]);
+  }, [handleEnded, handleError, handleTimeUpdate, isAudioInitialized]);
 
   useEffect(() => {
     if (!audioRef.current && typeof Audio !== 'undefined') {
