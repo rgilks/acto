@@ -268,7 +268,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
 
           // Prune history to send only necessary fields to the server action
           const prunedHistory = historyForAction.map((item) => ({
-            passage: item.passage,
+            passage: item.passage ?? '',
             choiceText: item.choiceText,
             summary: item.summary,
           }));

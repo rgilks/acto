@@ -52,6 +52,10 @@ async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Pro
     const result = await genAI.models.generateContent({
       model: modelConfig.name,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: {
+        temperature: 1.5,
+        topP: 0.95,
+      },
     });
     const text = result.text;
 
@@ -323,6 +327,7 @@ export const generateAdventureNodeAction = async (
       imageUrl: imageUrl ?? validatedNode.imageUrl,
       audioBase64: audioBase64,
       updatedSummary: updatedSummary,
+      generationPrompt: prompt,
     };
 
     console.log('[Adventure] Successfully generated node with summary and style context.');

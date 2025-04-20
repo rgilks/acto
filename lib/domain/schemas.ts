@@ -29,6 +29,10 @@ export const AdventureNodeSchema = z.object({
     .describe('A brief summary of the entire story up to and including this passage.'),
   imageUrl: z.string().url().optional().describe('URL of the AI-generated image for this node'),
   audioBase64: z.string().optional().describe('Base64 encoded MP3 audio data for the passage'),
+  generationPrompt: z
+    .string()
+    .optional()
+    .describe('The exact text prompt sent to the LLM to generate this node.'),
 });
 
 export type AdventureNode = z.infer<typeof AdventureNodeSchema>;
