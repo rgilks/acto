@@ -108,7 +108,28 @@ The quality of the generated story heavily relies on the prompts sent to the AI.
 1.  **Node.js:** Version 20 or higher (Check `.nvmrc`).
 2.  **npm:** Package manager.
 3.  **Git:** For cloning.
-4.  **API Keys & Credentials:** Obtain necessary keys/secrets (see Environment Variables below).
+4.  **API Keys & Cloud Credentials:** Obtain necessary keys/secrets (see Environment Variables below). This includes Google Cloud setup.
+
+### Google Cloud Setup (for Image/Audio Storage & TTS)
+
+This application uses Google Cloud services for:
+
+- **Cloud Storage (GCS):** Storing generated images and TTS audio files.
+- **Text-to-Speech (TTS):** Generating audio for story passages.
+
+You will need a Google Cloud project with the following setup:
+
+1.  **Enable APIs:** Ensure the "Cloud Storage" and "Cloud Text-to-Speech API" are enabled in your project.
+2.  **Create GCS Bucket:**
+    - Create a Google Cloud Storage bucket.
+    - **Crucially**, keep the default setting that **enforces public access prevention**. The application uses Signed URLs for temporary access, keeping your bucket contents private by default.
+    - Note down the bucket name.
+3.  **Create Service Account:**
+    - Create a Service Account in IAM & Admin.
+    - Download its JSON key file.
+4.  **Grant Permissions:**
+    - Grant the service account the **`Storage Object Admin`** role on the **specific GCS bucket** you created (via the bucket's Permissions tab). This allows the app to upload files to that bucket.
+    - Grant the service account the **`Cloud Text-to-Speech User`** role (or a more permissive role like `roles/cloudtts.serviceAgent`) on the project level. This allows the app to generate TTS audio.
 
 ### Running Locally
 
@@ -132,8 +153,9 @@ The quality of the generated story heavily relies on the prompts sent to the AI.
 
     **Required for Core Functionality:**
 
-    - `GOOGLE_AI_API_KEY`: For Google AI (`@google/genai` SDK - used for both Text & Image generation). Get from [Google AI Studio](https://aistudio.google.com/app/apikey).
-    - `GOOGLE_APP_CREDS_JSON`: Contains the **single-line** JSON content of your Google Cloud service account key file. **Required for Cloud Text-to-Speech**. Generate the single line using `jq -c . < /path/to/your/keyfile.json` and paste the raw output into `.env.local`.
+    - `GOOGLE_AI_API_KEY`: For Google AI (`@google/genai` SDK - used for Text & Image generation). Get from [Google AI Studio](https://aistudio.google.com/app/apikey).
+    - `GOOGLE_APP_CREDS_JSON`: Contains the **single-line** JSON content of your Google Cloud service account key file generated during the Google Cloud Setup step above. **Required for both Cloud Text-to-Speech and Cloud Storage uploads.** Generate the single line using `jq -c . < /path/to/your/keyfile.json` or manually remove newlines, then paste the raw output into `.env.local`.
+    - `GCS_BUCKET_NAME`: The name of the Google Cloud Storage bucket you created.
 
     **Required for Authentication (if used):**
 
@@ -167,7 +189,8 @@ The quality of the generated story heavily relies on the prompts sent to the AI.
 **Key Secrets to Set on Fly.io:**
 
 - `GOOGLE_AI_API_KEY`
-- `GOOGLE_APP_CREDS_JSON` (as a single line)
+- `GOOGLE_APP_CREDS_JSON` (as a single line - required for GCS & TTS)
+- `GCS_BUCKET_NAME`
 - `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_SENTRY_DSN`
 - `AUTH_SECRET` (if using Auth)
 - `NEXTAUTH_URL=https://<your-fly-app-name>.fly.dev` (if using Auth)
