@@ -57,6 +57,46 @@ const hardcodedScenarios: Scenario[] = [
   },
 ];
 
+// Add the list of voices
+const chirp3Voices = [
+  'en-AU-Chirp3-HD-Aoede',
+  'en-AU-Chirp3-HD-Charon',
+  'en-AU-Chirp3-HD-Fenrir',
+  'en-AU-Chirp3-HD-Kore',
+  'en-AU-Chirp3-HD-Leda',
+  'en-AU-Chirp3-HD-Orus',
+  'en-AU-Chirp3-HD-Puck',
+  'en-AU-Chirp3-HD-Zephyr',
+  'en-GB-Chirp3-HD-Aoede',
+  'en-GB-Chirp3-HD-Charon',
+  'en-GB-Chirp3-HD-Fenrir',
+  'en-GB-Chirp3-HD-Kore',
+  'en-GB-Chirp3-HD-Leda',
+  'en-GB-Chirp3-HD-Orus',
+  'en-GB-Chirp3-HD-Puck',
+  'en-GB-Chirp3-HD-Zephyr',
+  'en-IN-Chirp3-HD-Aoede',
+  'en-IN-Chirp3-HD-Charon',
+  'en-IN-Chirp3-HD-Fenrir',
+  'en-IN-Chirp3-HD-Kore',
+  'en-IN-Chirp3-HD-Leda',
+  'en-IN-Chirp3-HD-Orus',
+  'en-IN-Chirp3-HD-Puck',
+  'en-IN-Chirp3-HD-Zephyr',
+  'en-US-Chirp3-HD-Aoede',
+  'en-US-Chirp3-HD-Charon',
+  'en-US-Chirp3-HD-Fenrir',
+  'en-US-Chirp3-HD-Kore',
+  'en-US-Chirp3-HD-Leda',
+  'en-US-Chirp3-HD-Orus',
+  'en-US-Chirp3-HD-Puck',
+  'en-US-Chirp3-HD-Zephyr',
+];
+
+const getRandomVoice = () => {
+  return chirp3Voices[Math.floor(Math.random() * chirp3Voices.length)];
+};
+
 function formatResetTime(timestamp: number): string {
   if (!timestamp) return 'an unknown time';
   const now = Date.now();
@@ -191,7 +231,11 @@ const AdventureGame = () => {
       setFocusedChoiceIndex(null);
       stopTTS();
 
-      makeChoice(scenario);
+      // Select a random voice and add it to the scenario data
+      const voice = getRandomVoice();
+      const scenarioWithVoice = { ...scenario, voice };
+
+      makeChoice(scenarioWithVoice);
     },
     [isUserLoggedIn, setLoginRequired, makeChoice, hasUserInteracted, stopTTS, sessionStatus]
   );
@@ -383,6 +427,10 @@ const AdventureGame = () => {
 
   const handleRestart = useCallback(() => {
     triggerReset();
+    // Fetch new scenarios after resetting
+    if (isUserLoggedIn) {
+      void fetchScenarios();
+    }
     setGamePhase('selecting_scenario');
     setDisplayNode(null);
     setIsCurrentImageLoading(true);
@@ -394,7 +442,7 @@ const AdventureGame = () => {
     if (fullscreenHandle.active) {
       void fullscreenHandle.exit();
     }
-  }, [triggerReset, stopTTS, fullscreenHandle]);
+  }, [triggerReset, stopTTS, fullscreenHandle, fetchScenarios, isUserLoggedIn]);
 
   useEffect(() => {
     if (isTouchDevice) {

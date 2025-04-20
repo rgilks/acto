@@ -9,6 +9,7 @@ export const AdventureChoiceSchema = z.object({
     .string()
     .optional()
     .describe('Suggested visual style (e.g., oil painting, cartoon, photorealistic)'),
+  voice: z.string().optional().describe('The TTS voice to use for this adventure.'),
 });
 
 export const AdventureNodeSchema = z.object({

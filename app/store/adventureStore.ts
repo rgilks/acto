@@ -111,6 +111,7 @@ interface AdventureState {
   currentGenre: string | null;
   currentTone: string | null;
   currentVisualStyle: string | null;
+  currentVoice: string | null;
 
   // State for dynamic starting scenarios
   dynamicScenarios: Scenario[] | null;
@@ -150,6 +151,7 @@ const initialState: AdventureState = {
   currentGenre: null,
   currentTone: null,
   currentVisualStyle: null,
+  currentVoice: null,
 
   // State for dynamic starting scenarios
   dynamicScenarios: null,
@@ -233,6 +235,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         try {
           const currentHistory = get().storyHistory;
           const isInitialCall = currentHistory.length === 0;
+          const currentVoice = get().currentVoice;
 
           // Prepare history for the action call
           const historyForAction = [...currentHistory];
@@ -248,42 +251,23 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             }
           }
 
-          const storyContextForAction = {
-            history: historyForAction,
-          };
-
-          // Determine metadata to send
-          let metadataToSend: AdventureMetadata = {};
-          if (isInitialCall && metadata) {
-            get().setCurrentMetadata(metadata);
-            metadataToSend = metadata;
-          } else if (!isInitialCall) {
-            metadataToSend = {
-              genre: get().currentGenre,
-              tone: get().currentTone,
-              visualStyle: get().currentVisualStyle,
-            };
-          }
-
-          // Prepare parameters for the action
+          // Prepare parameters for the action call according to expected structure
           const actionParams: Parameters<typeof generateAdventureNodeAction>[0] = {
-            storyContext: storyContextForAction,
-            genre: metadataToSend.genre ?? undefined,
-            tone: metadataToSend.tone ?? undefined,
-            visualStyle: metadataToSend.visualStyle ?? undefined,
+            storyContext: { history: historyForAction },
+            genre: metadata?.genre ?? get().currentGenre ?? undefined,
+            tone: metadata?.tone ?? get().currentTone ?? undefined,
+            visualStyle: metadata?.visualStyle ?? get().currentVisualStyle ?? undefined,
           };
-
-          // Add initial scenario text only on the first call
+          // Add initialScenarioText only on the first call
           if (isInitialCall && choiceText) {
+            // Use the choice text from the scenario selection as the initial text
             actionParams.initialScenarioText = choiceText;
-          } else if (!isInitialCall) {
           }
 
-          const result = await generateAdventureNodeAction(actionParams);
+          // Pass the parameter object and the voice to the action
+          const result = await generateAdventureNodeAction(actionParams, currentVoice);
 
-          // Capture the prompt used for this specific call
-          const promptForThisNode = result.prompt;
-
+          // Handle rate limit errors
           if (result.rateLimitError) {
             console.warn('Rate limit hit:', result.rateLimitError);
             set((state) => {
@@ -308,7 +292,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
               summary: newNode.updatedSummary,
               imageUrl: newNode.imageUrl,
               audioBase64: newNode.audioBase64,
-              prompt: promptForThisNode,
+              prompt: result.prompt,
               imagePrompt: newNode.imagePrompt,
               choices: newNode.choices,
             });
@@ -338,12 +322,53 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         }
       },
 
-      makeChoice: (choice) => {
-        void get().fetchAdventureNode(choice.text, {
-          genre: choice.genre ?? get().currentGenre,
-          tone: choice.tone ?? get().currentTone,
-          visualStyle: choice.visualStyle ?? get().currentVisualStyle,
-        });
+      makeChoice: (choice: z.infer<typeof AdventureChoiceSchema>) => {
+        const isInitialCall = get().storyHistory.length === 0;
+        const previousNode = get().currentNode;
+        const { fetchAdventureNode, setCurrentMetadata } = get();
+
+        // Store metadata if it's the first call (scenario selection)
+        if (isInitialCall) {
+          const metadata: AdventureMetadata = {
+            genre: choice.genre,
+            tone: choice.tone,
+            visualStyle: choice.visualStyle,
+          };
+          setCurrentMetadata(metadata);
+          // Store the chosen voice for the rest of the adventure
+          set((state) => {
+            state.currentVoice = choice.voice ?? null;
+          });
+
+          // Push initial node (placeholder or actual, depending on design)
+          set((state) => {
+            state.storyHistory.push({
+              passage: choice.text, // Use the scenario text as the first "passage"
+              // No choiceText here as it's the beginning
+            });
+          });
+
+          void fetchAdventureNode(undefined, metadata); // Fetch first node without choice text
+        } else {
+          // This is a subsequent choice within the adventure
+          // Add the previous node's details and the chosen choice text to history
+          if (previousNode) {
+            set((state) => {
+              const historyItem: StoryHistoryItem = {
+                passage: previousNode.passage,
+                choiceText: choice.text,
+                summary: previousNode.updatedSummary,
+                imageUrl: previousNode.imageUrl,
+                audioBase64: previousNode.audioBase64,
+                prompt: previousNode.imagePrompt, // Include prompt in history?
+                choices: previousNode.choices, // Store choices made *from* this node
+              };
+              state.storyHistory.push(historyItem);
+            });
+          }
+
+          void fetchAdventureNode(choice.text); // Fetch next node based on the chosen text
+        }
       },
 
       setLoginRequired: (required) => {
@@ -359,12 +384,22 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           state.dynamicScenarios = get().dynamicScenarios;
           state.isFetchingScenarios = false;
           state.fetchScenariosError = null;
+          state.currentNode = null;
+          state.storyHistory = [];
+          state.isLoading = false;
+          state.error = null;
+          state.currentGenre = null;
+          state.currentTone = null;
+          state.currentVisualStyle = null;
+          state.currentVoice = null;
+          state.isSpeaking = false;
+          state.ttsError = null;
         });
       },
 
       triggerReset: () => {
         console.log('[Adventure Store] Triggering Reset');
-        set(initialState);
+        get().resetAdventure();
       },
 
       saveStory: async () => {

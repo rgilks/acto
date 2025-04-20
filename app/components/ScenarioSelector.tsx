@@ -87,19 +87,6 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
               <p className="mb-6 text-gray-400">{genericMessage || 'An unknown error occurred.'}</p>
             </>
           )}
-          {isUserLoggedIn && (
-            <button
-              onClick={onFetchNewScenarios}
-              className={`${buttonBaseClasses} border-red-500 text-red-300 hover:bg-red-500/20`}
-              disabled={isLoadingScenarios}
-            >
-              {isLoadingScenarios ? (
-                <ArrowPathIcon className="h-5 w-5 animate-spin" />
-              ) : (
-                'Try Again'
-              )}
-            </button>
-          )}
         </div>
       );
     }
@@ -111,19 +98,6 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
           <p className="mb-6 text-gray-400">
             Could not load any starting scenarios. Please try again later.
           </p>
-          {isUserLoggedIn && (
-            <button
-              onClick={onFetchNewScenarios}
-              className={`${buttonBaseClasses} border-amber-500 text-amber-300 hover:bg-amber-500/20`}
-              disabled={isLoadingScenarios}
-            >
-              {isLoadingScenarios ? (
-                <ArrowPathIcon className="h-5 w-5 animate-spin" />
-              ) : (
-                'Fetch New Scenarios'
-              )}
-            </button>
-          )}
         </div>
       );
     }
@@ -153,11 +127,21 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
             </button>
           ))}
         </div>
+        {isUserLoggedIn && (
+          <button
+            onClick={onFetchNewScenarios}
+            className={`${buttonBaseClasses} flex items-center justify-center border-sky-500 text-sky-300 hover:bg-sky-500/10 hover:border-sky-400 hover:text-sky-200 mt-6 px-5 py-2.5 text-base shadow-md hover:shadow-lg`}
+            disabled={isLoadingScenarios}
+          >
+            <ArrowPathIcon className={`h-5 w-5 mr-2 ${isLoadingScenarios ? 'animate-spin' : ''}`} />
+            {isLoadingScenarios ? 'Generating...' : 'Generate New Scenarios'}
+          </button>
+        )}
       </div>
     );
   };
 
-  return <div className="flex-grow flex flex-col w-full">{renderContent()}</div>;
+  return <div className="flex-grow flex flex-col w-full items-center">{renderContent()}</div>;
 };
 
 export default ScenarioSelector;

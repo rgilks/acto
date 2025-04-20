@@ -267,7 +267,8 @@ async function generateImageWithGemini(
 }
 
 export const generateAdventureNodeAction = async (
-  params: GenerateAdventureNodeParams
+  params: GenerateAdventureNodeParams,
+  voice?: string | null
 ): Promise<GenerateAdventureNodeResult> => {
   const session = await getSession();
   if (!session?.user) {
@@ -359,7 +360,9 @@ export const generateAdventureNodeAction = async (
     }
 
     if (passage) {
-      promisesToSettle.push(synthesizeSpeechAction({ text: passage, voiceName: TTS_VOICE_NAME }));
+      console.log('[Adventure Action] Adding TTS promise...');
+      const voiceToUse = voice || TTS_VOICE_NAME;
+      promisesToSettle.push(synthesizeSpeechAction({ text: passage, voiceName: voiceToUse }));
     } else {
       console.warn('[Adventure Action] Skipping TTS generation: no passage.');
       promisesToSettle.push(Promise.resolve({ error: 'No passage text' }));
