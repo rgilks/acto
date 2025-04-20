@@ -56,7 +56,7 @@ function buildAdventurePrompt(
   visualStyle?: string | null
 ): string {
   const history = context?.history ?? [];
-  const maxHistoryItems = 3;
+  const maxHistoryItems = 2;
 
   const latestSummary = history.length > 0 ? history[history.length - 1]?.summary : null;
 
@@ -67,86 +67,63 @@ function buildAdventurePrompt(
         ? history[0]?.passage
         : null;
 
-  const jsonStructure = `{\n  "passage": "(string) Next part of the adventure, describing outcome of last choice and current situation.",\n  "choices": [ /* Array of 3-4 { "text": string } objects for player choices. */ ],\n  "imagePrompt": "(string) Concise visual prompt (max 50 words) based ONLY on the \\\"passage\\\". **Crucially, write this prompt *as if* describing an image in the specified Visual Style: ${visualStyle ?? 'any'}**, strongly reflecting the Genre: ${genre ?? 'any'} and Tone: ${tone ?? 'any'}. Also, ensure the scene is described from a first-person perspective (do NOT show the player character or hands). Example for [Style: digital painting, Genre: sci-fi, Tone: mysterious]: \\\"Dim alien spaceship corridor, digital painting\\\"",\n  "updatedSummary": "(string) A brief (1-2 sentence) summary encompassing the entire story so far, updated with the events of this new 'passage'.\n}`;
+  const jsonStructure = `{\n  "passage": "(string) The next part of the story, describing the current situation and outcome of the last choice.",\n  "choices": [ { "text": string }, ... ], /* Array of 3 distinct player choices */\n  "imagePrompt": "(string) A visual description for an image based *only* on the \"passage\". Describe the scene from a first-person view, reflecting the specified Visual Style: ${visualStyle ?? 'any'}. **Do not describe the player character.**",\n  "updatedSummary": "(string) A brief (1-2 sentence) summary of the entire story up to and including this new \"passage\"."
+}`;
 
   const initialContextSection = initialContextText
-    ? `Initial Scenario Context/Goal:\n${initialContextText}`
-    : 'No initial scenario provided.';
+    ? `Initial Scenario Context/Goal: ${initialContextText}`
+    : '';
 
-  let adventureStyleSection = 'Adventure Style:\n';
-  let styleDefined = false;
-  if (genre) {
-    adventureStyleSection += `Genre: ${genre}\\n`;
-    styleDefined = true;
-  }
-  if (tone) {
-    adventureStyleSection += `Tone: ${tone}\\n`;
-    styleDefined = true;
-  }
-  if (visualStyle) {
-    adventureStyleSection += `Visual Style (for image prompts): ${visualStyle}\\n`;
-    styleDefined = true;
-  }
-  if (!styleDefined) {
-    adventureStyleSection += '(Not specified)\\n';
-  }
+  let adventureStyleSection = 'Adventure Style Hints:\n';
+  if (genre) adventureStyleSection += `- Genre: ${genre}\n`;
+  if (tone) adventureStyleSection += `- Tone: ${tone}\n`;
+  if (visualStyle) adventureStyleSection += `- Visual Style (for image prompts): ${visualStyle}\n`;
+  if (!genre && !tone && !visualStyle) adventureStyleSection += '(None specified)\n';
 
-  let recentHistoryText = 'Most Recent Steps:\n';
+  let recentHistoryText = 'Recent Events:\n';
   if (history.length === 0) {
-    recentHistoryText += '(No steps taken yet. Refer to Initial Scenario Context.)\\n';
+    recentHistoryText += '(This is the first step after the Initial Scenario Context.)\n';
   } else {
-    const recentHistory = history.length <= 1 ? [] : history.slice(-maxHistoryItems);
-    if (recentHistory.length > 0) {
-      recentHistory.forEach((item, index) => {
-        const isInitialPassageIncludedInRecent =
-          history.length <= maxHistoryItems && history.length > 1;
-        const stepNum = isInitialPassageIncludedInRecent
-          ? index + 1
-          : history.length - recentHistory.length + index + 1;
-
-        if (index === 0 && isInitialPassageIncludedInRecent && stepNum === 1) {
-          recentHistoryText += `Step 1 Choice: ${item.choiceText ?? '(Choice made)'}\\n`;
-        } else {
-          recentHistoryText += `Step ${stepNum} Passage: ${item.passage}\\n`;
-          if (item.choiceText) {
-            recentHistoryText += `Step ${stepNum} Choice: ${item.choiceText}\\n`;
-          } else {
-            recentHistoryText += `Step ${stepNum} (Result of previous choice)\\n`;
-          }
-        }
-      });
-      if (history.length > maxHistoryItems) {
-        recentHistoryText = `(Older steps summarized below)\\n` + recentHistoryText;
+    const recentHistory = history.slice(-maxHistoryItems);
+    recentHistory.forEach((item, index) => {
+      if (index === 0 && history.length > maxHistoryItems) {
+        recentHistoryText += `(...earlier events summarized below...)\n`;
       }
-    } else if (history.length === 1 && history[0].choiceText) {
-      recentHistoryText += `Step 1 Choice: ${history[0].choiceText}\\n`;
-    } else if (history.length === 1) {
-      recentHistoryText += '(First passage generated. Awaiting first choice.)\\n';
-    } else {
-      recentHistoryText += '(Processing history...)\\n';
-    }
+      recentHistoryText += `Previously: ${item.passage}\n`;
+      if (item.choiceText) {
+        recentHistoryText += `Choice Made: ${item.choiceText}\n`;
+      } else if (index === 0 && history.length === 1) {
+        recentHistoryText += `(Generated from initial scenario text)\n`;
+      }
+    });
   }
 
-  const storySummarySection = latestSummary
-    ? `Summary of story before recent steps:\n${latestSummary}`
-    : 'No summary yet.';
+  const storySummarySection = latestSummary ? `Previous Summary: ${latestSummary}` : '';
 
-  const basePrompt = `You are a storyteller for an interactive text adventure, focused on creating a cohesive and engaging narrative arc **that builds towards a satisfying conclusion**. Adhere strictly to the specified Adventure Style (Genre, Tone, Visual Style). Maintain the tone and details from the **Initial Scenario Context/Goal**. Continue the story based on the provided Summary and Most Recent Steps, ensuring choices have meaningful consequences.
+  const basePrompt = `You are a storyteller creating an interactive adventure.
 
-**Key Directives:**
-1.  **Narrative Cohesion & Arc:** Ensure the story develops logically, building upon previous events. Guide the narrative towards **resolving the core conflict or goal** established in the **Initial Scenario Context/Goal**. Think in terms of setup, rising action, and eventual resolution. Avoid indefinite meandering.
-2.  **Summary Guidance:** The next passage **MUST** logically follow from and build upon the \`updatedSummary\`. Maintain consistency and narrative direction using this summary.
-3.  **Meaningful Choices:** Choices offered should ideally provide distinct paths, potentially influencing the direction towards resolution.
-4.  **Strict JSON Output:** Respond ONLY with a valid JSON object matching this structure:
+**Your Goal:** Write the next part of the story based on the history and summary. Provide 3 distinct choices. Create an image prompt that visually describes the new \"passage\" in the specified \"Visual Style\". Update the story summary.
+
+**Instructions:**
+1.  **Continue the Story:** Write a compelling \"passage\" that follows logically from the \"Recent Events\" and \"Previous Summary\". Maintain the specified \"Adventure Style Hints\".
+2.  **Offer Choices:** Provide 3 distinct \"choices\" for the player.
+3.  **Image Prompt:** Write an \"imagePrompt\" describing the scene in the new \"passage\" from a first-person view. **Crucially, the prompt must visually match the \"passage\" and reflect the \"Visual Style\".** Do not include the player character.
+4.  **Update Summary:** Write a concise \"updatedSummary\" covering the whole story so far, including the new \"passage\".
+5.  **Output Format:** Respond ONLY with a valid JSON object matching this structure:
 ${jsonStructure}
-Output only the JSON object. Provide an 'updatedSummary' reflecting the entire story including the new 'passage'. **Crucially, ensure the 'imagePrompt' is written *in the specified style* and describes the scene from a first-person perspective (do not show the protagonist).**`;
 
-  return `${basePrompt}
-\n${adventureStyleSection}
-\n${initialContextSection}
-\n${storySummarySection}
-\n${recentHistoryText}
-\nGenerate the next JSON step, adhering to the Adventure Style, Initial Context, Summary, and Recent Steps. Ensure 'updatedSummary' is included and 'imagePrompt' strongly matches the Genre, Tone, and Visual Style.`;
+**Context for Next Step:**`;
+
+  const promptParts = [
+    basePrompt,
+    adventureStyleSection,
+    initialContextSection,
+    storySummarySection,
+    recentHistoryText,
+    '\nGenerate the JSON for the next step:',
+  ];
+
+  return promptParts.filter(Boolean).join('\n\n');
 }
 
 async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Promise<string> {
@@ -198,20 +175,17 @@ async function generateImageWithGemini(
     };
   }
 
-  // Format style details for clarity in the final prompt
   const styleDetails = [
     visualStyle ? `Style: ${visualStyle}` : null,
     genre ? `Genre: ${genre}` : null,
     tone ? `Tone: ${tone}` : null,
   ]
     .filter(Boolean)
-    .join('. '); // Join valid parts with '. '
+    .join('. ');
 
-  // Constraint for first-person perspective, excluding player character
   const sceneConstraint =
     "Perspective: First-person view. Do NOT depict the protagonist, player character, player's hands, or any representation of 'self'.";
 
-  // Restructure the final prompt
   const finalImagePrompt = `Scene Description: ${imagePrompt}. ${styleDetails}. ${sceneConstraint}`;
 
   console.log('[Adventure Image] Sending final prompt to Imagen API:', finalImagePrompt);
@@ -441,7 +415,6 @@ export const generateAdventureNodeAction = async (
   }
 };
 
-// Schema for the array of scenarios
 const ScenariosSchema = z.array(AdventureChoiceSchema);
 
 type GenerateScenariosResult = {
@@ -454,28 +427,10 @@ type GenerateScenariosResult = {
   };
 };
 
-// Helper function to build the prompt for generating scenarios
 function buildScenariosPrompt(): string {
-  const jsonStructure = `[
-  {
-    "text": "(string) Engaging, specific, and imaginative scenario text. **Keep concise (1-2 sentences max).**",
-    "genre": "(string) Genre (e.g., Sci-Fi, Fantasy, Mystery, Horror, Western). Be specific.",
-    "tone": "(string) Tone (e.g., Humorous, Dark, Suspenseful, Whimsical, Epic). Be specific.",
-    "visualStyle": "(string) Visual style for image generation (e.g., Photorealistic, Anime, Oil Painting, Pixel Art, Comic Book). Be specific and descriptive."
-  }
-  /* Repeat this structure for 4 highly diverse scenarios */
-]`;
+  const jsonStructure = `[\n  {\n    "text": "(string) Engaging, specific, and imaginative scenario text (1-2 sentences max).",\n    "genre": "(string) Specific Genre (e.g., Sci-Fi Horror, Mythic Fantasy, Noir Mystery).",\n    "tone": "(string) Specific Tone (e.g., Absurdist, Melancholic, Suspenseful, Whimsical).",\n    "visualStyle": "(string) Specific and descriptive Visual Style (e.g., Impressionist Oil Painting, Low-Poly 3D, Ukiyo-e Woodblock Print, Art Deco Poster)."\n  }\n  /* Repeat this structure for 4 highly diverse scenarios */\n]`;
 
-  return `You are an extremely creative storyteller specializing in crafting unique scenarios. Generate a **highly diverse list of 4 compelling and unique** scenarios for an interactive text adventure. Each scenario must include specific, evocative text describing the initial scenario, a well-defined genre, a distinct tone, and a specific visual style for potential images.
-
-**Key Requirements:**
-1.  **High Variation:** The **most important goal** is that the 4 scenarios are significantly different from each other in theme, setting, genre, tone, and visual style. Do not repeat patterns.
-2.  **Specificity & Conciseness:** Use concrete, unusual details in the scenario text, **keeping it brief (1-2 sentences)**. Instead of "a mysterious artifact", try "a pulsating obsidian orb humming discordant energy".
-3.  **Creative Styles:** Use varied and specific genres, tones, and visual styles.
-4.  **Avoid Tropes:** Steer clear of overused sci-fi/fantasy tropes like finding data chips or dealing with generic rogue AIs, unless approached with significant originality.
-5.  **Strict JSON Output:** Respond ONLY with a valid JSON array matching this exact structure (do not add any text before or after the JSON):
-${jsonStructure}
-Output only the JSON array. Focus on **maximum diversity, uniqueness, and detail** across the 4 scenarios.`;
+  return `You are a creative generator of diverse story scenarios.\n\n**Goal:** Generate a list of 4 compelling and unique starting scenarios for an interactive text adventure.\n\n**Key Requirements:**\n1.  **Maximum Diversity:** The 4 scenarios MUST be significantly different from each other in theme, setting, genre, tone, and visual style.\n2.  **Specificity:** Use concrete details in the scenario text, genre, tone, and visual style. Make the styles distinct and evocative.\n3.  **Conciseness:** Keep the scenario text brief (1-2 sentences).\n4.  **Strict JSON Output:** Respond ONLY with a valid JSON array matching this structure:\n${jsonStructure}\n\nGenerate 4 diverse scenarios now. Focus on variety and clear visual styles.`;
 }
 
 export const generateScenariosAction = async (): Promise<GenerateScenariosResult> => {
@@ -503,10 +458,8 @@ export const generateScenariosAction = async (): Promise<GenerateScenariosResult
     const prompt = buildScenariosPrompt();
     const aiResponseText = await callAIForAdventure(prompt, modelConfig);
 
-    // Attempt to parse the AI response
     let parsedScenarios: unknown;
     try {
-      // Clean the response text if necessary (remove potential markdown backticks)
       const cleanedText = aiResponseText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
       parsedScenarios = JSON.parse(cleanedText);
     } catch (parseError) {
@@ -522,7 +475,6 @@ export const generateScenariosAction = async (): Promise<GenerateScenariosResult
       return { error: 'Failed to parse scenarios from AI response.' };
     }
 
-    // Validate the parsed response against the Zod schema
     const validationResult = ScenariosSchema.safeParse(parsedScenarios);
 
     if (!validationResult.success) {
