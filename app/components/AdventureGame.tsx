@@ -101,6 +101,7 @@ const AdventureGame = () => {
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [showFullscreenControls, setShowFullscreenControls] = useState(false);
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [focusedChoiceIndex, setFocusedChoiceIndex] = useState<number | null>(null);
 
   const fullscreenHandle = useFullScreenHandle();
   const gameContainerRef = useRef<HTMLDivElement>(null);
@@ -180,6 +181,7 @@ const AdventureGame = () => {
       setCurrentAudioData(null);
       setShowChoices(false);
       setClickedChoiceIndex(null);
+      setFocusedChoiceIndex(null);
       stopTTS();
 
       makeChoice(scenario);
@@ -221,6 +223,7 @@ const AdventureGame = () => {
         setCurrentAudioData(state.currentNode.audioBase64 ?? null);
         setIsCurrentImageLoading(!!state.currentNode.imageUrl);
         setShowChoices(false);
+        setFocusedChoiceIndex(null);
       } else {
         console.log('[AdventureGame Hydration] Store hydrated, but no currentNode found.');
       }
@@ -254,6 +257,7 @@ const AdventureGame = () => {
       console.log('[AdventureGame Sync Effect] Syncing store currentNode to displayNode.');
       stopTTS();
       setShowChoices(false);
+      setFocusedChoiceIndex(null);
       setDisplayNode(newlyFetchedNode);
       const newAudioData = newlyFetchedNode.audioBase64 ?? null;
       setCurrentAudioData(newAudioData);
@@ -286,8 +290,8 @@ const AdventureGame = () => {
       setDisplayNode(null);
       setIsCurrentImageLoading(true);
       setCurrentAudioData(null);
-      stopTTS();
       setShowChoices(false);
+      setFocusedChoiceIndex(null);
     }
   }, [
     currentNode,
@@ -307,6 +311,7 @@ const AdventureGame = () => {
         setHasUserInteracted(true);
       }
       setClickedChoiceIndex(index);
+      setFocusedChoiceIndex(null);
       makeChoice(choice);
     },
     [makeChoice, hasUserInteracted]
@@ -348,6 +353,7 @@ const AdventureGame = () => {
     setCurrentAudioData(null);
     setShowChoices(false);
     setClickedChoiceIndex(null);
+    setFocusedChoiceIndex(null);
     stopTTS();
     if (fullscreenHandle.active) {
       void fullscreenHandle.exit();
@@ -411,6 +417,71 @@ const AdventureGame = () => {
       if (initialCheckTimeout) clearTimeout(initialCheckTimeout);
     };
   }, [fullscreenHandle.active, isTouchDevice, setShowFullscreenControls]);
+
+  // Effect for keyboard shortcuts (Fullscreen + Choices)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+
+      // Fullscreen Toggle (F or Space)
+      if (key === 'f' || key === ' ') {
+        if (key === ' ') event.preventDefault();
+        if (fullscreenHandle.active) {
+          void fullscreenHandle.exit();
+        } else {
+          void fullscreenHandle.enter();
+        }
+        return; // Don't process further if it was a fullscreen toggle
+      }
+
+      // Choice Navigation/Selection (only if choices are visible)
+      if (showChoices && displayNode && displayNode.choices.length > 0) {
+        const numChoices = displayNode.choices.length;
+
+        if (key === 'arrowleft') {
+          event.preventDefault();
+          setFocusedChoiceIndex((prevIndex) => {
+            if (prevIndex === null || prevIndex === 0) {
+              return numChoices - 1;
+            } else {
+              return prevIndex - 1;
+            }
+          });
+        } else if (key === 'arrowright') {
+          event.preventDefault();
+          setFocusedChoiceIndex((prevIndex) => {
+            if (prevIndex === null || prevIndex === numChoices - 1) {
+              return 0;
+            } else {
+              return prevIndex + 1;
+            }
+          });
+        } else if (key === 'enter') {
+          if (focusedChoiceIndex !== null) {
+            event.preventDefault();
+            const choice = displayNode.choices[focusedChoiceIndex];
+            if (choice) {
+              handleChoiceClick(choice, focusedChoiceIndex);
+            }
+          }
+        } else if (['1', '2', '3'].includes(key)) {
+          const index = parseInt(key) - 1;
+          if (index >= 0 && index < numChoices) {
+            event.preventDefault();
+            const choice = displayNode.choices[index];
+            if (choice) {
+              handleChoiceClick(choice, index);
+            }
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [fullscreenHandle, showChoices, displayNode, focusedChoiceIndex, handleChoiceClick]);
 
   const effectiveError = nodeError || fetchScenariosError;
   const rateLimitInfo =
@@ -573,7 +644,7 @@ const AdventureGame = () => {
                 className="flex-grow flex flex-col game-fullscreen-container"
               >
                 <>
-                  <div className={'w-full h-full flex flex-col'}>
+                  <div className={'w-full h-full flex flex-col relative'}>
                     {displayNode && (
                       <>
                         <div
@@ -582,7 +653,7 @@ const AdventureGame = () => {
                             ${
                               fullscreenHandle.active
                                 ? 'bg-black h-full w-full'
-                                : 'min-h-[200px] aspect-[16/10] rounded-t shadow-md bg-slate-700 flex items-center justify-center shadow-xl shadow-amber-300/20 game-image-wrapper'
+                                : 'min-h-[200px] aspect-[16/10] rounded shadow-md bg-slate-700 flex items-center justify-center shadow-xl shadow-amber-300/20 game-image-wrapper'
                             }
                           `}
                         >
@@ -605,7 +676,9 @@ const AdventureGame = () => {
                                       ? showFullscreenControls && !isTouchDevice
                                         ? 'opacity-100 pointer-events-auto duration-200'
                                         : 'opacity-0 pointer-events-none duration-300'
-                                      : 'opacity-50 hover:opacity-100 transition-opacity duration-200'
+                                      : !isTouchDevice
+                                        ? 'opacity-50 hover:opacity-100 transition-opacity duration-200'
+                                        : 'opacity-0 pointer-events-none'
                                   }
                                 `}
                                 aria-label={
@@ -655,7 +728,7 @@ const AdventureGame = () => {
                             onClick={currentAudioData ? togglePlayPause : undefined}
                           ></div>
 
-                          {/* <-- Volume Slider Section (Top Right) --> */}
+                          {/* Volume Slider Section (Top Right): Refined visibility logic */}
                           {currentAudioData && (
                             <div
                               className={`absolute top-2 right-2 z-20 flex items-center space-x-2 bg-black/40 rounded-full px-2 py-1 transition-all
@@ -664,7 +737,9 @@ const AdventureGame = () => {
                                       ? showFullscreenControls && !isTouchDevice
                                         ? 'opacity-100 pointer-events-auto duration-200'
                                         : 'opacity-0 pointer-events-none duration-300'
-                                      : 'opacity-50 hover:opacity-100 transition-opacity duration-200'
+                                      : !isTouchDevice
+                                        ? 'opacity-50 hover:opacity-100 transition-opacity duration-200'
+                                        : 'opacity-0 pointer-events-none'
                                   }
                                 `}
                             >
@@ -685,53 +760,59 @@ const AdventureGame = () => {
                               )}
                             </div>
                           )}
-                        </div>{' '}
-                        {/* End Image Container Div */}
-                        {/* Choices Section - REMOVE Slider from here */}
-                        <div
-                          className={`
-                              p-2 pt-4 sm:p-3 sm:pt-6 md:p-4 md:pt-8 z-10
-                              ${fullscreenHandle.active ? 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent backdrop-blur-sm' : 'bg-slate-800 rounded-b'}
+
+                          {/* Choices Section - MOVED INSIDE Image Container */}
+                          <div
+                            className={`
+                              absolute bottom-0 left-0 right-0 p-2 pt-10 sm:p-3 sm:pt-12 md:p-4 md:pt-16 z-10
+                              bg-gradient-to-t from-black/80 via-black/60 to-transparent backdrop-blur-sm
                               transition-opacity duration-500 ease-in-out
                               ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
                             `}
-                        >
-                          {showChoices && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 w-full">
-                              {displayNode.choices.map((choice, index) => {
-                                const isClicked = index === clickedChoiceIndex;
-                                const isDisabled = isNodeLoading;
-                                const isLoadingChoice = isNodeLoading && isClicked;
+                          >
+                            {showChoices && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 w-full">
+                                {displayNode.choices.map((choice, index) => {
+                                  const isClicked = index === clickedChoiceIndex;
+                                  const isDisabled = isNodeLoading;
+                                  const isLoadingChoice = isNodeLoading && isClicked;
+                                  const isFocused = index === focusedChoiceIndex;
 
-                                // Base classes + conditional styling
-                                let currentChoiceClasses = `${buttonBaseClasses} ${choiceButtonClasses}`;
-                                if (isDisabled && !isLoadingChoice) {
-                                  currentChoiceClasses += ' opacity-50 cursor-not-allowed';
-                                }
-                                if (isLoadingChoice) {
-                                  // Remove static shadows and add pulsing animation
-                                  currentChoiceClasses = currentChoiceClasses
-                                    .replace(/shadow-\[.*?\}]/g, '') // Remove base shadow
-                                    .replace(/hover:shadow-\[.*?\}]/g, ''); // Remove hover shadow
-                                  currentChoiceClasses +=
-                                    ' border-amber-500 bg-amber-100/20 animate-pulse-glow';
-                                }
+                                  // Base classes + conditional styling
+                                  let currentChoiceClasses = `${buttonBaseClasses} ${choiceButtonClasses}`;
+                                  if (isDisabled && !isLoadingChoice) {
+                                    currentChoiceClasses += ' opacity-50 cursor-not-allowed';
+                                  }
+                                  if (isLoadingChoice) {
+                                    // Remove static shadows and add pulsing animation
+                                    currentChoiceClasses = currentChoiceClasses
+                                      .replace(/shadow-\[.*?\}]/g, '') // Remove base shadow
+                                      .replace(/hover:shadow-\[.*?\}]/g, ''); // Remove hover shadow
+                                    currentChoiceClasses +=
+                                      ' border-amber-500 bg-amber-100/20 animate-pulse-glow';
+                                  }
+                                  if (isFocused && !isLoadingChoice) {
+                                    currentChoiceClasses +=
+                                      ' ring-2 ring-offset-2 ring-offset-black/50 ring-amber-300/80';
+                                  }
 
-                                return (
-                                  <button
-                                    key={index}
-                                    onClick={() => handleChoiceClick(choice, index)}
-                                    className={currentChoiceClasses}
-                                    disabled={isDisabled}
-                                    data-testid={`choice-button-${index}`}
-                                  >
-                                    <span>{choice.text}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
+                                  return (
+                                    <button
+                                      key={index}
+                                      onClick={() => handleChoiceClick(choice, index)}
+                                      className={currentChoiceClasses}
+                                      disabled={isDisabled}
+                                      data-testid={`choice-button-${index}`}
+                                    >
+                                      <span>{choice.text}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>{' '}
+                        {/* End Image Container Div */}
                       </>
                     )}
                     {!displayNode && isNodeLoading && gamePhase === 'playing' && (
