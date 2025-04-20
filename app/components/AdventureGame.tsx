@@ -149,9 +149,13 @@ const AdventureGame = () => {
 
   // State for explicit user pause action
   const [userPaused, setUserPaused] = useState<boolean>(false);
+  // ADDED: State to track if TTS finished or failed
+  const [playbackFinishedOrFailed, setPlaybackFinishedOrFailed] = useState(false);
 
   const fullscreenHandle = useFullScreenHandle();
   const gameContainerRef = useRef<HTMLDivElement>(null);
+  // ADDED: Ref to track the timeout for showing choices when no audio is detected
+  const showChoicesTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     play: playTTS,
@@ -163,15 +167,17 @@ const AdventureGame = () => {
     audioData: currentAudioData,
     volume: storeTtsVolume,
     onPlaybackEnd: useCallback(() => {
-      setShowChoices(true);
+      // Don't show choices directly, set flag instead
+      setPlaybackFinishedOrFailed(true);
       setUserPaused(false); // Audio ended naturally, not paused by user
-    }, [setShowChoices]),
+    }, [setPlaybackFinishedOrFailed, setUserPaused]), // Adjusted dependencies
     onPlaybackError: useCallback(
       (_errorMsg: string) => {
-        setShowChoices(true);
+        // Don't show choices directly, set flag instead
+        setPlaybackFinishedOrFailed(true);
         setUserPaused(false); // Audio error, not paused by user
       },
-      [setShowChoices]
+      [setPlaybackFinishedOrFailed, setUserPaused] // Adjusted dependencies
     ),
   });
 
@@ -253,16 +259,15 @@ const AdventureGame = () => {
         }, 1000); // Match CSS transition duration
 
         // --- Start TTS if applicable ---
-        if (hasUserInteracted && currentAudioData && !isTTSPlaying) {
-          setUserPaused(false); // Play is starting
+        // Restore autoplay logic for subsequent nodes
+        if (hasUserInteracted && currentAudioData && !isTTSPlaying && !userPaused) {
+          // Autoplay only if user has interacted, audio exists, not playing, AND not explicitly paused (e.g., first node)
           playTTS();
-        } else if (!currentAudioData) {
-          // If there's no audio at all for this node, show choices after image load
-          setShowChoices(true);
         }
       }
     },
-    [currentImageUrl, currentAudioData, hasUserInteracted, isTTSPlaying, playTTS, setShowChoices]
+    // Restore dependencies needed for autoplay logic, remove setShowChoices
+    [currentImageUrl, currentAudioData, hasUserInteracted, isTTSPlaying, playTTS, userPaused]
   );
 
   useEffect(() => {
@@ -320,14 +325,22 @@ const AdventureGame = () => {
       // Store the current error state *before* potential updates
       previousErrorRef.current = nodeError;
 
-      stopTTS();
+      // Reset playback finished state for the new node
+      setPlaybackFinishedOrFailed(false);
+
+      stopTTS(); // Stop any currently playing TTS
       setShowChoices(false); // Hide choices for the new node initially
       setClickedChoiceIndex(null); // Reset clicked choice visual state
       setFocusedChoiceIndex(null);
       // Don't set isCurrentImageLoading here directly, handleImageLoad will do it
+
       const newAudioData = newlyFetchedNode.audioBase64 ?? null;
-      setCurrentAudioData(newAudioData); // Set audio data
+      setCurrentAudioData(newAudioData); // Set audio data for the player hook
       setDisplayNode(newlyFetchedNode); // Update the displayed node content
+
+      // --- Set paused state only for the first node ---
+      const isFirstNodeLoading = gamePhase === 'loading_first_node';
+      setUserPaused(isFirstNodeLoading && !!newAudioData); // Pause only if it's the first node and has audio
 
       // Set image URLs for cross-fade
       if (newlyFetchedNode.imageUrl && newlyFetchedNode.imageUrl !== currentImageUrl) {
@@ -336,24 +349,27 @@ const AdventureGame = () => {
         setIsCurrentImageLoading(true); // Start loading spinner for the new image
         setIsTransitioningImage(false); // Ensure transition starts clean
       } else if (!newlyFetchedNode.imageUrl) {
-        // Handle case where new node has no image
+        // Handle case where new node has no image (but might have audio)
         setPreviousImageUrl(currentImageUrl);
         setCurrentImageUrl(null);
-        setIsCurrentImageLoading(false);
-        setIsTransitioningImage(true); // Trigger fade out of old image
+        setIsCurrentImageLoading(false); // No image to load
+        setIsTransitioningImage(true); // Trigger fade out of old image if present
         setTimeout(() => {
           setPreviousImageUrl(null);
           setIsTransitioningImage(false);
         }, 1000);
+
+        // --- ADDED: Autoplay audio if no image on subsequent nodes ---
+        if (newAudioData && !isFirstNodeLoading && hasUserInteracted) {
+          // If there IS audio, NO image, it's NOT the first node, and user HAS interacted, play audio.
+          console.log('[AdventureGame Effect] Autoplaying audio for node with no image.');
+          playTTS();
+        }
+        // --- END ADDED BLOCK ---
       }
 
       if (gamePhase === 'loading_first_node') {
         setGamePhase('playing');
-      }
-
-      // If no image or audio, show choices immediately
-      if (!newlyFetchedNode.imageUrl && !newlyFetchedNode.audioBase64) {
-        setShowChoices(true);
       }
     } else if (!newlyFetchedNode && displayNode) {
       // Handle case where currentNode becomes null (e.g., after reset)
@@ -388,8 +404,55 @@ const AdventureGame = () => {
     setCurrentAudioData, // Update state
     currentImageUrl, // Add missing dependency for image transition logic
     nodeError, // Need to react to error changes for retry logic
-    // Note: playTTS, hasUserInteracted, isTTSPlaying are used in handleImageLoad, not directly here
+    setUserPaused, // Add setUserPaused to dependency array
+    // Add playTTS, isTTSPlaying, hasUserInteracted back for use in handleImageLoad
+    playTTS,
+    isTTSPlaying,
+    hasUserInteracted,
   ]);
+
+  // ADDED: Effect to control when choices are shown (Revised)
+  useEffect(() => {
+    // Clear any existing timeout when dependencies change
+    if (showChoicesTimeoutRef.current) {
+      clearTimeout(showChoicesTimeoutRef.current);
+      showChoicesTimeoutRef.current = null;
+    }
+
+    if (playbackFinishedOrFailed) {
+      // If playback finished or failed, show choices immediately
+      console.log('[AdventureGame Effect] Showing choices (playback finished/failed).');
+      setShowChoices(true);
+    } else if (!currentAudioData && displayNode) {
+      // If no audio data, set a short timeout to show choices.
+      // This gives a chance for audio to potentially start playing if there's a slight delay.
+      console.log('[AdventureGame Effect] No audio detected, setting timeout to show choices.');
+      showChoicesTimeoutRef.current = setTimeout(() => {
+        console.log('[AdventureGame Effect] Showing choices (timeout after no audio).');
+        setShowChoices(true);
+      }, 150); // Short delay (e.g., 150ms)
+    } else {
+      // If there IS audio and playback hasn't finished/failed, ensure choices are hidden (redundant, but safe)
+      // setShowChoices(false); // Avoid potential flicker if state updates coincide
+    }
+
+    // Cleanup function to clear timeout if component unmounts or dependencies change before timeout fires
+    return () => {
+      if (showChoicesTimeoutRef.current) {
+        clearTimeout(showChoicesTimeoutRef.current);
+        showChoicesTimeoutRef.current = null;
+      }
+    };
+  }, [playbackFinishedOrFailed, currentAudioData, displayNode, setShowChoices]);
+
+  // ADDED: Effect to cancel the 'show choices' timeout if audio starts playing
+  useEffect(() => {
+    if (isTTSPlaying && showChoicesTimeoutRef.current) {
+      console.log('[AdventureGame Effect] Audio started playing, cancelling show choices timeout.');
+      clearTimeout(showChoicesTimeoutRef.current);
+      showChoicesTimeoutRef.current = null;
+    }
+  }, [isTTSPlaying]);
 
   const handleChoiceClick = useCallback(
     (choice: Scenario, index: number) => {
