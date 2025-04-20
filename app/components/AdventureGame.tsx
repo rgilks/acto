@@ -252,57 +252,60 @@ const AdventureGame = () => {
       setIsSelectingScenario(false);
     }
 
-    // If store node changes (and is different from displayNode), update component state
-    if (newlyFetchedNode && newlyFetchedNode.passage !== displayNode?.passage) {
+    // If store node changes (and is different from the currently displayed one), update component state
+    if (newlyFetchedNode && newlyFetchedNode !== displayNode) {
+      // Check object reference
       console.log('[AdventureGame Sync Effect] Syncing store currentNode to displayNode.');
       stopTTS();
-      setShowChoices(false);
+      setShowChoices(false); // Hide choices for the new node initially
+      setClickedChoiceIndex(null); // Reset clicked choice visual state
       setFocusedChoiceIndex(null);
-      setDisplayNode(newlyFetchedNode);
-      const newAudioData = newlyFetchedNode.audioBase64 ?? null;
-      setCurrentAudioData(newAudioData);
-      setIsCurrentImageLoading(!!newlyFetchedNode.imageUrl);
+      setIsCurrentImageLoading(!!newlyFetchedNode.imageUrl); // Set image loading based on new node
+      setCurrentAudioData(newlyFetchedNode.audioBase64 ?? null); // Set audio data
+      setDisplayNode(newlyFetchedNode); // Update the displayed node *last*
+
       if (gamePhase === 'loading_first_node') {
+        console.log(
+          '[AdventureGame Sync Effect] Transitioning from loading_first_node to playing.'
+        );
         setGamePhase('playing');
       }
-      const imageAvailable = !!newlyFetchedNode.imageUrl;
-      const audioAvailable = !!newAudioData;
-      if (!imageAvailable && !audioAvailable) {
+
+      // If no image or audio, show choices immediately
+      if (!newlyFetchedNode.imageUrl && !newlyFetchedNode.audioBase64) {
+        console.log('[AdventureGame Sync Effect] No image or audio, showing choices immediately.');
         setShowChoices(true);
-      } else if (!imageAvailable && audioAvailable) {
-        if (hasUserInteracted && !isTTSPlaying) {
-          console.log('[AdventureGame Sync Effect] No image, has audio, not playing. Playing TTS.');
-          playTTS();
-        } else {
-          console.log(
-            '[AdventureGame Sync Effect] No image, has audio, but no user interaction yet or already playing. Waiting.'
-          );
-        }
-      } else if (imageAvailable) {
-        console.log('[AdventureGame Sync Effect] Image available, waiting for load.');
       }
-    } else if (!newlyFetchedNode && gamePhase !== 'selecting_scenario') {
-      // Handle case where currentNode becomes null (e.g., after reset via triggerReset)
+    } else if (!newlyFetchedNode && displayNode) {
+      // Handle case where currentNode becomes null (e.g., after reset)
+      // Only reset if displayNode was previously set, to avoid loop on initial load/hydration
       console.log(
-        '[AdventureGame Sync Effect] Store currentNode is null, resetting phase and display.'
+        '[AdventureGame Sync Effect] Store currentNode is null and displayNode exists, resetting phase.'
       );
-      setGamePhase('selecting_scenario'); // <-- Explicitly set phase back
-      setDisplayNode(null);
-      setIsCurrentImageLoading(true);
-      setCurrentAudioData(null);
-      setShowChoices(false);
-      setFocusedChoiceIndex(null);
+      if (gamePhase !== 'selecting_scenario') {
+        setGamePhase('selecting_scenario');
+        setDisplayNode(null);
+        setIsCurrentImageLoading(true);
+        setCurrentAudioData(null);
+        setShowChoices(false);
+        setClickedChoiceIndex(null);
+        setFocusedChoiceIndex(null);
+        stopTTS();
+      }
     }
   }, [
-    currentNode,
-    gamePhase,
-    displayNode,
-    stopTTS,
-    playTTS,
-    hasUserInteracted,
-    isTTSPlaying,
-    isSelectingScenario,
-    setGamePhase,
+    currentNode, // Main trigger
+    displayNode, // Compare against current display
+    gamePhase, // Read and set game phase
+    isSelectingScenario, // Read state
+    stopTTS, // Call action
+    setGamePhase, // Update state
+    setShowChoices, // Update state
+    setClickedChoiceIndex, // Update state
+    setFocusedChoiceIndex, // Update state
+    setIsCurrentImageLoading, // Update state
+    setCurrentAudioData, // Update state
+    // Note: playTTS, hasUserInteracted, isTTSPlaying are used in handleImageLoad, not directly here
   ]);
 
   const handleChoiceClick = useCallback(
@@ -627,12 +630,39 @@ const AdventureGame = () => {
     );
   }
 
-  if (
-    gamePhase === 'selecting_scenario' &&
-    !displayNode &&
-    !isNodeLoading &&
-    !isSelectingScenario
-  ) {
+  // ----- RENDER LOGIC RESTRUCTURED -----
+
+  // 1. Loading State for the very first node
+  if (gamePhase === 'loading_first_node') {
+    return (
+      <div className="flex flex-col items-center justify-center text-center p-8 h-[60vh]">
+        <svg
+          className="animate-spin h-10 w-10 text-amber-400 mb-4"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          ></circle>
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+          ></path>
+        </svg>
+        <p className="text-xl text-amber-200">Conjuring the first step...</p>
+      </div>
+    );
+  }
+
+  // 2. Scenario Selection State
+  if (gamePhase === 'selecting_scenario') {
     return (
       <ScenarioSelector
         onScenarioSelect={handleScenarioSelect}
@@ -646,220 +676,198 @@ const AdventureGame = () => {
     );
   }
 
-  return (
-    <>
-      {(() => {
-        const containerClasses = fullscreenHandle.active
-          ? 'fixed inset-0 z-50 bg-black flex items-center justify-center'
-          : 'bg-slate-800 rounded-lg p-2 sm:p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 relative mx-4  flex flex-col';
+  // 3. Playing State (Main Game UI)
+  if (gamePhase === 'playing' && displayNode) {
+    const containerClasses = fullscreenHandle.active
+      ? 'fixed inset-0 z-50 bg-black flex items-center justify-center'
+      : 'bg-slate-800 rounded-lg p-2 sm:p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 relative mx-4  flex flex-col';
 
-        const showGameUI =
-          gamePhase === 'playing' || gamePhase === 'loading_first_node' || gamePhase === 'error';
-
-        if (gamePhase === 'loading_first_node' && !displayNode && !effectiveError) {
-          return (
-            <div className="flex-grow flex flex-col items-center justify-center h-full">
-              <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin mb-4" />
-              <p className="text-gray-400">Preparing scenario...</p>
-            </div>
-          );
-        }
-
-        return (
-          <div ref={gameContainerRef} className={`${containerClasses} game-outer-container`}>
-            {showGameUI && gamePhase !== 'error' && (
-              <FullScreen
-                handle={fullscreenHandle}
-                className="flex-grow flex flex-col game-fullscreen-container"
+    return (
+      <div ref={gameContainerRef} className={`${containerClasses} game-outer-container`}>
+        <FullScreen
+          handle={fullscreenHandle}
+          className="flex-grow flex flex-col game-fullscreen-container"
+        >
+          <>
+            <div className={'w-full h-full flex flex-col relative'}>
+              {/* Image Container */}
+              <div
+                className={`
+                  relative group overflow-hidden w-full flex-grow
+                  ${
+                    fullscreenHandle.active
+                      ? 'bg-black h-full w-full'
+                      : 'min-h-[200px] aspect-[16/10] rounded shadow-md bg-slate-700 flex items-center justify-center shadow-xl shadow-amber-300/20 game-image-wrapper'
+                  }
+                `}
               >
-                <>
-                  <div className={'w-full h-full flex flex-col relative'}>
-                    {displayNode && (
-                      <>
-                        <div
-                          className={`
-                            relative group overflow-hidden w-full flex-grow
-                            ${
-                              fullscreenHandle.active
-                                ? 'bg-black h-full w-full'
-                                : 'min-h-[200px] aspect-[16/10] rounded shadow-md bg-slate-700 flex items-center justify-center shadow-xl shadow-amber-300/20 game-image-wrapper'
-                            }
-                          `}
-                        >
-                          {displayNode.imageUrl && (
-                            <>
-                              {isCurrentImageLoading && (
-                                <div className="absolute inset-0 bg-slate-600 flex items-center justify-center z-10">
-                                  <ArrowPathIcon className="h-8 w-8 text-slate-400 animate-spin" />
-                                </div>
-                              )}
-                              <button
-                                onClick={
-                                  fullscreenHandle.active
-                                    ? fullscreenHandle.exit
-                                    : fullscreenHandle.enter
-                                }
-                                className={`absolute top-2 left-2 z-20 p-1.5 bg-black/40 text-white/80 rounded-full hover:bg-black/60 hover:text-white transition-all
-                                  ${
-                                    fullscreenHandle.active
-                                      ? showFullscreenControls && !isTouchDevice
-                                        ? 'opacity-100 pointer-events-auto duration-200'
-                                        : 'opacity-0 pointer-events-none duration-300'
-                                      : !isTouchDevice
-                                        ? 'opacity-50 hover:opacity-100 transition-opacity duration-200'
-                                        : 'opacity-0 pointer-events-none'
-                                  }
-                                `}
-                                aria-label={
-                                  fullscreenHandle.active ? 'Exit fullscreen' : 'Enter fullscreen'
-                                }
-                              >
-                                {fullscreenHandle.active ? (
-                                  <ArrowsPointingInIcon className="h-5 w-5" />
-                                ) : (
-                                  <ArrowsPointingOutIcon className="h-5 w-5" />
-                                )}
-                              </button>
-                              <Image
-                                key={displayNode.imageUrl}
-                                src={displayNode.imageUrl}
-                                alt="Adventure scene"
-                                fill
-                                className={`
-                                  ${fullscreenHandle.active ? 'absolute inset-0 w-full h-full object-cover' : 'object-cover'}
-                                  transition-opacity duration-500 ${isCurrentImageLoading ? 'opacity-0' : 'opacity-100'}
-                                `}
-                                priority
-                                sizes={
-                                  fullscreenHandle.active
-                                    ? '100vw'
-                                    : '(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw'
-                                }
-                                onLoad={() => handleImageLoad(displayNode.imageUrl)}
-                                onError={() => {
-                                  console.error('Image failed to load:', displayNode.imageUrl);
-                                  setIsCurrentImageLoading(false);
-                                }}
-                              />
-                            </>
-                          )}
-
-                          {/* Centered Pause icon - Hide if loading next node OR if choices are shown */}
-                          {currentAudioData && !isTTSPlaying && !isNodeLoading && !showChoices && (
-                            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-                              <PauseIcon className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 text-white/75" />
-                            </div>
-                          )}
-
-                          {/* Click handler overlay */}
-                          <div
-                            className="absolute inset-0 z-10 cursor-pointer"
-                            onClick={currentAudioData ? togglePlayPause : undefined}
-                          ></div>
-
-                          {/* Volume Slider Section (Top Right): Refined visibility logic */}
-                          {currentAudioData && (
-                            <div
-                              className={`absolute top-2 right-2 z-20 flex items-center space-x-2 bg-black/40 rounded-full px-2 py-1 transition-all
-                                  ${
-                                    fullscreenHandle.active
-                                      ? showFullscreenControls && !isTouchDevice
-                                        ? 'opacity-100 pointer-events-auto duration-200'
-                                        : 'opacity-0 pointer-events-none duration-300'
-                                      : !isTouchDevice
-                                        ? 'opacity-50 hover:opacity-100 transition-opacity duration-200'
-                                        : 'opacity-0 pointer-events-none'
-                                  }
-                                `}
-                            >
-                              <input
-                                type="range"
-                                min="0"
-                                max="1"
-                                step="0.05"
-                                value={localVolume}
-                                onChange={handleVolumeChange}
-                                className="w-16 h-1 bg-slate-500 rounded-full appearance-none cursor-pointer accent-amber-300"
-                                aria-label="Narration volume"
-                              />
-                              {ttsPlayerError && (
-                                <span className="ml-2 text-xs text-red-400 bg-black/50 px-1.5 py-0.5 rounded">
-                                  Audio Error
-                                </span>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Choices Section - MOVED INSIDE Image Container */}
-                          <div
-                            className={`
-                              absolute bottom-0 left-0 right-0 p-2 pt-10 sm:p-3 sm:pt-12 md:p-4 md:pt-16 z-10
-                              bg-gradient-to-t from-black/80 via-black/60 to-transparent backdrop-blur-sm
-                              transition-opacity duration-500 ease-in-out
-                              ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
-                            `}
-                          >
-                            {showChoices && (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 w-full">
-                                {displayNode.choices.map((choice, index) => {
-                                  const isClicked = index === clickedChoiceIndex;
-                                  const isDisabled = isNodeLoading;
-                                  const isLoadingChoice = isNodeLoading && isClicked;
-                                  const isFocused = index === focusedChoiceIndex;
-
-                                  // Base classes + conditional styling
-                                  let currentChoiceClasses = `${buttonBaseClasses} ${choiceButtonClasses}`;
-                                  if (isDisabled && !isLoadingChoice) {
-                                    currentChoiceClasses += ' opacity-50 cursor-not-allowed';
-                                  }
-                                  if (isLoadingChoice) {
-                                    // Remove static shadows and add pulsing animation
-                                    currentChoiceClasses = currentChoiceClasses
-                                      .replace(/shadow-\[.*?\}]/g, '') // Remove base shadow
-                                      .replace(/hover:shadow-\[.*?\}]/g, ''); // Remove hover shadow
-                                    currentChoiceClasses +=
-                                      ' border-amber-500 bg-amber-100/20 animate-pulse-glow';
-                                  }
-                                  if (isFocused && !isLoadingChoice) {
-                                    currentChoiceClasses +=
-                                      ' ring-2 ring-offset-2 ring-offset-black/50 ring-amber-300/80';
-                                  }
-
-                                  return (
-                                    <button
-                                      key={index}
-                                      onClick={() => handleChoiceClick(choice, index)}
-                                      className={currentChoiceClasses}
-                                      disabled={isDisabled}
-                                      data-testid={`choice-button-${index}`}
-                                    >
-                                      <span>{choice.text}</span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        </div>{' '}
-                        {/* End Image Container Div */}
-                      </>
-                    )}
-                    {!displayNode && isNodeLoading && gamePhase === 'playing' && (
-                      <div className="flex-grow flex flex-col items-center justify-center">
-                        <ArrowPathIcon className="h-8 w-8 text-amber-300 animate-spin mb-2" />
-                        <p className="text-gray-400 italic">Loading next part...</p>
+                {displayNode.imageUrl && (
+                  <>
+                    {isCurrentImageLoading && (
+                      <div className="absolute inset-0 bg-slate-600 flex items-center justify-center z-10">
+                        <ArrowPathIcon className="h-8 w-8 text-slate-400 animate-spin" />
                       </div>
                     )}
+                    <button
+                      onClick={
+                        fullscreenHandle.active ? fullscreenHandle.exit : fullscreenHandle.enter
+                      }
+                      className={`absolute top-2 left-2 z-20 p-1.5 bg-black/40 text-white/80 rounded-full hover:bg-black/60 hover:text-white transition-all
+                        ${
+                          fullscreenHandle.active
+                            ? showFullscreenControls && !isTouchDevice
+                              ? 'opacity-100 pointer-events-auto duration-200'
+                              : 'opacity-0 pointer-events-none duration-300'
+                            : !isTouchDevice
+                              ? 'opacity-50 hover:opacity-100 transition-opacity duration-200'
+                              : 'opacity-0 pointer-events-none'
+                        }
+                      `}
+                      aria-label={fullscreenHandle.active ? 'Exit fullscreen' : 'Enter fullscreen'}
+                    >
+                      {fullscreenHandle.active ? (
+                        <ArrowsPointingInIcon className="h-5 w-5" />
+                      ) : (
+                        <ArrowsPointingOutIcon className="h-5 w-5" />
+                      )}
+                    </button>
+                    <Image
+                      key={displayNode.imageUrl}
+                      src={displayNode.imageUrl}
+                      alt="Adventure scene"
+                      fill
+                      className={`
+                        ${fullscreenHandle.active ? 'absolute inset-0 w-full h-full object-cover' : 'object-cover'}
+                        transition-opacity duration-500 ${isCurrentImageLoading ? 'opacity-0' : 'opacity-100'}
+                      `}
+                      priority
+                      sizes={
+                        fullscreenHandle.active
+                          ? '100vw'
+                          : '(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw'
+                      }
+                      onLoad={() => handleImageLoad(displayNode.imageUrl)}
+                      onError={() => {
+                        console.error('Image failed to load:', displayNode.imageUrl);
+                        setIsCurrentImageLoading(false);
+                      }}
+                    />
+                  </>
+                )}
+
+                {/* Centered Pause icon */}
+                {currentAudioData && !isTTSPlaying && !isNodeLoading && !showChoices && (
+                  <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                    <PauseIcon className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 text-white/75" />
                   </div>
-                </>
-              </FullScreen>
-            )}
-          </div>
-        );
-      })()}
-      <audio ref={ttsAudioRef} className="hidden" aria-hidden="true" />
-    </>
-  );
+                )}
+
+                {/* Click handler overlay */}
+                <div
+                  className="absolute inset-0 z-10 cursor-pointer"
+                  onClick={currentAudioData ? togglePlayPause : undefined}
+                ></div>
+
+                {/* Volume Slider */}
+                {currentAudioData && (
+                  <div
+                    className={`absolute top-2 right-2 z-20 flex items-center space-x-2 bg-black/40 rounded-full px-2 py-1 transition-all
+                        ${
+                          fullscreenHandle.active
+                            ? showFullscreenControls && !isTouchDevice
+                              ? 'opacity-100 pointer-events-auto duration-200'
+                              : 'opacity-0 pointer-events-none duration-300'
+                            : !isTouchDevice
+                              ? 'opacity-50 hover:opacity-100 transition-opacity duration-200'
+                              : 'opacity-0 pointer-events-none'
+                        }
+                      `}
+                  >
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={localVolume}
+                      onChange={handleVolumeChange}
+                      className="w-16 h-1 bg-slate-500 rounded-full appearance-none cursor-pointer accent-amber-300"
+                      aria-label="Narration volume"
+                    />
+                    {ttsPlayerError && (
+                      <span className="ml-2 text-xs text-red-400 bg-black/50 px-1.5 py-0.5 rounded">
+                        Audio Error
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Choices Section */}
+                <div
+                  className={`
+                    absolute bottom-0 left-0 right-0 p-2 pt-10 sm:p-3 sm:pt-12 md:p-4 md:pt-16 z-10
+                    bg-gradient-to-t from-black/80 via-black/60 to-transparent backdrop-blur-sm
+                    transition-opacity duration-500 ease-in-out
+                    ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+                  `}
+                >
+                  {showChoices && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 w-full">
+                      {displayNode.choices.map((choice, index) => {
+                        const isClicked = index === clickedChoiceIndex;
+                        const isDisabled = isNodeLoading;
+                        const isLoadingChoice = isNodeLoading && isClicked;
+                        const isFocused = index === focusedChoiceIndex;
+
+                        let currentChoiceClasses = `${buttonBaseClasses} ${choiceButtonClasses}`;
+                        if (isDisabled && !isLoadingChoice) {
+                          currentChoiceClasses += ' opacity-50 cursor-not-allowed';
+                        }
+                        if (isLoadingChoice) {
+                          currentChoiceClasses = currentChoiceClasses
+                            .replace(/shadow-\[.*?\}]/g, '')
+                            .replace(/hover:shadow-\[.*?\}]/g, '');
+                          currentChoiceClasses +=
+                            ' border-amber-500 bg-amber-100/20 animate-pulse-glow';
+                        }
+                        if (isFocused && !isLoadingChoice) {
+                          currentChoiceClasses +=
+                            ' ring-2 ring-offset-2 ring-offset-black/50 ring-amber-300/80';
+                        }
+
+                        return (
+                          <button
+                            key={index}
+                            onClick={() => handleChoiceClick(choice, index)}
+                            className={currentChoiceClasses}
+                            disabled={isDisabled}
+                            data-testid={`choice-button-${index}`}
+                          >
+                            <span>{choice.text}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* Intermediate loading spinner for next node */}
+              {isNodeLoading && gamePhase === 'playing' && (
+                <div className="absolute inset-0 bg-slate-800/50 flex items-center justify-center z-30">
+                  <ArrowPathIcon className="h-8 w-8 text-amber-300 animate-spin" />
+                </div>
+              )}
+            </div>
+          </>
+        </FullScreen>
+        <audio ref={ttsAudioRef} className="hidden" aria-hidden="true" />
+      </div>
+    );
+  }
+
+  // 4. Fallback or Default State (should ideally not be reached if logic is sound)
+  //    Could render a generic error or return null/empty fragment
+  console.warn('[AdventureGame] Reached unexpected render state.', { gamePhase });
+  return null; // Or a fallback UI
 };
 
 export default AdventureGame;
