@@ -98,6 +98,7 @@ const AdventureGame = () => {
   const [isSelectingScenario, setIsSelectingScenario] = useState(false);
 
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [showFullscreenControls, setShowFullscreenControls] = useState(false);
 
   const fullscreenHandle = useFullScreenHandle();
   const gameContainerRef = useRef<HTMLDivElement>(null);
@@ -275,7 +276,7 @@ const AdventureGame = () => {
   const buttonBaseClasses =
     'px-4 py-2 rounded-md border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800';
   const choiceButtonClasses =
-    'w-full text-left justify-start p-2 text-sm sm:p-3 sm:text-base md:p-4 border-amber-800/50 bg-gradient-to-br from-amber-100/5 via-amber-100/10 to-amber-100/5 text-amber-100/80 hover:text-amber-100 hover:border-amber-700 hover:from-amber-100/10 hover:to-amber-100/10 focus:ring-amber-500 shadow-md hover:shadow-lg flex items-center';
+    'w-full text-left justify-start p-2 text-sm sm:p-3 sm:text-base md:p-5 md:text-xl lg:p-7 lg:text-2xl xl:p-10 xl:text-4xl border-amber-800/50 bg-gradient-to-br from-amber-100/5 via-amber-100/10 to-amber-100/5 text-amber-100/80 hover:text-amber-100 hover:border-amber-700 hover:from-amber-100/10 hover:to-amber-100/10 focus:ring-amber-500 shadow-md hover:shadow-lg flex items-center';
 
   useEffect(() => {
     if (nodeError !== null) {
@@ -324,6 +325,60 @@ const AdventureGame = () => {
       void fullscreenHandle.exit();
     }
   }, [triggerReset, stopTTS, fullscreenHandle]);
+
+  useEffect(() => {
+    const container = gameContainerRef.current;
+    if (!container || !fullscreenHandle.active) {
+      setShowFullscreenControls(false);
+      return;
+    }
+
+    let hideTimeout: NodeJS.Timeout | null = null;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!fullscreenHandle.active) return;
+
+      const rect = container.getBoundingClientRect();
+      const mouseY = event.clientY - rect.top;
+      const threshold = rect.height * 0.2;
+
+      if (mouseY <= threshold) {
+        setShowFullscreenControls(true);
+        if (hideTimeout) clearTimeout(hideTimeout);
+        hideTimeout = setTimeout(() => setShowFullscreenControls(false), 2000);
+      } else {
+        if (hideTimeout) clearTimeout(hideTimeout);
+        setShowFullscreenControls(false);
+      }
+    };
+
+    const handleMouseLeave = () => {
+      if (hideTimeout) clearTimeout(hideTimeout);
+      setShowFullscreenControls(false);
+    };
+
+    container.addEventListener('mousemove', handleMouseMove);
+    container.addEventListener('mouseleave', handleMouseLeave);
+
+    const initialCheckTimeout = setTimeout(() => {
+      if (container && fullscreenHandle.active) {
+        const event = new MouseEvent('mousemove', {
+          bubbles: true,
+          cancelable: true,
+          clientX: window.innerWidth / 2,
+          clientY: window.innerHeight * 0.1,
+        });
+        container.dispatchEvent(event);
+      }
+    }, 100);
+
+    return () => {
+      container.removeEventListener('mousemove', handleMouseMove);
+      container.removeEventListener('mouseleave', handleMouseLeave);
+      if (hideTimeout) clearTimeout(hideTimeout);
+      if (initialCheckTimeout) clearTimeout(initialCheckTimeout);
+    };
+  }, [fullscreenHandle.active]);
 
   if (loginRequired) {
     return (
@@ -453,7 +508,15 @@ const AdventureGame = () => {
                                       ? fullscreenHandle.exit
                                       : fullscreenHandle.enter
                                   }
-                                  className="absolute top-2 left-2 z-20 p-1.5 bg-black/40 text-white/80 rounded-full hover:bg-black/60 hover:text-white transition-all opacity-50 hover:opacity-100 transition-opacity duration-200"
+                                  className={`absolute top-2 left-2 z-20 p-1.5 bg-black/40 text-white/80 rounded-full hover:bg-black/60 hover:text-white transition-all
+                                    ${
+                                      fullscreenHandle.active
+                                        ? showFullscreenControls
+                                          ? 'opacity-100 pointer-events-auto duration-200'
+                                          : 'opacity-0 pointer-events-none duration-300'
+                                        : 'opacity-50 hover:opacity-100 transition-opacity duration-200'
+                                    }
+                                  `}
                                   aria-label={
                                     fullscreenHandle.active ? 'Exit fullscreen' : 'Enter fullscreen'
                                   }
@@ -490,7 +553,17 @@ const AdventureGame = () => {
                           )}
 
                           {currentAudioData && (
-                            <div className="absolute top-2 right-2 z-20 flex items-center space-x-2 bg-black/40 rounded-full px-2 py-1 opacity-50 hover:opacity-100 transition-opacity duration-200">
+                            <div
+                              className={`absolute top-2 right-2 z-20 flex items-center space-x-2 bg-black/40 rounded-full px-2 py-1 transition-all
+                                ${
+                                  fullscreenHandle.active
+                                    ? showFullscreenControls
+                                      ? 'opacity-100 pointer-events-auto duration-200'
+                                      : 'opacity-0 pointer-events-none duration-300'
+                                    : 'opacity-50 hover:opacity-100 transition-opacity duration-200'
+                                }
+                              `}
+                            >
                               <button
                                 onClick={togglePlayPause}
                                 className="p-1 text-white/80 hover:text-white transition-all"
