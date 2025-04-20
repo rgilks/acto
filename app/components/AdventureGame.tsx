@@ -811,48 +811,46 @@ const AdventureGame = () => {
                   className={`
                     absolute bottom-0 left-0 right-0 p-2 pt-10 sm:p-3 sm:pt-12 md:p-4 md:pt-16 z-10
                     bg-gradient-to-t from-black/80 via-black/60 to-transparent backdrop-blur-sm
-                    transition-opacity duration-500 ease-in-out
+                    transition-opacity ease-in-out [transition-duration:2000ms]
                     ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
                   `}
                 >
-                  {showChoices && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 w-full">
-                      {displayNode.choices.map((choice, index) => {
-                        const isClicked = index === clickedChoiceIndex;
-                        const isDisabled = isNodeLoading;
-                        const isLoadingChoice = isNodeLoading && isClicked;
-                        const isFocused = index === focusedChoiceIndex;
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 w-full">
+                    {displayNode.choices.map((choice, index) => {
+                      const isClicked = index === clickedChoiceIndex;
+                      const isDisabled = isNodeLoading;
+                      const isLoadingChoice = isNodeLoading && isClicked;
+                      const isFocused = index === focusedChoiceIndex;
 
-                        let currentChoiceClasses = `${buttonBaseClasses} ${choiceButtonClasses}`;
-                        if (isDisabled && !isLoadingChoice) {
-                          currentChoiceClasses += ' opacity-50 cursor-not-allowed';
-                        }
-                        if (isLoadingChoice) {
-                          currentChoiceClasses = currentChoiceClasses
-                            .replace(/shadow-\[.*?\}]/g, '')
-                            .replace(/hover:shadow-\[.*?\}]/g, '');
-                          currentChoiceClasses +=
-                            ' border-amber-500 bg-amber-100/20 animate-pulse-glow';
-                        }
-                        if (isFocused && !isLoadingChoice) {
-                          currentChoiceClasses +=
-                            ' ring-2 ring-offset-2 ring-offset-black/50 ring-amber-300/80';
-                        }
+                      let currentChoiceClasses = `${buttonBaseClasses} ${choiceButtonClasses}`;
+                      if (isDisabled && !isLoadingChoice) {
+                        currentChoiceClasses += ' opacity-50 cursor-not-allowed';
+                      }
+                      if (isLoadingChoice) {
+                        currentChoiceClasses = currentChoiceClasses
+                          .replace(/shadow-\[.*?\}]/g, '')
+                          .replace(/hover:shadow-\[.*?\}]/g, '');
+                        currentChoiceClasses +=
+                          ' border-amber-500 bg-amber-100/20 animate-pulse-glow';
+                      }
+                      if (isFocused && !isLoadingChoice) {
+                        currentChoiceClasses +=
+                          ' ring-2 ring-offset-2 ring-offset-black/50 ring-amber-300/80';
+                      }
 
-                        return (
-                          <button
-                            key={index}
-                            onClick={() => handleChoiceClick(choice, index)}
-                            className={currentChoiceClasses}
-                            disabled={isDisabled}
-                            data-testid={`choice-button-${index}`}
-                          >
-                            <span>{choice.text}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => handleChoiceClick(choice, index)}
+                          className={currentChoiceClasses}
+                          disabled={isDisabled}
+                          data-testid={`choice-button-${index}`}
+                        >
+                          <span>{choice.text}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
               {/* Subtle intermediate loading spinner for next node */}

@@ -527,6 +527,19 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
     {
       name: 'adventure-storage',
       storage: createJSONStorage(() => createPruningStorage(localStorage)),
+      partialize: (state) =>
+        Object.fromEntries(
+          Object.entries(state).map(([key, value]) => {
+            if (key === 'currentNode' && value) {
+              const { audioBase64, ...rest } = value as AdventureNode;
+              return [key, rest];
+            }
+            if (key === 'storyHistory') {
+              return [key, (value as StoryHistoryItem[]).map(({ audioBase64, ...item }) => item)];
+            }
+            return [key, value];
+          })
+        ) as Partial<AdventureState & AdventureActions>,
     }
   )
 );
