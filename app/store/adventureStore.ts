@@ -1,15 +1,81 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist, createJSONStorage, type StorageValue } from 'zustand/middleware';
 import { type AdventureNode, AdventureChoiceSchema } from '@/lib/domain/schemas';
 import { generateAdventureNodeAction, generateScenariosAction } from '../actions/adventure';
 import { z } from 'zod';
+
+// --- Custom Storage with Pruning ---
+
+const MAX_PRUNE_ATTEMPTS = 10;
+
+const createPruningStorage = (storage = localStorage, maxAttempts = MAX_PRUNE_ATTEMPTS) => ({
+  getItem: (name: string): string | null => {
+    return storage.getItem(name);
+  },
+  setItem: (name: string, value: string): void => {
+    let attempts = 0;
+    let currentValue = value;
+
+    while (attempts < maxAttempts) {
+      try {
+        storage.setItem(name, currentValue);
+
+        return;
+      } catch (e: unknown) {
+        if (
+          e instanceof DOMException &&
+          (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') // Firefox
+        ) {
+          console.warn(
+            `LocalStorage quota exceeded (attempt ${attempts + 1}). Pruning oldest history item.`
+          );
+          attempts++;
+
+          try {
+            const stateWithValue = JSON.parse(currentValue) as StorageValue<AdventureState>;
+            const state = stateWithValue.state;
+
+            if (state?.storyHistory && state.storyHistory.length > 0) {
+              state.storyHistory.shift();
+
+              currentValue = JSON.stringify(stateWithValue);
+              console.log(
+                `Pruned state. New history length: ${state.storyHistory.length}. Retrying save.`
+              );
+            } else {
+              console.error(
+                'Quota exceeded, but no story history found or history is empty. Cannot prune further. Giving up.'
+              );
+
+              return;
+            }
+          } catch (parseError) {
+            console.error('Error parsing state during pruning:', parseError);
+
+            return;
+          }
+        } else {
+          console.error('Error saving to localStorage (not quota related):', e);
+        }
+      }
+    }
+    console.error(`Failed to save state to localStorage after ${maxAttempts} pruning attempts.`);
+  },
+  removeItem: (name: string): void => {
+    storage.removeItem(name);
+  },
+});
+
+// --- End Custom Storage ---
 
 // Simplified History Item
 export interface StoryHistoryItem {
   passage: string;
   choiceText?: string;
   summary?: string;
+  imageUrl?: string | null;
+  audioBase64?: string | null;
 }
 
 // Type for structured rate limit errors passed from the server
@@ -165,7 +231,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
 
           // Prepare history for the action call
           const historyForAction = [...currentHistory];
-          if (choiceText && !isInitialCall) {
+          if (choiceText && !isInitialCall && historyForAction.length > 0) {
             historyForAction[historyForAction.length - 1] = {
               ...historyForAction[historyForAction.length - 1],
               choiceText: choiceText,
@@ -223,12 +289,17 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
 
           const newNode = result.adventureNode;
 
-          // Always push the new node's passage to the history
           set((state) => {
-            state.storyHistory.push({ passage: newNode.passage, summary: newNode.updatedSummary });
+            state.storyHistory.push({
+              passage: newNode.passage,
+              summary: newNode.updatedSummary,
+              imageUrl: newNode.imageUrl,
+              audioBase64: newNode.audioBase64,
+            });
             state.currentNode = newNode;
             state.isLoading = false;
             state.error = null;
+            state.loginRequired = false;
           });
         } catch (error) {
           const errorMessage =
@@ -252,22 +323,11 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
       },
 
       makeChoice: (choice) => {
-        const { isLoading, stopSpeaking, storyHistory } = get();
-        if (isLoading) return;
-        stopSpeaking();
-
-        const isInitialChoice = storyHistory.length === 0;
-        let metadataToPass: AdventureMetadata | undefined = undefined;
-
-        if (isInitialChoice) {
-          metadataToPass = {
-            genre: choice.genre,
-            tone: choice.tone,
-            visualStyle: choice.visualStyle,
-          };
-        }
-
-        void get().fetchAdventureNode(choice.text, metadataToPass);
+        void get().fetchAdventureNode(choice.text, {
+          genre: choice.genre ?? get().currentGenre,
+          tone: choice.tone ?? get().currentTone,
+          visualStyle: choice.visualStyle ?? get().currentVisualStyle,
+        });
       },
 
       setLoginRequired: (required) => {
@@ -277,20 +337,17 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
       },
 
       resetAdventure: () => {
-        get().stopSpeaking();
-        set(() => initialState);
+        console.log('Resetting adventure store state...');
+        set((state) => {
+          Object.assign(state, { ...initialState, ttsVolume: state.ttsVolume });
+          state.dynamicScenarios = get().dynamicScenarios;
+          state.isFetchingScenarios = false;
+          state.fetchScenariosError = null;
+        });
       },
 
       triggerReset: () => {
-        const { resetAdventure } = get();
-        resetAdventure();
-        if (typeof window !== 'undefined') {
-          try {
-            sessionStorage.removeItem('adventureGame_scenarios');
-          } catch (error) {
-            console.error('[Store] Error clearing scenario cache from sessionStorage:', error);
-          }
-        }
+        get().resetAdventure();
       },
 
       // TTS Actions (Unchanged)
@@ -320,7 +377,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
     })),
     {
       name: 'adventure-storage',
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => createPruningStorage(localStorage)),
     }
   )
 );

@@ -122,7 +122,7 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
   }
 
   return (
-    <div className={`flex ${variant === 'icon-only' ? 'flex-row' : 'flex-col md:flex-row'} gap-3`}>
+    <div className={`flex flex-row flex-wrap items-center justify-center gap-4`}>
       <button
         onClick={() => {
           void signIn('google');
@@ -130,7 +130,7 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
         className={`flex items-center justify-center transition-all duration-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
           variant === 'icon-only'
             ? 'p-2 bg-gray-700 text-white rounded-full hover:bg-gray-600 focus-visible:ring-blue-500'
-            : 'w-full md:w-auto px-4 py-2 bg-white text-gray-800 rounded-lg hover:bg-gray-100 gap-2 hover:translate-y-[-2px] focus-visible:ring-blue-500'
+            : 'px-4 py-2 bg-white text-gray-800 rounded-lg hover:bg-gray-100 gap-2 hover:translate-y-[-2px] focus-visible:ring-blue-500'
         }`}
         title={variant === 'short' ? 'Google' : 'Sign In with Google'}
       >
@@ -163,7 +163,7 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
         className={`flex items-center justify-center transition-all duration-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
           variant === 'icon-only'
             ? 'p-2 bg-gray-700 text-white rounded-full hover:bg-gray-600 focus-visible:ring-gray-500'
-            : 'w-full md:w-auto px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 gap-2 hover:translate-y-[-2px] focus-visible:ring-gray-500'
+            : 'px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 gap-2 hover:translate-y-[-2px] focus-visible:ring-gray-500'
         }`}
         title={variant === 'short' ? 'GitHub' : 'Sign In with GitHub'}
       >
@@ -180,7 +180,7 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
         className={`flex items-center justify-center transition-all duration-300 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 ${
           variant === 'icon-only'
             ? 'p-2 bg-[#5865F2] text-white rounded-full hover:bg-[#4f5bda] focus-visible:ring-[#5865F2]'
-            : 'w-full md:w-auto px-4 py-2 bg-[#5865F2] text-white rounded-lg hover:bg-[#4f5bda] gap-2 hover:translate-y-[-2px] focus-visible:ring-[#5865F2]'
+            : 'px-4 py-2 bg-[#5865F2] text-white rounded-lg hover:bg-[#4f5bda] gap-2 hover:translate-y-[-2px] focus-visible:ring-[#5865F2]'
         }`}
         title={variant === 'short' ? 'Discord' : 'Sign In with Discord'}
       >
