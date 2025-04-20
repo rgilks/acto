@@ -25,7 +25,8 @@ export function buildAdventurePrompt(
         ? history[0]?.passage // Use passage from the very first history item
         : null;
 
-  const jsonStructure = `{\n  "passage": "(string) The next part of the story, describing the current situation and outcome of the last choice.",\n  "choices": [ { "text": string }, ... ], /* Array of 3 distinct player choices */\n  "imagePrompt": "(string) A visual description for an image based *only* on the \"passage\". Describe the scene from a first-person view, reflecting the specified Visual Style: ${visualStyle ?? 'any'}. **Do not describe the player character.**",\n  "updatedSummary": "(string) A brief (1-2 sentence) summary of the entire story up to and including this new \"passage\"."
+  const jsonStructure = `{\n  "passage": "(string) The next part of the story, describing the current situation and outcome of the last choice.",\n  "choices": [ { "text": string }, ... ], /* Array of 3 distinct player choices */\n  "imagePrompt": "(string) A visual description for an image based *only* on the \"passage\". Describe the scene, reflecting the specified Visual Style: ${visualStyle ?? 'any'}.",
+  "updatedSummary": "(string) A brief (1-2 sentence) summary of the entire story up to and including this new \"passage\"."
 }`;
 
   const initialContextSection = initialContextText

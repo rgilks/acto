@@ -53,8 +53,8 @@ async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Pro
       model: modelConfig.name,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
-        temperature: 1.5,
-        topP: 0.95,
+        temperature: 1.3,
+        topP: 1.0,
       },
     });
     const text = result.text;
@@ -105,10 +105,7 @@ async function generateImageWithGemini(
     .filter(Boolean)
     .join('. ');
 
-  const sceneConstraint =
-    "Perspective: First-person view. Do NOT depict the protagonist, player character, player's hands, or any representation of 'self'.";
-
-  const finalImagePrompt = `Scene Description: ${imagePrompt}. ${styleDetails}. ${sceneConstraint}`;
+  const finalImagePrompt = `Scene Description: ${imagePrompt}. ${styleDetails}.`;
 
   console.log('[Adventure Image] Sending final prompt to Imagen API:', finalImagePrompt);
 

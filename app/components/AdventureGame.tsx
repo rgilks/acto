@@ -15,8 +15,8 @@ import ScenarioSelector from './ScenarioSelector';
 import useTTSPlayer from '@/hooks/useTTSPlayer';
 import { FullScreen, useFullScreenHandle } from 'react-full-screen';
 import { useSession } from 'next-auth/react';
-import AuthButton from './AuthButton';
 
+// Re-add RateLimitError interface
 interface RateLimitError {
   message: string;
   resetTimestamp: number;
@@ -89,6 +89,7 @@ const getRandomVoice = () => {
   return chirp3Voices[Math.floor(Math.random() * chirp3Voices.length)];
 };
 
+// Re-add formatResetTime function
 function formatResetTime(timestamp: number): string {
   if (!timestamp) return 'an unknown time';
   const now = Date.now();
@@ -118,9 +119,11 @@ const AdventureGame = () => {
     fetchScenariosError,
     fetchScenarios,
     triggerReset,
+    retryLastFetch,
     stopSpeaking: stopTTS,
     setLoginRequired,
     loginRequired,
+    lastFetchParamsForRetry,
   } = store;
 
   const { data: _session, status: sessionStatus } = useSession();
@@ -590,12 +593,6 @@ const AdventureGame = () => {
   ]);
 
   const effectiveError = nodeError || fetchScenariosError;
-  const rateLimitInfo =
-    typeof effectiveError === 'object' &&
-    effectiveError !== null &&
-    'rateLimitError' in effectiveError
-      ? (effectiveError.rateLimitError as RateLimitError)
-      : null;
 
   // Effect to reset loginRequired when session status changes
   useEffect(() => {
@@ -608,59 +605,13 @@ const AdventureGame = () => {
     // and the user is already logged in but loginRequired was persisted.
   }, [sessionStatus, loginRequired, setLoginRequired]);
 
-  if (loginRequired) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-8 max-w-lg mx-auto bg-slate-800 border border-slate-700 rounded-lg shadow-xl space-y-6">
-        <h2 className="text-2xl font-bold text-yellow-400">Sign In Required</h2>
-        <p className="text-sm text-gray-400">New users are currently added via a waitlist.</p>
-        <AuthButton />
-        <button
-          onClick={handleRestart}
-          className="text-sm text-gray-400 hover:text-white underline pt-4"
-        >
-          Go back to Scenario Selection
-        </button>
-      </div>
-    );
-  }
-
-  if (effectiveError === 'SCENARIO_PARSE_ERROR') {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-4">
-        <h2 className="text-2xl font-bold text-yellow-400 mb-4">Scenario Generation Hiccup</h2>
-        <p className="mb-6 text-gray-300">
-          Had a little trouble understanding the scenarios generated. Let&apos;s try again!
-        </p>
-        <button
-          onClick={handleFetchNewScenarios}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white flex items-center"
-        >
-          <ArrowPathIcon className="h-5 w-5 mr-2" />
-          Try Generating Scenarios Again
-        </button>
-      </div>
-    );
-  }
-
-  if (effectiveError === 'SCENARIO_FETCH_FAILED') {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-4">
-        <h2 className="text-2xl font-bold text-amber-400 mb-4">Scenario Fetch Issue</h2>
-        <p className="mb-6 text-gray-300">
-          Couldn&apos;t fetch new scenarios from the server right now. Maybe try again?
-        </p>
-        <button
-          onClick={handleFetchNewScenarios}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white flex items-center"
-        >
-          <ArrowPathIcon className="h-5 w-5 mr-2" />
-          Retry Fetching Scenarios
-        </button>
-      </div>
-    );
-  }
-
-  if (rateLimitInfo) {
+  // --- ADDED: Specific handling for Rate Limit Error ---
+  if (
+    typeof effectiveError === 'object' &&
+    effectiveError !== null &&
+    'rateLimitError' in effectiveError
+  ) {
+    const rateLimitInfo = effectiveError.rateLimitError as RateLimitError;
     const resetTime = formatResetTime(rateLimitInfo.resetTimestamp);
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
@@ -674,12 +625,42 @@ const AdventureGame = () => {
           className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white flex items-center"
         >
           <ArrowPathIcon className="h-5 w-5 mr-2" />
-          Try Different Scenario
+          Start Over
         </button>
       </div>
     );
   }
+  // --- END ADDED BLOCK ---
 
+  // --- ADDED: Specific handling for AI Response Format Error ---
+  if (effectiveError === 'AI_RESPONSE_FORMAT_ERROR') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-4">
+        <h2 className="text-2xl font-bold text-yellow-400 mb-4">Storyteller Hiccup</h2>
+        <p className="mb-6 text-gray-300">
+          The storyteller seems to have gotten a bit confused with the response. Want to try asking
+          again?
+        </p>
+        <button
+          onClick={retryLastFetch}
+          disabled={!lastFetchParamsForRetry} // Disable if params somehow got cleared
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ArrowPathIcon className="h-5 w-5 mr-2" />
+          Retry Last Action
+        </button>
+        <button
+          onClick={handleRestart}
+          className="mt-4 text-sm text-gray-400 hover:text-white underline"
+        >
+          Or Start Over
+        </button>
+      </div>
+    );
+  }
+  // --- END ADDED BLOCK ---
+
+  // Generic Error Catch-all (keep existing logic)
   const simpleErrorMessage = typeof effectiveError === 'string' ? effectiveError : null;
   if (simpleErrorMessage) {
     let friendlyMessage = 'Something went wrong. Please try starting over.';

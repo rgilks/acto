@@ -83,6 +83,13 @@ export interface StoryHistoryItem {
   choices?: z.infer<typeof AdventureChoiceSchema>[];
 }
 
+// Parameters needed to retry fetchAdventureNode
+interface FetchParams {
+  choiceText?: string;
+  metadata?: AdventureMetadata;
+  voice?: string | null;
+}
+
 // Type for structured rate limit errors passed from the server
 interface RateLimitError {
   message: string;
@@ -137,10 +144,17 @@ interface AdventureState {
   ttsError: string | null;
   ttsVolume: number;
   // --- End TTS State ---
+
+  // State for manual retries
+  lastFetchParamsForRetry: FetchParams | null;
 }
 
 interface AdventureActions {
-  fetchAdventureNode: (choiceText?: string, metadata?: AdventureMetadata) => Promise<void>;
+  fetchAdventureNode: (
+    choiceText?: string,
+    metadata?: AdventureMetadata,
+    voice?: string | null
+  ) => Promise<void>;
   fetchScenarios: () => Promise<void>;
   setCurrentMetadata: (metadata: AdventureMetadata) => void;
   setLoginRequired: (required: boolean) => void;
@@ -153,6 +167,7 @@ interface AdventureActions {
   resetAdventure: () => void;
   triggerReset: () => void;
   saveStory: () => Promise<void>;
+  retryLastFetch: () => void;
 }
 
 // Simplified Initial State
@@ -177,6 +192,7 @@ const initialState: AdventureState = {
   ttsError: null,
   ttsVolume: 1,
   // --- End Initial TTS State ---
+  lastFetchParamsForRetry: null,
 };
 
 export const useAdventureStore = create<AdventureState & AdventureActions>()(
@@ -240,66 +256,38 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         }
       },
 
-      fetchAdventureNode: async (choiceText, metadata) => {
+      fetchAdventureNode: async (choiceText, metadata, voice) => {
         set((state) => {
           state.isLoading = true;
           state.error = null;
+          state.lastFetchParamsForRetry = null;
         });
 
+        const currentVoice = voice !== undefined ? voice : get().currentVoice;
+        const actionParams: Parameters<typeof generateAdventureNodeAction>[0] = {
+          storyContext: { history: [] },
+          genre: metadata?.genre ?? get().currentGenre ?? undefined,
+          tone: metadata?.tone ?? get().currentTone ?? undefined,
+          visualStyle: metadata?.visualStyle ?? get().currentVisualStyle ?? undefined,
+        };
+        const fullPromptForLog = buildAdventurePrompt(
+          actionParams.storyContext,
+          choiceText ? choiceText : undefined,
+          actionParams.genre,
+          actionParams.tone,
+          actionParams.visualStyle
+        );
+
+        // Store params *before* the call in case it fails retryably
+        const currentFetchParams: FetchParams = { choiceText, metadata, voice: currentVoice };
+
         try {
-          const currentHistory = get().storyHistory;
-          const isInitialCall = currentHistory.length === 0;
-          const currentVoice = get().currentVoice;
-
-          // Prepare history for the action call
-          const fullHistory = get().storyHistory;
-          const historyForAction = [...fullHistory]; // Start with a copy
-
-          if (choiceText && !isInitialCall && historyForAction.length > 0) {
-            const lastHistoryItemIndex = historyForAction.length - 1;
-            if (lastHistoryItemIndex >= 0) {
-              // Update the choiceText for the most recent entry before sending
-              historyForAction[lastHistoryItemIndex] = {
-                ...historyForAction[lastHistoryItemIndex],
-                choiceText: choiceText,
-              };
-            }
-          }
-
-          // Prune history to send only necessary fields to the server action
-          const prunedHistory = historyForAction.map((item) => ({
-            passage: item.passage ?? '',
-            choiceText: item.choiceText,
-            summary: item.summary,
-          }));
-
-          // Prepare parameters for the action call using pruned history
-          const actionParams: Parameters<typeof generateAdventureNodeAction>[0] = {
-            storyContext: { history: prunedHistory }, // Send pruned history
-            genre: metadata?.genre ?? get().currentGenre ?? undefined,
-            tone: metadata?.tone ?? get().currentTone ?? undefined,
-            visualStyle: metadata?.visualStyle ?? get().currentVisualStyle ?? undefined,
-          };
-          const fullPromptForLog = buildAdventurePrompt(
-            // Regenerate prompt for logging
-            actionParams.storyContext,
-            isInitialCall && choiceText ? choiceText : undefined,
-            actionParams.genre,
-            actionParams.tone,
-            actionParams.visualStyle
-          );
-
-          // Add initialScenarioText only on the first call (using the original choiceText passed)
-          if (isInitialCall && choiceText) {
-            actionParams.initialScenarioText = choiceText;
-          }
-
           // Pass the parameter object and the voice to the action
           const result = await generateAdventureNodeAction(actionParams, currentVoice);
 
-          // Handle rate limit errors
+          // Handle rate limit errors first
           if (result.rateLimitError) {
-            console.warn('Rate limit hit:', result.rateLimitError);
+            console.warn('[Adventure Store] Rate limit hit:', result.rateLimitError);
             set((state) => {
               state.error = { rateLimitError: result.rateLimitError! };
               state.isLoading = false;
@@ -307,35 +295,51 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             return;
           }
 
+          // Check for specific retryable errors
+          if (
+            result.error === 'Failed to parse AI response.' ||
+            result.error === 'AI response validation failed.'
+          ) {
+            console.warn(`[Adventure Store] Retryable error occurred: ${result.error}`);
+            set((state) => {
+              state.error = 'AI_RESPONSE_FORMAT_ERROR';
+              state.lastFetchParamsForRetry = currentFetchParams;
+              state.isLoading = false;
+            });
+            return;
+          }
+
+          // Handle other non-retryable server errors
           if (result.error) {
             throw new Error(result.error);
           }
+
+          // Check for missing node
           if (!result.adventureNode) {
             throw new Error('No adventure node received from the server.');
           }
 
+          // --- SUCCESS PATH ---
           const newNode = result.adventureNode;
-
           set((state) => {
-            // Update the *last* history item (created in makeChoice) with the data FROM this step
             const lastHistoryIndex = state.storyHistory.length - 1;
             if (lastHistoryIndex >= 0) {
               state.storyHistory[lastHistoryIndex] = {
-                ...state.storyHistory[lastHistoryIndex], // Keep choiceText etc.
+                ...state.storyHistory[lastHistoryIndex],
                 passage: newNode.passage,
                 summary: newNode.updatedSummary,
                 imageUrl: newNode.imageUrl,
                 audioBase64: newNode.audioBase64,
-                prompt: fullPromptForLog, // Store the full prompt used for this step
-                imagePrompt: newNode.imagePrompt, // Store the specific image prompt generated
-                choices: newNode.choices, // Store choices *available from* this new state
+                prompt: fullPromptForLog,
+                imagePrompt: newNode.imagePrompt,
+                choices: newNode.choices,
               };
             }
-            // Set the current node for the UI
             state.currentNode = newNode;
             state.isLoading = false;
             state.error = null;
             state.loginRequired = false;
+            state.lastFetchParamsForRetry = null;
           });
         } catch (error) {
           const errorMessage =
@@ -353,6 +357,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
               state.error = errorMessage;
               state.loginRequired = false;
               state.isLoading = false;
+              state.lastFetchParamsForRetry = null;
             });
           }
         }
@@ -625,6 +630,19 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         set((state) => {
           state.ttsVolume = clampedVolume;
         });
+      },
+      retryLastFetch: () => {
+        const { lastFetchParamsForRetry, fetchAdventureNode } = get();
+        if (lastFetchParamsForRetry) {
+          console.log('[Adventure Store] Retrying last fetch...');
+          void fetchAdventureNode(
+            lastFetchParamsForRetry.choiceText,
+            lastFetchParamsForRetry.metadata,
+            lastFetchParamsForRetry.voice
+          );
+        } else {
+          console.warn('[Adventure Store] retryLastFetch called but no parameters stored.');
+        }
       },
     })),
     {
