@@ -55,12 +55,11 @@ async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Pro
       config: {
         temperature: 1.3,
         topP: 0.95,
-        topK: 40,
-        frequencyPenalty: 0.3,
-        presencePenalty: 0.6,
-        candidateCount: 1,
+        // topK: 40,
+        // frequencyPenalty: 0.3,
+        // presencePenalty: 0.6,
+        // candidateCount: 1,
         maxOutputTokens: 900,
-        stopSequences: ['### END_SCENE ###'],
         safetySettings: [
           {
             category: HarmCategory.HARM_CATEGORY_HARASSMENT,
