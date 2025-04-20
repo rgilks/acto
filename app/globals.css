@@ -127,3 +127,19 @@ body {
   /*   display: none !important; */
   /* } */
 }
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    /* Start and end with a slightly larger glow than the hover state */
+    box-shadow: 0 0 20px rgba(252, 211, 77, 0.6);
+  }
+  50% {
+    /* Peak glow - larger spread and brighter */
+    box-shadow: 0 0 30px 10px rgba(252, 211, 77, 0.8);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s infinite ease-in-out;
+}

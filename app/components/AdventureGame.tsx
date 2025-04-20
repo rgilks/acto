@@ -609,18 +609,30 @@ const AdventureGame = () => {
                                   const isClicked = index === clickedChoiceIndex;
                                   const isDisabled = isNodeLoading;
                                   const isLoadingChoice = isNodeLoading && isClicked;
+
+                                  // Base classes + conditional styling
+                                  let currentChoiceClasses = `${buttonBaseClasses} ${choiceButtonClasses}`;
+                                  if (isDisabled && !isLoadingChoice) {
+                                    currentChoiceClasses += ' opacity-50 cursor-not-allowed';
+                                  }
+                                  if (isLoadingChoice) {
+                                    // Remove static shadows and add pulsing animation
+                                    currentChoiceClasses = currentChoiceClasses
+                                      .replace(/shadow-\[.*?\}]/g, '') // Remove base shadow
+                                      .replace(/hover:shadow-\[.*?\}]/g, ''); // Remove hover shadow
+                                    currentChoiceClasses +=
+                                      ' border-amber-500 bg-amber-100/20 animate-pulse-glow';
+                                  }
+
                                   return (
                                     <button
                                       key={index}
                                       onClick={() => handleChoiceClick(choice, index)}
-                                      className={`${buttonBaseClasses} ${choiceButtonClasses} ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''} ${isLoadingChoice ? 'border-amber-500 bg-amber-100/20' : ''}`}
+                                      className={currentChoiceClasses}
                                       disabled={isDisabled}
                                       data-testid={`choice-button-${index}`}
                                     >
                                       <span>{choice.text}</span>
-                                      {isLoadingChoice && (
-                                        <ArrowPathIcon className="h-5 w-5 animate-spin text-amber-300/70 ml-2 sm:ml-3 md:ml-4" />
-                                      )}
                                     </button>
                                   );
                                 })}
