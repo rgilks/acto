@@ -36,10 +36,29 @@ const Page = () => {
           style={{ animationDelay: '0.3s' }}
         >
           <p>
-            Powered by Google AI |{' '}
+            Powered by{' '}
+            <a
+              href="https://deepmind.google/technologies/gemini/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-gray-300"
+            >
+              Gemini
+            </a>{' '}
+            |{' '}
             <Link href="https://github.com/rgilks/acto" className="underline hover:text-gray-300">
               GitHub
             </Link>
+          </p>
+          <p className="mt-4 text-center">
+            <a href="https://ko-fi.com/N4N31DPNUS" target="_blank" rel="noopener noreferrer">
+              <img
+                height={36}
+                style={{ border: '0px', height: '36px', display: 'block', margin: 'auto' }}
+                src="https://storage.ko-fi.com/cdn/kofi2.png?v=6"
+                alt="Buy Me a Coffee at ko-fi.com"
+              />
+            </a>
           </p>
         </footer>
       </div>
