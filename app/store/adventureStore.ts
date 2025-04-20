@@ -101,6 +101,19 @@ interface AdventureMetadata {
   visualStyle?: string | null;
 }
 
+// Interface for prompt log entries
+interface PromptLogEntry {
+  step: number;
+  prompt: string;
+  passage: string;
+  imagePrompt: string;
+  choices: string[];
+  summary: string;
+  choiceMade: string;
+  imageFile?: string | undefined; // Explicitly allow undefined
+  audioFile?: string | undefined; // Explicitly allow undefined
+}
+
 // Simplified State
 interface AdventureState {
   currentNode: AdventureNode | null;
@@ -238,12 +251,13 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           const currentVoice = get().currentVoice;
 
           // Prepare history for the action call
-          const historyForAction = [...currentHistory];
+          const fullHistory = get().storyHistory;
+          const historyForAction = [...fullHistory]; // Start with a copy
+
           if (choiceText && !isInitialCall && historyForAction.length > 0) {
-            // Find the last actual history item (might not be the last element if currentNode was pushed temporarily)
             const lastHistoryItemIndex = historyForAction.length - 1;
-            // Ensure we don't modify a non-existent item (shouldn't happen here, but safe)
             if (lastHistoryItemIndex >= 0) {
+              // Update the choiceText for the most recent entry before sending
               historyForAction[lastHistoryItemIndex] = {
                 ...historyForAction[lastHistoryItemIndex],
                 choiceText: choiceText,
@@ -251,16 +265,23 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             }
           }
 
-          // Prepare parameters for the action call according to expected structure
+          // Prune history to send only necessary fields to the server action
+          const prunedHistory = historyForAction.map((item) => ({
+            passage: item.passage,
+            choiceText: item.choiceText,
+            summary: item.summary,
+          }));
+
+          // Prepare parameters for the action call using pruned history
           const actionParams: Parameters<typeof generateAdventureNodeAction>[0] = {
-            storyContext: { history: historyForAction },
+            storyContext: { history: prunedHistory }, // Send pruned history
             genre: metadata?.genre ?? get().currentGenre ?? undefined,
             tone: metadata?.tone ?? get().currentTone ?? undefined,
             visualStyle: metadata?.visualStyle ?? get().currentVisualStyle ?? undefined,
           };
-          // Add initialScenarioText only on the first call
+
+          // Add initialScenarioText only on the first call (using the original choiceText passed)
           if (isInitialCall && choiceText) {
-            // Use the choice text from the scenario selection as the initial text
             actionParams.initialScenarioText = choiceText;
           }
 
@@ -413,19 +434,45 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
 
         // Prepare history data and log data simultaneously
         const fullHistoryForJson = [];
-        const promptLog = [];
+        const promptLog: PromptLogEntry[] = [];
 
         for (let i = 0; i < storyHistory.length; i++) {
           const item = storyHistory[i];
-          const logEntry = {
+
+          // Determine choice made leading to this step
+          let choiceMadeText = '(Not recorded)';
+          if (i === 0) {
+            choiceMadeText = '(Scenario Selection)';
+          } else if (i > 0 && storyHistory[i - 1]) {
+            // Check if previous item exists
+            // Provide fallback if choiceText is undefined
+            choiceMadeText = storyHistory[i - 1].choiceText ?? '(Choice text missing)';
+          }
+
+          // Determine media file references
+          const imageFileRef = item.imageUrl ? `media/image_${i}.png` : undefined; // Assuming png for simplicity
+          const audioFileRef = item.audioBase64 ? `media/audio_${i}.mp3` : undefined;
+
+          // Use the specific interface directly now
+          const logEntry: PromptLogEntry = {
             step: i,
             prompt: item.prompt ?? 'Prompt not recorded',
             passage: item.passage,
-            imagePrompt: item.imagePrompt ?? 'Image prompt not recorded',
-            choices: item.choices?.map((c) => c.text) ?? [],
+            imagePrompt: item.imagePrompt ?? 'Image prompt not generated',
+            choices: item.choices?.map((c) => c.text ?? '') ?? [],
             summary: item.summary ?? 'Summary not recorded',
-            choiceMade: item.choiceText ?? (i > 0 ? '(Initial Node)' : '(Not recorded)'),
+            choiceMade: choiceMadeText,
           };
+
+          // Conditionally add media file references
+          if (imageFileRef) {
+            logEntry.imageFile = imageFileRef;
+          }
+          if (audioFileRef) {
+            logEntry.audioFile = audioFileRef;
+          }
+
+          // Push the typed object
           promptLog.push(logEntry);
 
           fullHistoryForJson.push({
@@ -517,12 +564,19 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           const url = URL.createObjectURL(zipBlob);
           const a = document.createElement('a');
           a.href = url;
-          // Create a filename (e.g., acto-story-SciFi-2023-10-27.zip)
-          const dateStr = new Date().toISOString().split('T')[0];
+
+          // Create filename: acto-Genre-YYYY-MM-DD-HH-MM.zip
+          const now = new Date();
+          const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+          const hours = now.getHours().toString().padStart(2, '0');
+          const minutes = now.getMinutes().toString().padStart(2, '0');
+          const timeStr = `${hours}-${minutes}`;
           const genrePart = currentGenre
-            ? `- ${currentGenre.substring(0, 15).replace(/\W+/g, '')}`
-            : '';
-          a.download = `acto-story${genrePart}-${dateStr}.zip`;
+            ? `${currentGenre.substring(0, 15).replace(/\W+/g, '')}-`
+            : ''; // Keep the trailing hyphen if genre exists
+
+          a.download = `acto-${genrePart}${dateStr}-${timeStr}.zip`;
+
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
