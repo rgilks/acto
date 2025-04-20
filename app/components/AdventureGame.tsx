@@ -317,11 +317,12 @@ const AdventureGame = () => {
       if (!hasUserInteracted) {
         setHasUserInteracted(true);
       }
+      setShowChoices(false); // Hide choices immediately when one is selected
       setClickedChoiceIndex(index);
       setFocusedChoiceIndex(null);
       makeChoice(choice);
     },
-    [makeChoice, hasUserInteracted]
+    [makeChoice, hasUserInteracted, setShowChoices]
   );
 
   const buttonBaseClasses =
@@ -854,10 +855,10 @@ const AdventureGame = () => {
                   )}
                 </div>
               </div>
-              {/* Intermediate loading spinner for next node */}
+              {/* Subtle intermediate loading spinner for next node */}
               {isNodeLoading && gamePhase === 'playing' && (
-                <div className="absolute inset-0 bg-slate-800/50 flex items-center justify-center z-30">
-                  <ArrowPathIcon className="h-8 w-8 text-amber-300 animate-spin" />
+                <div className="absolute bottom-4 right-4 z-30 p-2 bg-black/30 rounded-full">
+                  <ArrowPathIcon className="h-6 w-6 text-amber-300 animate-spin animate-pulse" />
                 </div>
               )}
             </div>
