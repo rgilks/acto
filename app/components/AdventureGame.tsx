@@ -9,7 +9,6 @@ import {
   ArrowPathIcon,
   ArrowsPointingOutIcon,
   ArrowsPointingInIcon,
-  PlayIcon,
   PauseIcon,
 } from '@heroicons/react/24/solid';
 import ScenarioSelector from './ScenarioSelector';
@@ -101,6 +100,7 @@ const AdventureGame = () => {
   const [isSelectingScenario, setIsSelectingScenario] = useState(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [showFullscreenControls, setShowFullscreenControls] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
 
   const fullscreenHandle = useFullScreenHandle();
   const gameContainerRef = useRef<HTMLDivElement>(null);
@@ -145,6 +145,13 @@ const AdventureGame = () => {
     }
   }, [sessionStatus, dynamicScenarios, isFetchingScenarios, fetchScenariosError, fetchScenarios]);
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const touchDetected = window.matchMedia('(pointer: coarse)').matches;
+      setIsTouchDevice(touchDetected);
+    }
+  }, []);
+
   const handleFetchNewScenarios = useCallback(() => {
     setGamePhase('selecting_scenario');
     void fetchScenarios();
@@ -152,6 +159,11 @@ const AdventureGame = () => {
 
   const handleScenarioSelect = useCallback(
     (scenario: Scenario) => {
+      if (sessionStatus === 'loading') {
+        console.log('[AdventureGame] Session status is loading, delaying scenario select.');
+        return;
+      }
+
       if (!isUserLoggedIn) {
         console.log('[AdventureGame] User not logged in, setting login required.');
         setLoginRequired(true);
@@ -172,7 +184,7 @@ const AdventureGame = () => {
 
       makeChoice(scenario);
     },
-    [isUserLoggedIn, setLoginRequired, makeChoice, hasUserInteracted, stopTTS]
+    [isUserLoggedIn, setLoginRequired, makeChoice, hasUserInteracted, stopTTS, sessionStatus]
   );
 
   const handleImageLoad = useCallback(
@@ -343,6 +355,11 @@ const AdventureGame = () => {
   }, [triggerReset, stopTTS, fullscreenHandle]);
 
   useEffect(() => {
+    if (isTouchDevice) {
+      setShowFullscreenControls(false);
+      return;
+    }
+
     const container = gameContainerRef.current;
     if (!container || !fullscreenHandle.active) {
       setShowFullscreenControls(false);
@@ -362,7 +379,6 @@ const AdventureGame = () => {
         hideTimeout = setTimeout(() => setShowFullscreenControls(false), 2000);
       } else {
         if (hideTimeout) clearTimeout(hideTimeout);
-        setShowFullscreenControls(false);
       }
     };
 
@@ -394,7 +410,7 @@ const AdventureGame = () => {
       if (hideTimeout) clearTimeout(hideTimeout);
       if (initialCheckTimeout) clearTimeout(initialCheckTimeout);
     };
-  }, [fullscreenHandle.active, setShowFullscreenControls]);
+  }, [fullscreenHandle.active, isTouchDevice, setShowFullscreenControls]);
 
   const effectiveError = nodeError || fetchScenariosError;
   const rateLimitInfo =
@@ -404,12 +420,16 @@ const AdventureGame = () => {
       ? (effectiveError.rateLimitError as RateLimitError)
       : null;
 
-  // Effect to reset loginRequired flag when user becomes authenticated
+  // Effect to reset loginRequired when session status changes
   useEffect(() => {
     if (sessionStatus === 'authenticated' && loginRequired) {
-      console.log('[AdventureGame] User authenticated, resetting loginRequired flag.');
+      console.log('[AdventureGame] User is now authenticated, resetting loginRequired flag.');
       setLoginRequired(false);
+      // If a scenario was selected just before logging in, potentially restart the selection process
+      // This depends on desired UX, for now, just reset the flag.
     }
+    // NOTE: The check above implicitly handles the case where the component mounts
+    // and the user is already logged in but loginRequired was persisted.
   }, [sessionStatus, loginRequired, setLoginRequired]);
 
   if (loginRequired) {
@@ -562,7 +582,7 @@ const AdventureGame = () => {
                             ${
                               fullscreenHandle.active
                                 ? 'bg-black h-full w-full'
-                                : 'min-h-[200px] aspect-[16/10] rounded shadow-md bg-slate-700 flex items-center justify-center shadow-xl shadow-amber-300/20 game-image-wrapper'
+                                : 'min-h-[200px] aspect-[16/10] rounded-t shadow-md bg-slate-700 flex items-center justify-center shadow-xl shadow-amber-300/20 game-image-wrapper'
                             }
                           `}
                         >
@@ -582,7 +602,7 @@ const AdventureGame = () => {
                                 className={`absolute top-2 left-2 z-20 p-1.5 bg-black/40 text-white/80 rounded-full hover:bg-black/60 hover:text-white transition-all
                                   ${
                                     fullscreenHandle.active
-                                      ? showFullscreenControls
+                                      ? showFullscreenControls && !isTouchDevice
                                         ? 'opacity-100 pointer-events-auto duration-200'
                                         : 'opacity-0 pointer-events-none duration-300'
                                       : 'opacity-50 hover:opacity-100 transition-opacity duration-200'
@@ -622,30 +642,32 @@ const AdventureGame = () => {
                             </>
                           )}
 
+                          {/* Centered Pause icon */}
+                          {currentAudioData && !isTTSPlaying && !isNodeLoading && (
+                            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                              <PauseIcon className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 text-white/75" />
+                            </div>
+                          )}
+
+                          {/* Click handler overlay */}
+                          <div
+                            className="absolute inset-0 z-10 cursor-pointer"
+                            onClick={currentAudioData ? togglePlayPause : undefined}
+                          ></div>
+
+                          {/* <-- Volume Slider Section (Top Right) --> */}
                           {currentAudioData && (
                             <div
                               className={`absolute top-2 right-2 z-20 flex items-center space-x-2 bg-black/40 rounded-full px-2 py-1 transition-all
-                                ${
-                                  fullscreenHandle.active
-                                    ? showFullscreenControls
-                                      ? 'opacity-100 pointer-events-auto duration-200'
-                                      : 'opacity-0 pointer-events-none duration-300'
-                                    : 'opacity-50 hover:opacity-100 transition-opacity duration-200'
-                                }
-                              `}
+                                  ${
+                                    fullscreenHandle.active
+                                      ? showFullscreenControls && !isTouchDevice
+                                        ? 'opacity-100 pointer-events-auto duration-200'
+                                        : 'opacity-0 pointer-events-none duration-300'
+                                      : 'opacity-50 hover:opacity-100 transition-opacity duration-200'
+                                  }
+                                `}
                             >
-                              <button
-                                onClick={togglePlayPause}
-                                className="p-1 text-white/80 hover:text-white transition-all"
-                                aria-label={isTTSPlaying ? 'Pause narration' : 'Play narration'}
-                              >
-                                {isTTSPlaying ? (
-                                  <PauseIcon className="h-5 w-5" />
-                                ) : (
-                                  <PlayIcon className="h-5 w-5" />
-                                )}
-                              </button>
-                              {/* Always render volume slider if audio exists */}
                               <input
                                 type="range"
                                 min="0"
@@ -653,7 +675,7 @@ const AdventureGame = () => {
                                 step="0.05"
                                 value={localVolume}
                                 onChange={handleVolumeChange}
-                                className="w-16 h-1 bg-slate-500 rounded-full appearance-none cursor-pointer accent-slate-400"
+                                className="w-16 h-1 bg-slate-500 rounded-full appearance-none cursor-pointer accent-amber-300"
                                 aria-label="Narration volume"
                               />
                               {ttsPlayerError && (
@@ -663,51 +685,52 @@ const AdventureGame = () => {
                               )}
                             </div>
                           )}
-
-                          <div
-                            className={`
-                              absolute bottom-0 left-0 right-0 p-2 pt-10 sm:p-3 sm:pt-12 md:p-4 md:pt-16 z-10
-                              bg-gradient-to-t from-black/80 via-black/60 to-transparent backdrop-blur-sm
+                        </div>{' '}
+                        {/* End Image Container Div */}
+                        {/* Choices Section - REMOVE Slider from here */}
+                        <div
+                          className={`
+                              p-2 pt-4 sm:p-3 sm:pt-6 md:p-4 md:pt-8 z-10
+                              ${fullscreenHandle.active ? 'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/60 to-transparent backdrop-blur-sm' : 'bg-slate-800 rounded-b'}
                               transition-opacity duration-500 ease-in-out
                               ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
                             `}
-                          >
-                            {showChoices && (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 w-full">
-                                {displayNode.choices.map((choice, index) => {
-                                  const isClicked = index === clickedChoiceIndex;
-                                  const isDisabled = isNodeLoading;
-                                  const isLoadingChoice = isNodeLoading && isClicked;
+                        >
+                          {showChoices && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 w-full">
+                              {displayNode.choices.map((choice, index) => {
+                                const isClicked = index === clickedChoiceIndex;
+                                const isDisabled = isNodeLoading;
+                                const isLoadingChoice = isNodeLoading && isClicked;
 
-                                  // Base classes + conditional styling
-                                  let currentChoiceClasses = `${buttonBaseClasses} ${choiceButtonClasses}`;
-                                  if (isDisabled && !isLoadingChoice) {
-                                    currentChoiceClasses += ' opacity-50 cursor-not-allowed';
-                                  }
-                                  if (isLoadingChoice) {
-                                    // Remove static shadows and add pulsing animation
-                                    currentChoiceClasses = currentChoiceClasses
-                                      .replace(/shadow-\[.*?\}]/g, '') // Remove base shadow
-                                      .replace(/hover:shadow-\[.*?\}]/g, ''); // Remove hover shadow
-                                    currentChoiceClasses +=
-                                      ' border-amber-500 bg-amber-100/20 animate-pulse-glow';
-                                  }
+                                // Base classes + conditional styling
+                                let currentChoiceClasses = `${buttonBaseClasses} ${choiceButtonClasses}`;
+                                if (isDisabled && !isLoadingChoice) {
+                                  currentChoiceClasses += ' opacity-50 cursor-not-allowed';
+                                }
+                                if (isLoadingChoice) {
+                                  // Remove static shadows and add pulsing animation
+                                  currentChoiceClasses = currentChoiceClasses
+                                    .replace(/shadow-\[.*?\}]/g, '') // Remove base shadow
+                                    .replace(/hover:shadow-\[.*?\}]/g, ''); // Remove hover shadow
+                                  currentChoiceClasses +=
+                                    ' border-amber-500 bg-amber-100/20 animate-pulse-glow';
+                                }
 
-                                  return (
-                                    <button
-                                      key={index}
-                                      onClick={() => handleChoiceClick(choice, index)}
-                                      className={currentChoiceClasses}
-                                      disabled={isDisabled}
-                                      data-testid={`choice-button-${index}`}
-                                    >
-                                      <span>{choice.text}</span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            )}
-                          </div>
+                                return (
+                                  <button
+                                    key={index}
+                                    onClick={() => handleChoiceClick(choice, index)}
+                                    className={currentChoiceClasses}
+                                    disabled={isDisabled}
+                                    data-testid={`choice-button-${index}`}
+                                  >
+                                    <span>{choice.text}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       </>
                     )}
