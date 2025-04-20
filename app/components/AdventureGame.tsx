@@ -276,7 +276,7 @@ const AdventureGame = () => {
   const buttonBaseClasses =
     'px-4 py-2 rounded-md border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800';
   const choiceButtonClasses =
-    'w-full text-left justify-start p-2 text-sm sm:p-3 sm:text-base md:p-5 md:text-xl lg:p-7 lg:text-2xl xl:p-10 xl:text-4xl border-amber-800/50 bg-gradient-to-br from-amber-100/5 via-amber-100/10 to-amber-100/5 text-amber-100/80 hover:text-amber-100 hover:border-amber-700 hover:from-amber-100/10 hover:to-amber-100/10 focus:ring-amber-500 shadow-md hover:shadow-lg flex items-center';
+    'w-full text-left justify-start p-2 text-sm sm:p-3 sm:text-base md:p-5 md:text-xl lg:p-7 lg:text-2xl xl:p-10 xl:text-4xl border-amber-800/50 bg-gradient-to-br from-amber-100/5 via-amber-100/10 to-amber-100/5 text-amber-100/80 shadow-[0_0_10px_rgba(252,211,77,0.3)] hover:shadow-[0_0_15px_rgba(252,211,77,0.5)] hover:text-amber-100 hover:border-amber-700 hover:from-amber-100/10 hover:to-amber-100/10 focus:ring-amber-500 flex items-center';
 
   useEffect(() => {
     if (nodeError !== null) {
@@ -598,7 +598,7 @@ const AdventureGame = () => {
                           <div
                             className={`
                               absolute bottom-0 left-0 right-0 p-2 pt-10 sm:p-3 sm:pt-12 md:p-4 md:pt-16 z-10
-                              bg-gradient-to-t from-black/80 via-black/60 to-transparent
+                              bg-gradient-to-t from-black/80 via-black/60 to-transparent backdrop-blur-sm
                               transition-opacity duration-500 ease-in-out
                               ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
                             `}
