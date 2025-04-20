@@ -98,7 +98,7 @@ interface RateLimitError {
 }
 
 // Type for the error state, which can be a string or a structured rate limit error
-type ErrorState = string | { rateLimitError: RateLimitError } | null;
+export type ErrorState = string | { rateLimitError: RateLimitError } | null;
 
 type Scenario = z.infer<typeof AdventureChoiceSchema>;
 

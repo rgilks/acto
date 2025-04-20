@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import Image from 'next/image';
-import useAdventureStore from '@/store/adventureStore';
+import useAdventureStore, { type ErrorState } from '@/store/adventureStore';
 import { AdventureChoiceSchema, AdventureNode } from '@/lib/domain/schemas';
 import { z } from 'zod';
 import {
@@ -175,6 +175,9 @@ const AdventureGame = () => {
     ),
   });
 
+  // Explicitly type the ref to match the possible error states
+  const previousErrorRef = useRef<ErrorState>(null);
+
   useEffect(() => {
     setLocalVolume(storeTtsVolume);
   }, [storeTtsVolume]);
@@ -304,9 +307,19 @@ const AdventureGame = () => {
       setIsSelectingScenario(false);
     }
 
-    // If store node changes (and is different from the currently displayed one), update component state
-    if (newlyFetchedNode && newlyFetchedNode !== displayNode) {
-      // Check object reference
+    // If store node changes OR we just successfully retried after a format error, update component state
+    const justRetriedSuccessfully =
+      previousErrorRef.current === 'AI_RESPONSE_FORMAT_ERROR' && !nodeError;
+    if (newlyFetchedNode && (newlyFetchedNode !== displayNode || justRetriedSuccessfully)) {
+      console.log('[AdventureGame Effect] Syncing new node to displayNode.', {
+        newNodeId: newlyFetchedNode?.passage.substring(0, 10), // Simple ID check
+        displayNodeId: displayNode?.passage.substring(0, 10),
+        justRetriedSuccessfully,
+      });
+
+      // Store the current error state *before* potential updates
+      previousErrorRef.current = nodeError;
+
       stopTTS();
       setShowChoices(false); // Hide choices for the new node initially
       setClickedChoiceIndex(null); // Reset clicked choice visual state
@@ -356,6 +369,11 @@ const AdventureGame = () => {
         stopTTS();
       }
     }
+
+    // Update the ref *after* the main logic
+    if (nodeError !== previousErrorRef.current) {
+      previousErrorRef.current = nodeError;
+    }
   }, [
     currentNode, // Main trigger
     displayNode, // Compare against current display
@@ -369,6 +387,7 @@ const AdventureGame = () => {
     setIsCurrentImageLoading, // Update state
     setCurrentAudioData, // Update state
     currentImageUrl, // Add missing dependency for image transition logic
+    nodeError, // Need to react to error changes for retry logic
     // Note: playTTS, hasUserInteracted, isTTSPlaying are used in handleImageLoad, not directly here
   ]);
 
