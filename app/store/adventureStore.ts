@@ -321,7 +321,8 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             const lastHistoryIndex = state.storyHistory.length - 1;
             if (lastHistoryIndex >= 0) {
               state.storyHistory[lastHistoryIndex] = {
-                ...state.storyHistory[lastHistoryIndex], // Keep passage, choiceText etc.
+                ...state.storyHistory[lastHistoryIndex], // Keep choiceText etc.
+                passage: newNode.passage,
                 summary: newNode.updatedSummary,
                 imageUrl: newNode.imageUrl,
                 audioBase64: newNode.audioBase64,
