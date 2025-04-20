@@ -276,7 +276,6 @@ const AdventureGame = () => {
       const newAudioData = newlyFetchedNode.audioBase64 ?? null;
       setCurrentAudioData(newAudioData); // Set audio data
       setDisplayNode(newlyFetchedNode); // Update the displayed node content
-      setUserPaused(!!newAudioData); // Assume paused if new audio exists, play will unpause
 
       // Set image URLs for cross-fade
       if (newlyFetchedNode.imageUrl && newlyFetchedNode.imageUrl !== currentImageUrl) {
