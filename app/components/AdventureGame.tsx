@@ -16,6 +16,7 @@ import ScenarioSelector from './ScenarioSelector';
 import useTTSPlayer from '@/hooks/useTTSPlayer';
 import { FullScreen, useFullScreenHandle } from 'react-full-screen';
 import { useSession } from 'next-auth/react';
+import AuthButton from './AuthButton';
 
 interface RateLimitError {
   message: string;
@@ -69,6 +70,7 @@ function formatResetTime(timestamp: number): string {
 }
 
 const AdventureGame = () => {
+  const store = useAdventureStore();
   const {
     currentNode,
     isLoading: isNodeLoading,
@@ -82,7 +84,9 @@ const AdventureGame = () => {
     fetchScenarios,
     triggerReset,
     stopSpeaking: stopTTS,
-  } = useAdventureStore();
+    setLoginRequired,
+    loginRequired,
+  } = store;
 
   const { data: _session, status: sessionStatus } = useSession();
   const isUserLoggedIn = sessionStatus === 'authenticated';
@@ -95,7 +99,6 @@ const AdventureGame = () => {
   const [currentAudioData, setCurrentAudioData] = useState<string | null>(null);
   const [localVolume, setLocalVolume] = useState<number>(storeTtsVolume);
   const [isSelectingScenario, setIsSelectingScenario] = useState(false);
-
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [showFullscreenControls, setShowFullscreenControls] = useState(false);
 
@@ -130,13 +133,6 @@ const AdventureGame = () => {
     setLocalVolume(storeTtsVolume);
   }, [storeTtsVolume]);
 
-  const [isIphone, setIsIphone] = useState(false);
-
-  useEffect(() => {
-    const userAgent = window.navigator.userAgent;
-    setIsIphone(/iPhone/i.test(userAgent));
-  }, []);
-
   useEffect(() => {
     if (
       sessionStatus === 'authenticated' &&
@@ -156,6 +152,12 @@ const AdventureGame = () => {
 
   const handleScenarioSelect = useCallback(
     (scenario: Scenario) => {
+      if (!isUserLoggedIn) {
+        console.log('[AdventureGame] User not logged in, setting login required.');
+        setLoginRequired(true);
+        return;
+      }
+
       setIsSelectingScenario(true);
       setGamePhase('loading_first_node');
       if (!hasUserInteracted) {
@@ -170,7 +172,7 @@ const AdventureGame = () => {
 
       makeChoice(scenario);
     },
-    [makeChoice, hasUserInteracted, stopTTS]
+    [isUserLoggedIn, setLoginRequired, makeChoice, hasUserInteracted, stopTTS]
   );
 
   const handleImageLoad = useCallback(
@@ -196,47 +198,79 @@ const AdventureGame = () => {
   );
 
   useEffect(() => {
-    const newlyFetchedNode =
-      gamePhase === 'playing' || gamePhase === 'loading_first_node' ? currentNode : null;
+    const syncHydratedState = () => {
+      const state = useAdventureStore.getState();
+      if (state.currentNode) {
+        console.log('[AdventureGame Hydration] Rehydrated node found, setting initial state.');
+        setGamePhase((currentPhase) =>
+          currentPhase === 'selecting_scenario' ? 'playing' : currentPhase
+        );
+        setDisplayNode(state.currentNode);
+        setCurrentAudioData(state.currentNode.audioBase64 ?? null);
+        setIsCurrentImageLoading(!!state.currentNode.imageUrl);
+        setShowChoices(false);
+      } else {
+        console.log('[AdventureGame Hydration] Store hydrated, but no currentNode found.');
+      }
+    };
+
+    if (useAdventureStore.persist.hasHydrated()) {
+      syncHydratedState();
+    } else {
+      const unsubscribe = useAdventureStore.persist.onFinishHydration(() => {
+        console.log('[AdventureGame Hydration] Hydration finished via subscription.');
+        syncHydratedState();
+        unsubscribe();
+      });
+      return () => {
+        unsubscribe();
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Effect to sync subsequent store changes
+  useEffect(() => {
+    const newlyFetchedNode = currentNode;
 
     if (gamePhase !== 'loading_first_node' && isSelectingScenario) {
       setIsSelectingScenario(false);
     }
 
+    // If store node changes (and is different from displayNode), update component state
     if (newlyFetchedNode && newlyFetchedNode.passage !== displayNode?.passage) {
+      console.log('[AdventureGame Sync Effect] Syncing store currentNode to displayNode.');
       stopTTS();
       setShowChoices(false);
-
       setDisplayNode(newlyFetchedNode);
       const newAudioData = newlyFetchedNode.audioBase64 ?? null;
       setCurrentAudioData(newAudioData);
-      console.log(
-        '[AdventureGame useEffect] Setting currentAudioData:',
-        newAudioData ? `Exists (${newAudioData.substring(0, 30)}...)` : 'null'
-      );
-      const imageAvailable = !!newlyFetchedNode.imageUrl;
-      const audioAvailable = !!newAudioData;
-      setIsCurrentImageLoading(imageAvailable);
-
+      setIsCurrentImageLoading(!!newlyFetchedNode.imageUrl);
       if (gamePhase === 'loading_first_node') {
         setGamePhase('playing');
       }
-
+      const imageAvailable = !!newlyFetchedNode.imageUrl;
+      const audioAvailable = !!newAudioData;
       if (!imageAvailable && !audioAvailable) {
         setShowChoices(true);
       } else if (!imageAvailable && audioAvailable) {
         if (hasUserInteracted && !isTTSPlaying) {
-          console.log('[AdventureGame useEffect] No image, has audio, not playing. Playing TTS.');
+          console.log('[AdventureGame Sync Effect] No image, has audio, not playing. Playing TTS.');
           playTTS();
         } else {
           console.log(
-            '[AdventureGame useEffect] No image, has audio, but no user interaction yet or already playing. Waiting.'
+            '[AdventureGame Sync Effect] No image, has audio, but no user interaction yet or already playing. Waiting.'
           );
         }
       } else if (imageAvailable) {
-        console.log('[AdventureGame useEffect] Has image. Waiting for handleImageLoad.');
+        console.log('[AdventureGame Sync Effect] Image available, waiting for load.');
       }
-    } else if (!newlyFetchedNode && displayNode && gamePhase === 'playing') {
+    } else if (!newlyFetchedNode && gamePhase !== 'selecting_scenario') {
+      // Handle case where currentNode becomes null (e.g., after reset via triggerReset)
+      console.log(
+        '[AdventureGame Sync Effect] Store currentNode is null, resetting phase and display.'
+      );
+      setGamePhase('selecting_scenario'); // <-- Explicitly set phase back
       setDisplayNode(null);
       setIsCurrentImageLoading(true);
       setCurrentAudioData(null);
@@ -252,6 +286,7 @@ const AdventureGame = () => {
     hasUserInteracted,
     isTTSPlaying,
     isSelectingScenario,
+    setGamePhase,
   ]);
 
   const handleChoiceClick = useCallback(
@@ -369,6 +404,30 @@ const AdventureGame = () => {
       ? (effectiveError.rateLimitError as RateLimitError)
       : null;
 
+  // Effect to reset loginRequired flag when user becomes authenticated
+  useEffect(() => {
+    if (sessionStatus === 'authenticated' && loginRequired) {
+      console.log('[AdventureGame] User authenticated, resetting loginRequired flag.');
+      setLoginRequired(false);
+    }
+  }, [sessionStatus, loginRequired, setLoginRequired]);
+
+  if (loginRequired) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-8 max-w-lg mx-auto bg-slate-800 border border-slate-700 rounded-lg shadow-xl space-y-6">
+        <h2 className="text-2xl font-bold text-yellow-400">Sign In Required</h2>
+        <p className="text-sm text-gray-400">New users are currently added via a waitlist.</p>
+        <AuthButton />
+        <button
+          onClick={handleRestart}
+          className="text-sm text-gray-400 hover:text-white underline pt-4"
+        >
+          Go back to Scenario Selection
+        </button>
+      </div>
+    );
+  }
+
   if (effectiveError === 'SCENARIO_PARSE_ERROR') {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
@@ -481,7 +540,7 @@ const AdventureGame = () => {
           return (
             <div className="flex-grow flex flex-col items-center justify-center h-full">
               <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin mb-4" />
-              <p className="text-gray-400">Generating your adventure...</p>
+              <p className="text-gray-400">Preparing scenario...</p>
             </div>
           );
         }
@@ -514,33 +573,31 @@ const AdventureGame = () => {
                                   <ArrowPathIcon className="h-8 w-8 text-slate-400 animate-spin" />
                                 </div>
                               )}
-                              {!isIphone && (
-                                <button
-                                  onClick={
+                              <button
+                                onClick={
+                                  fullscreenHandle.active
+                                    ? fullscreenHandle.exit
+                                    : fullscreenHandle.enter
+                                }
+                                className={`absolute top-2 left-2 z-20 p-1.5 bg-black/40 text-white/80 rounded-full hover:bg-black/60 hover:text-white transition-all
+                                  ${
                                     fullscreenHandle.active
-                                      ? fullscreenHandle.exit
-                                      : fullscreenHandle.enter
+                                      ? showFullscreenControls
+                                        ? 'opacity-100 pointer-events-auto duration-200'
+                                        : 'opacity-0 pointer-events-none duration-300'
+                                      : 'opacity-50 hover:opacity-100 transition-opacity duration-200'
                                   }
-                                  className={`absolute top-2 left-2 z-20 p-1.5 bg-black/40 text-white/80 rounded-full hover:bg-black/60 hover:text-white transition-all
-                                    ${
-                                      fullscreenHandle.active
-                                        ? showFullscreenControls
-                                          ? 'opacity-100 pointer-events-auto duration-200'
-                                          : 'opacity-0 pointer-events-none duration-300'
-                                        : 'opacity-50 hover:opacity-100 transition-opacity duration-200'
-                                    }
-                                  `}
-                                  aria-label={
-                                    fullscreenHandle.active ? 'Exit fullscreen' : 'Enter fullscreen'
-                                  }
-                                >
-                                  {fullscreenHandle.active ? (
-                                    <ArrowsPointingInIcon className="h-5 w-5" />
-                                  ) : (
-                                    <ArrowsPointingOutIcon className="h-5 w-5" />
-                                  )}
-                                </button>
-                              )}
+                                `}
+                                aria-label={
+                                  fullscreenHandle.active ? 'Exit fullscreen' : 'Enter fullscreen'
+                                }
+                              >
+                                {fullscreenHandle.active ? (
+                                  <ArrowsPointingInIcon className="h-5 w-5" />
+                                ) : (
+                                  <ArrowsPointingOutIcon className="h-5 w-5" />
+                                )}
+                              </button>
                               <Image
                                 key={displayNode.imageUrl}
                                 src={displayNode.imageUrl}
@@ -588,18 +645,17 @@ const AdventureGame = () => {
                                   <PlayIcon className="h-5 w-5" />
                                 )}
                               </button>
-                              {!isIphone && (
-                                <input
-                                  type="range"
-                                  min="0"
-                                  max="1"
-                                  step="0.05"
-                                  value={localVolume}
-                                  onChange={handleVolumeChange}
-                                  className="w-16 h-1 bg-slate-500 rounded-full appearance-none cursor-pointer accent-slate-400"
-                                  aria-label="Narration volume"
-                                />
-                              )}
+                              {/* Always render volume slider if audio exists */}
+                              <input
+                                type="range"
+                                min="0"
+                                max="1"
+                                step="0.05"
+                                value={localVolume}
+                                onChange={handleVolumeChange}
+                                className="w-16 h-1 bg-slate-500 rounded-full appearance-none cursor-pointer accent-slate-400"
+                                aria-label="Narration volume"
+                              />
                               {ttsPlayerError && (
                                 <span className="ml-2 text-xs text-red-400 bg-black/50 px-1.5 py-0.5 rounded">
                                   Audio Error

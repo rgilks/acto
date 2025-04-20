@@ -58,6 +58,7 @@ interface AdventureActions {
   fetchAdventureNode: (choiceText?: string, metadata?: AdventureMetadata) => Promise<void>;
   fetchScenarios: () => Promise<void>;
   setCurrentMetadata: (metadata: AdventureMetadata) => void;
+  setLoginRequired: (required: boolean) => void;
   // TTS Actions (Keep)
   stopSpeaking: () => void;
   setSpeaking: (isSpeaking: boolean) => void;
@@ -144,12 +145,8 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             state.fetchScenariosError = null;
           });
         } catch (error) {
-          // Catch errors thrown above or other unexpected issues
-          // const errorMessage =
-          //  error instanceof Error ? error.message : 'Unknown error fetching scenarios.';
-          console.error('Error fetching scenarios:', error); // Keep console error for debugging
+          console.error('Error fetching scenarios:', error);
           set((state) => {
-            // Set a specific error code instead of the raw message
             state.fetchScenariosError = 'SCENARIO_FETCH_FAILED';
             state.isFetchingScenarios = false;
           });
@@ -273,6 +270,12 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         void get().fetchAdventureNode(choice.text, metadataToPass);
       },
 
+      setLoginRequired: (required) => {
+        set((state) => {
+          state.loginRequired = required;
+        });
+      },
+
       resetAdventure: () => {
         get().stopSpeaking();
         set(() => initialState);
@@ -281,7 +284,6 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
       triggerReset: () => {
         const { resetAdventure } = get();
         resetAdventure();
-        // Clear the scenario cache from session storage
         if (typeof window !== 'undefined') {
           try {
             sessionStorage.removeItem('adventureGame_scenarios');
