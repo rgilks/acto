@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, RefObject } from 'react';
 
 interface UseTTSPlayerProps {
-  audioData: string | null;
+  audioSrc: string | null;
   volume: number;
   onPlaybackEnd?: () => void;
   onPlaybackError?: (errorMsg: string) => void;
@@ -17,7 +17,7 @@ interface UseTTSPlayerReturn {
 }
 
 function useTTSPlayer({
-  audioData,
+  audioSrc,
   volume,
   onPlaybackEnd,
   onPlaybackError,
@@ -25,7 +25,6 @@ function useTTSPlayer({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const audioSrcRef = useRef<string | null>(null);
   const [isAudioInitialized, setIsAudioInitialized] = useState<boolean>(false);
 
   const handleEnded = useCallback(() => {
@@ -76,10 +75,10 @@ function useTTSPlayer({
 
   const play = useCallback(() => {
     const audioElement = audioRef.current;
-    const latestSrc = audioSrcRef.current;
+    const latestSrc = audioSrc;
 
     if (!audioElement || !latestSrc) {
-      const msg = 'Audio element or source not available for playback.';
+      const msg = 'Audio element or source URL not available for playback.';
       console.warn('[useTTSPlayer] Playback failed:', msg);
       setError(msg);
       onPlaybackError?.(msg);
@@ -88,14 +87,14 @@ function useTTSPlayer({
     }
 
     if (audioElement.src !== latestSrc) {
-      console.log('[useTTSPlayer] Setting audio src before play.');
+      console.log('[useTTSPlayer] Setting audio src URL before play.');
       audioElement.src = latestSrc;
     }
 
     setError(null);
 
     if (audioElement.paused || !isPlaying) {
-      console.log('[useTTSPlayer] Attempting to load and play...');
+      console.log('[useTTSPlayer] Attempting to load and play URL...');
       audioElement.load();
       audioElement
         .play()
@@ -103,13 +102,13 @@ function useTTSPlayer({
           setIsPlaying(true);
         })
         .catch(() => {
-          const msg = 'Audio playback failed.';
+          const msg = 'Audio playback from URL failed.';
           setError(msg);
           setIsPlaying(false);
           onPlaybackError?.(msg);
         });
     }
-  }, [isPlaying, audioRef, onPlaybackError]);
+  }, [isPlaying, audioRef, onPlaybackError, audioSrc]);
 
   const pause = useCallback(() => {
     const audioElement = audioRef.current;
@@ -134,24 +133,26 @@ function useTTSPlayer({
   }, [isPlaying, handleEnded, audioRef]);
 
   useEffect(() => {
-    const newSrc = audioData ? `data:audio/mp3;base64,${audioData}` : null;
+    const audioElement = audioRef.current;
+    if (!audioElement) return;
 
-    if (newSrc !== audioSrcRef.current) {
-      console.log('[useTTSPlayer] Audio data changed, updating src ref.');
-      audioSrcRef.current = newSrc;
+    const currentSrc = audioElement.src;
+    const newSrc = audioSrc;
+
+    const srcNeedsUpdate = (newSrc || '') !== (currentSrc || '');
+
+    if (srcNeedsUpdate) {
+      console.log(`[useTTSPlayer] Audio source URL changed. Old: ${currentSrc}, New: ${newSrc}`);
+      audioElement.src = newSrc || '';
 
       if (isPlaying) {
-        console.log('[useTTSPlayer] Stopping playback due to source change.');
+        console.log('[useTTSPlayer] Stopping playback due to source URL change.');
         stop();
-      }
-
-      if (newSrc === null && audioRef.current) {
-        audioRef.current.src = '';
       }
 
       setError(null);
     }
-  }, [audioData, isPlaying, stop]);
+  }, [audioSrc, isPlaying, stop, audioRef]);
 
   useEffect(() => {
     const audioElement = audioRef.current;

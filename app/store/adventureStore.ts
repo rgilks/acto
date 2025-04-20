@@ -98,6 +98,8 @@ export interface StoryHistoryItem {
   choiceText?: string;
   summary?: string;
   imageUrl?: string | null;
+  audioUrl?: string | null;
+  audioBase64?: string | null;
   prompt?: string;
   imagePrompt?: string;
   choices?: z.infer<typeof AdventureChoiceSchema>[];
@@ -362,6 +364,8 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
               passage: newNode.passage,
               summary: newNode.updatedSummary,
               imageUrl: newNode.imageUrl,
+              audioUrl: newNode.audioUrl,
+              audioBase64: newNode.audioBase64,
               prompt: fullPromptForLog,
               imagePrompt: newNode.imagePrompt,
               choices: newNode.choices,
@@ -500,7 +504,8 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
 
           // Determine media file references
           const imageFileRef = item.imageUrl ? `media/image_${i}.png` : undefined; // Assuming png for simplicity
-          // const audioFileRef = item.audioBase64 ? `media/audio_${i}.mp3` : undefined; // Removed audio ref
+          // Use audioUrl to determine audio file reference
+          const audioFileRef = item.audioUrl ? `media/audio_${i}.mp3` : undefined; // Assuming mp3
 
           // Use the specific interface directly now
           const logEntry: PromptLogEntry = {
@@ -511,15 +516,11 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             choices: item.choices?.map((c) => c.text ?? '') ?? [],
             summary: item.summary ?? 'Summary not recorded',
             choiceMade: choiceMadeText,
+            // Add imageFile if exists
+            imageFile: imageFileRef,
+            // Add audioFile if exists
+            audioFile: audioFileRef,
           };
-
-          // Conditionally add media file references
-          if (imageFileRef) {
-            logEntry.imageFile = imageFileRef;
-          }
-          // if (audioFileRef) { // Removed audio ref logic
-          //   logEntry.audioFile = audioFileRef;
-          // }
 
           // Push the typed object
           promptLog.push(logEntry);
@@ -527,9 +528,11 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           fullHistoryForJson.push({
             ...item,
             // Prepare item for story.json (removing unnecessary fields for this file)
-            imageFile: item.imageUrl ? `media/image_${i}.png` : undefined,
-            // audioFile: item.audioBase64 ? `media/audio_${i}.mp3` : undefined, // Removed audio ref
-            // audioBase64: undefined, // No longer exists
+            imageFile: imageFileRef,
+            // Add audioFile reference based on audioUrl
+            audioFile: audioFileRef,
+            // Remove base64 from history item for story.json
+            audioBase64: undefined,
             prompt: undefined,
             imagePrompt: undefined,
             choices: undefined,
@@ -542,7 +545,8 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             passage: currentNode.passage,
             summary: currentNode.updatedSummary,
             imageUrl: currentNode.imageUrl,
-            // Omit prompt, choiceText, audio etc. for the final node state in story.json
+            audioUrl: currentNode.audioUrl,
+            // Omit prompt, choiceText, etc. for the final node state in story.json
           });
         }
 
@@ -589,23 +593,28 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           }
         });
 
-        // 3. Decode base64 audio and add it to the zip (Use original storyHistory for audio data) // REMOVED
-        // const audioPromises = storyHistory.map(async (item, index) => { // REMOVED
-        //   if (item.audioBase64) { // REMOVED
-        //     try { // REMOVED
-        //       // Assuming audio is MP3 format as stored // REMOVED
-        //       const fetchResponse = await fetch(`data:audio/mpeg;base64,${item.audioBase64}`); // REMOVED
-        //       const blob = await fetchResponse.blob(); // REMOVED
-        //       mediaFolder.file(`audio_${index}.mp3`, blob); // REMOVED
-        //       console.log(`[Save Story] Added audio_${index}.mp3 to zip.`); // REMOVED
-        //     } catch (error) { // REMOVED
-        //       console.error(`[Save Story] Failed to decode or add audio ${index}:`, error); // REMOVED
-        //     } // REMOVED
-        //   } // REMOVED
-        // }); // REMOVED
+        // 3. Fetch audio from URLs and add to the zip
+        const audioPromises = storyHistory.map(async (item, index) => {
+          if (item.audioUrl) {
+            try {
+              const response = await fetch(item.audioUrl);
+              if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+              const blob = await response.blob();
+              // Assume mp3 extension, could potentially check blob.type
+              const extension = 'mp3';
+              mediaFolder.file(`audio_${index}.${extension}`, blob);
+              console.log(`[Save Story] Added audio_${index}.${extension} to zip.`);
+            } catch (error) {
+              console.error(
+                `[Save Story] Failed to fetch or add audio ${index} (${item.audioUrl}):`,
+                error
+              );
+            }
+          }
+        });
 
         // Wait for all images and audio files to be processed
-        await Promise.all([...imagePromises]); // Removed audioPromises
+        await Promise.all([...imagePromises, ...audioPromises]); // Add audioPromises back
 
         // 4. Generate the zip file and trigger download
         try {

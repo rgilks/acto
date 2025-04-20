@@ -28,6 +28,7 @@ export const AdventureNodeSchema = z.object({
     .optional()
     .describe('A brief summary of the entire story up to and including this passage.'),
   imageUrl: z.string().url().optional().describe('URL of the AI-generated image for this node'),
+  audioUrl: z.string().url().optional().describe('URL of the AI-generated audio for this node'),
   audioBase64: z.string().optional().describe('Base64 encoded MP3 audio data for the passage'),
   generationPrompt: z
     .string()

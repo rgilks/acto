@@ -80,6 +80,11 @@ const nextConfig = withPWA({
         hostname: 'storage.ko-fi.com',
         pathname: '**',
       },
+      {
+        protocol: 'https',
+        hostname: 'storage.googleapis.com',
+        pathname: '**',
+      },
     ],
   },
   eslint: {

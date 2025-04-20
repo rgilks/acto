@@ -164,7 +164,7 @@ const AdventureGame = () => {
     error: ttsPlayerError,
     audioRef: ttsAudioRef,
   } = useTTSPlayer({
-    audioData: currentAudioData,
+    audioSrc: currentAudioData,
     volume: storeTtsVolume,
     onPlaybackEnd: useCallback(() => {
       // Don't show choices directly, set flag instead
@@ -278,15 +278,15 @@ const AdventureGame = () => {
           currentPhase === 'selecting_scenario' ? 'playing' : currentPhase
         );
         setDisplayNode(state.currentNode);
-        const initialAudioData = state.currentNode.audioBase64 ?? null;
-        setCurrentAudioData(initialAudioData);
+        const initialAudioSrc = state.currentNode.audioUrl ?? null;
+        setCurrentAudioData(initialAudioSrc);
         // Set initial image states for potential crossfade on first real node change
         setCurrentImageUrl(state.currentNode.imageUrl ?? null);
         setPreviousImageUrl(state.currentNode.imageUrl ?? null);
         setIsCurrentImageLoading(!!state.currentNode.imageUrl);
         setShowChoices(false);
         setFocusedChoiceIndex(null);
-        setUserPaused(!!initialAudioData); // If audio exists on load, consider it paused initially
+        setUserPaused(!!initialAudioSrc); // If audio exists on load, consider it paused initially
       }
     };
 
@@ -334,13 +334,14 @@ const AdventureGame = () => {
       setFocusedChoiceIndex(null);
       // Don't set isCurrentImageLoading here directly, handleImageLoad will do it
 
-      const newAudioData = newlyFetchedNode.audioBase64 ?? null;
-      setCurrentAudioData(newAudioData); // Set audio data for the player hook
+      // Use audioUrl instead of audioBase64
+      const newAudioSrc = newlyFetchedNode.audioUrl ?? null;
+      setCurrentAudioData(newAudioSrc); // Set audio source URL for the player hook
       setDisplayNode(newlyFetchedNode); // Update the displayed node content
 
       // --- Set paused state only for the first node ---
       const isFirstNodeLoading = gamePhase === 'loading_first_node';
-      setUserPaused(isFirstNodeLoading && !!newAudioData); // Pause only if it's the first node and has audio
+      setUserPaused(isFirstNodeLoading && !!newAudioSrc); // Pause only if it's the first node and has audio
 
       // Set image URLs for cross-fade
       if (newlyFetchedNode.imageUrl && newlyFetchedNode.imageUrl !== currentImageUrl) {
@@ -360,7 +361,7 @@ const AdventureGame = () => {
         }, 1000);
 
         // --- ADDED: Autoplay audio if no image on subsequent nodes ---
-        if (newAudioData && !isFirstNodeLoading && hasUserInteracted) {
+        if (newAudioSrc && !isFirstNodeLoading && hasUserInteracted) {
           // If there IS audio, NO image, it's NOT the first node, and user HAS interacted, play audio.
           console.log('[AdventureGame Effect] Autoplaying audio for node with no image.');
           playTTS();

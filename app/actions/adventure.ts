@@ -1,6 +1,7 @@
 'use server';
 
 import { z } from 'zod';
+import { Storage } from '@google-cloud/storage';
 import { getActiveModel, getGoogleAIClient, ModelConfig } from '@/lib/modelConfig';
 import {
   AdventureNodeSchema,
@@ -14,6 +15,81 @@ import { TTS_VOICE_NAME } from '@/lib/constants';
 import { getSession } from '@/app/auth';
 import { checkTextRateLimit, checkImageRateLimit } from '@/lib/rateLimitSqlite';
 import { buildAdventurePrompt } from '@/lib/promptUtils';
+
+let storage: Storage | undefined;
+try {
+  const credentialsJson = process.env.GOOGLE_APP_CREDS_JSON;
+  if (credentialsJson) {
+    console.log(
+      '[GCS] Initializing Storage client using GOOGLE_APP_CREDS_JSON environment variable.'
+    );
+    const credentials = JSON.parse(credentialsJson);
+    storage = new Storage({ credentials });
+  } else {
+    console.log(
+      '[GCS] GOOGLE_APP_CREDS_JSON not found, initializing Storage client using default credentials (e.g., GOOGLE_APPLICATION_CREDENTIALS or ADC).'
+    );
+    // Fallback to default ADC (e.g., GOOGLE_APPLICATION_CREDENTIALS file path or workload identity)
+    storage = new Storage();
+  }
+} catch (error) {
+  console.error('[GCS] Failed to initialize Google Cloud Storage client:', error);
+  if (error instanceof SyntaxError) {
+    console.error('[GCS] Check if GOOGLE_APP_CREDS_JSON contains valid JSON.');
+  }
+  Sentry.captureException(error);
+}
+const GCS_BUCKET_NAME = process.env.GCS_BUCKET_NAME;
+
+async function uploadBase64ToGCS(
+  base64Data: string,
+  destinationFilename: string,
+  contentType: string
+): Promise<string | null> {
+  if (!storage) {
+    console.error('[GCS Upload] Storage client not initialized.');
+    return null;
+  }
+  if (!GCS_BUCKET_NAME) {
+    console.error('[GCS Upload] GCS_BUCKET_NAME environment variable not set.');
+    return null;
+  }
+
+  try {
+    const buffer = Buffer.from(base64Data, 'base64');
+    const bucket = storage.bucket(GCS_BUCKET_NAME);
+    const file = bucket.file(destinationFilename);
+
+    // Upload without making the file public
+    await file.save(buffer, {
+      metadata: {
+        contentType: contentType,
+        // Optional: Set cache control if desired
+        // cacheControl: 'private, max-age=3600', // e.g., cache for 1 hour
+      },
+      // REMOVED: public: true,
+    });
+
+    console.log(`[GCS Upload] Successfully uploaded ${destinationFilename} (privately).`);
+
+    // Generate a Signed URL for read access (e.g., valid for 1 day)
+    const options = {
+      version: 'v4' as const, // Use v4 signing process
+      action: 'read' as const,
+      expires: Date.now() + 24 * 60 * 60 * 1000, // 1 day in milliseconds
+    };
+
+    const [signedUrl] = await file.getSignedUrl(options);
+    console.log(
+      `[GCS Upload] Generated signed URL for ${destinationFilename}: ${signedUrl.substring(0, 100)}...`
+    ); // Log truncated URL
+    return signedUrl;
+  } catch (error) {
+    console.error(`[GCS Upload] Failed to upload ${destinationFilename} or get signed URL:`, error);
+    Sentry.captureException(error, { extra: { filename: destinationFilename } });
+    return null;
+  }
+}
 
 const GenerateAdventureNodeParamsSchema = z.object({
   storyContext: z.object({
@@ -48,9 +124,6 @@ async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Pro
   console.log('[Adventure] Calling AI...');
 
   try {
-    // console.log('----------------- PROMPT START -----------------');
-    // console.log(prompt);
-    // console.log('-----------------  PROMPT END  -----------------');
     const genAI: GoogleGenAI = getGoogleAIClient();
     const result = await genAI.models.generateContent({
       model: modelConfig.name,
@@ -108,8 +181,8 @@ async function generateImageWithGemini(
   genre?: string | null,
   tone?: string | null
 ): Promise<
-  | { dataUri: string; error: undefined }
-  | { dataUri: undefined; error: string; rateLimitResetTimestamp?: number }
+  | { imageUrl: string; error: undefined }
+  | { imageUrl: undefined; error: string; rateLimitResetTimestamp?: number }
 > {
   const imageLimitCheck = await checkImageRateLimit();
   if (!imageLimitCheck.success) {
@@ -117,7 +190,7 @@ async function generateImageWithGemini(
       `[Adventure Image] Rate limit exceeded for user. Error: ${imageLimitCheck.errorMessage}`
     );
     return {
-      dataUri: undefined,
+      imageUrl: undefined,
       error: imageLimitCheck.errorMessage ?? 'Image generation rate limit exceeded.',
       rateLimitResetTimestamp: imageLimitCheck.reset,
     };
@@ -165,9 +238,18 @@ async function generateImageWithGemini(
     if (image.image?.imageBytes) {
       const base64Data = image.image.imageBytes;
       const mimeType = 'image/png';
-      const dataUri = `data:${mimeType};base64,${base64Data}`;
-      console.log('[Adventure Image] Generated Image as Data URI via @google/genai SDK.');
-      return { dataUri: dataUri, error: undefined };
+
+      const timestamp = Date.now();
+      const filename = `adventure-images/image_${timestamp}.png`;
+      const gcsUrl = await uploadBase64ToGCS(base64Data, filename, mimeType);
+
+      if (gcsUrl) {
+        console.log('[Adventure Image] Generated Image and uploaded to GCS.');
+        return { imageUrl: gcsUrl, error: undefined };
+      } else {
+        console.error('[Adventure Image] Failed to upload image to GCS.');
+        throw new Error('Failed to upload generated image to cloud storage.');
+      }
     } else {
       console.error(
         '[Adventure Image] No imageBytes found in the generated image response part:',
@@ -176,10 +258,10 @@ async function generateImageWithGemini(
       throw new Error('No imageBytes found in the generateImages response.');
     }
   } catch (error) {
-    console.error('[Adventure Image] Failed to generate image via @google/genai SDK:', error);
+    console.error('[Adventure Image] Failed to generate or upload image:', error);
     Sentry.captureException(error, { extra: { imagePrompt: imagePrompt } });
     return {
-      dataUri: undefined,
+      imageUrl: undefined,
       error: error instanceof Error ? error.message : 'Failed to generate image.',
     };
   }
@@ -190,10 +272,11 @@ export const generateAdventureNodeAction = async (
   voice?: string | null
 ): Promise<GenerateAdventureNodeResult> => {
   const session = await getSession();
-  if (!session?.user) {
+  if (!session?.user?.id) {
     console.warn('[Adventure Action] Unauthorized attempt.');
     return { error: 'Unauthorized: User must be logged in.' };
   }
+  const userId = session.user.id;
 
   const textLimitCheck = await checkTextRateLimit();
   if (!textLimitCheck.success) {
@@ -264,7 +347,8 @@ export const generateAdventureNodeAction = async (
     const passage = validatedNode.passage;
     const updatedSummary = validatedNode.updatedSummary;
 
-    let imageUrl: string | undefined = undefined;
+    let finalImageUrl: string | undefined = undefined;
+    let finalAudioUrl: string | undefined = undefined;
     let audioBase64: string | undefined = undefined;
     let imageError: string | undefined = undefined;
     let ttsError: string | undefined = undefined;
@@ -275,7 +359,7 @@ export const generateAdventureNodeAction = async (
       promisesToSettle.push(generateImageWithGemini(imagePromptFromAI, visualStyle, genre, tone));
     } else {
       console.warn('[Adventure Action] Skipping image generation: no prompt.');
-      promisesToSettle.push(Promise.resolve({ dataUri: undefined, error: undefined }));
+      promisesToSettle.push(Promise.resolve({ imageUrl: undefined, error: undefined }));
     }
 
     if (passage) {
@@ -290,8 +374,8 @@ export const generateAdventureNodeAction = async (
     try {
       const results = (await Promise.allSettled(promisesToSettle)) as [
         PromiseSettledResult<
-          | { dataUri: string; error: undefined }
-          | { dataUri: undefined; error: string; rateLimitResetTimestamp?: number }
+          | { imageUrl: string; error: undefined }
+          | { imageUrl: undefined; error: string; rateLimitResetTimestamp?: number }
         >,
         PromiseSettledResult<SynthesizeSpeechResult>,
       ];
@@ -300,32 +384,44 @@ export const generateAdventureNodeAction = async (
       const audioResultAction = results[1];
 
       if (imageResult.status === 'fulfilled') {
-        if (imageResult.value.dataUri) {
-          imageUrl = imageResult.value.dataUri;
+        if (imageResult.value.imageUrl) {
+          finalImageUrl = imageResult.value.imageUrl;
         } else if (imageResult.value.error) {
           imageError = imageResult.value.error;
-          console.error('[Adventure Action] Image generation failed:', imageError);
+          console.error('[Adventure Action] Image generation/upload failed:', imageError);
           if (imageResult.value.rateLimitResetTimestamp) {
-            imageError = imageResult.value.error;
           }
         }
       } else if (imageResult.status === 'rejected') {
         imageError =
           imageResult.reason instanceof Error
             ? imageResult.reason.message
-            : 'Unknown image generation error';
-        console.error('[Adventure Action] Image generation promise rejected:', imageResult.reason);
+            : 'Unknown image generation/upload error';
+        console.error('[Adventure Action] Image promise rejected:', imageResult.reason);
+        Sentry.captureException(imageResult.reason);
       }
 
       if (audioResultAction.status === 'fulfilled') {
         const audioData = audioResultAction.value;
         if (audioData.audioBase64) {
           audioBase64 = audioData.audioBase64;
+
+          const timestamp = Date.now();
+          const audioFilename = `adventure-audio/audio_${userId}_${timestamp}.mp3`;
+          const audioMimeType = 'audio/mpeg';
+          const gcsAudioUrl = await uploadBase64ToGCS(audioBase64, audioFilename, audioMimeType);
+
+          if (gcsAudioUrl) {
+            finalAudioUrl = gcsAudioUrl;
+            console.log('[Adventure Action] TTS successful and audio uploaded to GCS.');
+          } else {
+            console.error('[Adventure Action] TTS successful but failed to upload audio to GCS.');
+            ttsError = 'Failed to upload audio to cloud storage.';
+            Sentry.captureException(new Error(ttsError));
+          }
         } else if (audioData.error) {
           ttsError = audioData.error;
           console.error('[Adventure Action] TTS synthesis failed:', ttsError);
-          if (audioData.rateLimitError) {
-          }
         }
       } else if (audioResultAction.status === 'rejected') {
         ttsError =
@@ -347,13 +443,20 @@ export const generateAdventureNodeAction = async (
       passage: validatedNode.passage,
       choices: validatedNode.choices,
       imagePrompt: imagePromptFromAI,
-      imageUrl: imageUrl ?? validatedNode.imageUrl,
+      imageUrl: finalImageUrl ?? validatedNode.imageUrl,
+      audioUrl: finalAudioUrl,
       audioBase64: audioBase64,
       updatedSummary: updatedSummary,
       generationPrompt: prompt,
     };
 
-    console.log('[Adventure] Successfully generated node with summary and style context.');
+    if (imageError || ttsError) {
+      console.warn(
+        `[Adventure] Node generated with errors. ImageError: ${imageError}, TTSError: ${ttsError}`
+      );
+    }
+
+    console.log('[Adventure] Successfully generated node with GCS URLs (if applicable).');
     return { adventureNode: finalNode, prompt: prompt };
   } catch (error) {
     console.error('[Adventure] Error generating adventure node:', error);
