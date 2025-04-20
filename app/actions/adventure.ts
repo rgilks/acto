@@ -56,7 +56,7 @@ async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Pro
       model: modelConfig.name,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
-        temperature: 1.3,
+        temperature: 1.0,
         topP: 0.95,
         topK: 40,
         frequencyPenalty: 0.3,
