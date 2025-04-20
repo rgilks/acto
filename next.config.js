@@ -75,6 +75,11 @@ const nextConfig = withPWA({
         hostname: 'cdn.discordapp.com',
         pathname: '**',
       },
+      {
+        protocol: 'https',
+        hostname: 'storage.ko-fi.com',
+        pathname: '**',
+      },
     ],
   },
   eslint: {

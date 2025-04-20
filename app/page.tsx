@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import AuthButton from '@/components/AuthButton';
 import AdventureGame from '@/components/AdventureGame';
+import Image from 'next/image';
 
 const Page = () => {
   const { status } = useSession();
@@ -52,9 +53,10 @@ const Page = () => {
           </p>
           <p className="mt-4 text-center">
             <a href="https://ko-fi.com/N4N31DPNUS" target="_blank" rel="noopener noreferrer">
-              <img
+              <Image
+                width={145}
                 height={36}
-                style={{ border: '0px', height: '36px', display: 'block', margin: 'auto' }}
+                style={{ display: 'block', margin: 'auto' }}
                 src="https://storage.ko-fi.com/cdn/kofi2.png?v=6"
                 alt="Buy Me a Coffee at ko-fi.com"
               />
