@@ -8,7 +8,7 @@ import {
   type AdventureNode,
 } from '@/lib/domain/schemas';
 import * as Sentry from '@sentry/nextjs';
-import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold, GenerationConfig } from '@google/genai';
 import { synthesizeSpeechAction, type SynthesizeSpeechResult } from './tts';
 import { TTS_VOICE_NAME } from '@/lib/constants';
 import { getSession } from '@/app/auth';
@@ -44,45 +44,63 @@ type GenerateAdventureNodeResult = {
   prompt?: string;
 };
 
-async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Promise<string> {
+// Define a type for the config overrides
+type AIConfigOverrides = Partial<GenerationConfig>;
+
+async function callAIForAdventure(
+  prompt: string,
+  modelConfig: ModelConfig,
+  configOverrides?: AIConfigOverrides
+): Promise<string> {
   console.log('[Adventure] Calling AI...');
 
   try {
-    // console.log('----------------- PROMPT START -----------------');
-    // console.log(prompt);
-    // console.log('-----------------  PROMPT END  -----------------');
     const genAI: GoogleGenAI = getGoogleAIClient();
-    const result = await genAI.models.generateContent({
+
+    // Base configuration
+    const baseConfig: GenerationConfig = {
+      temperature: 1.0,
+      topP: 0.95,
+      topK: 40,
+      frequencyPenalty: 0.3,
+      presencePenalty: 0.6,
+      candidateCount: 1,
+      maxOutputTokens: 900,
+    };
+
+    // Safety settings
+    const safetySettings = [
+      {
+        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+      },
+    ];
+
+    // Merge base config with overrides
+    const finalConfig = { ...baseConfig, ...configOverrides };
+    console.log('[Adventure] Using final AI config:', JSON.stringify(finalConfig, null, 2)); // Log the final config
+
+    // Construct the request object directly without explicit type annotation
+    const request = {
       model: modelConfig.name,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: {
-        temperature: 1.0,
-        topP: 0.95,
-        topK: 40,
-        frequencyPenalty: 0.3,
-        presencePenalty: 0.6,
-        candidateCount: 1,
-        maxOutputTokens: 900,
-        safetySettings: [
-          {
-            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-          },
-          {
-            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-          },
-          {
-            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-          },
-          {
-            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-          },
-        ],
-      },
-    });
+      generationConfig: finalConfig,
+      safetySettings: safetySettings,
+    };
+
+    const result = await genAI.models.generateContent(request);
     const text = result.text;
 
     if (!text) {
@@ -227,7 +245,11 @@ export const generateAdventureNodeAction = async (
       visualStyle
     );
     const activeModel = getActiveModel();
-    const aiResponseContent = await callAIForAdventure(prompt, activeModel);
+
+    // Define specific overrides for node generation if needed, or leave empty for defaults
+    const nodeGenConfigOverrides: AIConfigOverrides = {};
+
+    const aiResponseContent = await callAIForAdventure(prompt, activeModel, nodeGenConfigOverrides);
 
     let parsedAiContent: unknown;
     try {
@@ -375,9 +397,10 @@ type GenerateScenariosResult = {
 };
 
 function buildScenariosPrompt(): string {
-  const jsonStructure = `[\n  {\n    "text": "(string) Engaging, specific, and imaginative scenario text (1-2 sentences max).",\n    "genre": "(string) Specific Genre (e.g., Sci-Fi Horror, Mythic Fantasy, Noir Mystery).",\n    "tone": "(string) Specific Tone (e.g., Absurdist, Melancholic, Suspenseful, Whimsical).",\n    "visualStyle": "(string) Specific and descriptive Visual Style (e.g., Impressionist Oil Painting, Low-Poly 3D, Ukiyo-e Woodblock Print, Art Deco Poster)."\n  }\n  /* Repeat this structure for 4 highly diverse scenarios */\n]`;
+  const jsonStructure = `[\n  {\n    "text": "(string) Engaging, highly imaginative starting scenario text (1-2 sentences max).",\n    "genre": "(string) Core genre or unique genre blend.",\n    "tone": "(string) Dominant tone or mood.",\n    "visualStyle": "(string) Evocative description of the visual aesthetic."
+  }\n  /* Repeat structure for 4 scenarios */\n]`;
 
-  return `You are a creative generator of diverse story scenarios.\n\n**Goal:** Generate a list of 4 compelling and unique starting scenarios for an interactive text adventure.\n\n**Key Requirements:**\n1.  **Maximum Diversity:** The 4 scenarios MUST be significantly different from each other in theme, setting, genre, tone, and visual style.\n2.  **Specificity:** Use concrete details in the scenario text, genre, tone, and visual style. Make the styles distinct and evocative.\n3.  **Conciseness:** Keep the scenario text brief (1-2 sentences).\n4.  **Strict JSON Output:** Respond ONLY with a valid JSON array matching this structure:\n${jsonStructure}\n\nGenerate 4 diverse scenarios now. Focus on variety and clear visual styles.`;
+  return `You are an experimental generator of highly diverse and unexpected story scenarios.\n\n**Goal:** Generate a list of 4 radically different and unique starting scenarios for an interactive text adventure.\n\n**Key Requirements:**\n1.  **Extreme Diversity:** The 4 scenarios MUST be maximally different from each other across multiple dimensions: theme, setting, core concepts, mood, and visual aesthetic. Avoid predictable combinations.\n2.  **Imaginative Specificity:** Use vivid, concrete details in the scenario text and visual style description. Aim for unique and evocative descriptions, not just standard labels.\n3.  **Conciseness:** Keep the scenario text brief (1-2 sentences).\n4.  **Novelty:** Prioritize unusual combinations and unexpected juxtapositions in genre, tone, and visual style.\n5.  **Strict JSON Output:** Respond ONLY with a valid JSON array matching this structure:\n${jsonStructure}\n\nGenerate 4 highly diverse, unexpected, and imaginative scenarios now.`;
 }
 
 export const generateScenariosAction = async (): Promise<GenerateScenariosResult> => {
@@ -403,7 +426,21 @@ export const generateScenariosAction = async (): Promise<GenerateScenariosResult
   try {
     const modelConfig = getActiveModel();
     const prompt = buildScenariosPrompt();
-    const aiResponseText = await callAIForAdventure(prompt, modelConfig);
+
+    // Define specific overrides for scenario generation - aim for maximum creativity/diversity
+    const scenarioGenConfigOverrides: AIConfigOverrides = {
+      temperature: 1.0, // Maximize temperature
+      topP: 0.9, // Slightly lower topP for less probable tokens
+      topK: 60, // Increase topK to consider more options
+      frequencyPenalty: 0.5, // Slightly increase penalties
+      presencePenalty: 0.7, // Slightly increase penalties
+    };
+
+    const aiResponseText = await callAIForAdventure(
+      prompt,
+      modelConfig,
+      scenarioGenConfigOverrides
+    );
 
     let parsedScenarios: unknown;
     try {
