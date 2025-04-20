@@ -16,7 +16,6 @@ import ScenarioSelector from './ScenarioSelector';
 import useTTSPlayer from '@/hooks/useTTSPlayer';
 import { FullScreen, useFullScreenHandle } from 'react-full-screen';
 import { useSession } from 'next-auth/react';
-import AuthButton from './AuthButton';
 
 interface RateLimitError {
   message: string;
@@ -80,9 +79,9 @@ const AdventureGame = () => {
     dynamicScenarios,
     isFetchingScenarios,
     fetchScenariosError,
-    fetchStartingScenarios,
-    loginRequired,
+    fetchScenarios,
     triggerReset,
+    stopSpeaking: stopTTS,
   } = useAdventureStore();
 
   const { data: _session, status: sessionStatus } = useSession();
@@ -106,7 +105,6 @@ const AdventureGame = () => {
   const {
     play: playTTS,
     pause: pauseTTS,
-    stop: stopTTS,
     isPlaying: isTTSPlaying,
     error: ttsPlayerError,
     audioRef: ttsAudioRef,
@@ -147,20 +145,14 @@ const AdventureGame = () => {
       !fetchScenariosError
     ) {
       console.log('[AdventureGame] User logged in, fetching dynamic scenarios...');
-      void fetchStartingScenarios();
+      void fetchScenarios();
     }
-  }, [
-    sessionStatus,
-    dynamicScenarios,
-    isFetchingScenarios,
-    fetchScenariosError,
-    fetchStartingScenarios,
-  ]);
+  }, [sessionStatus, dynamicScenarios, isFetchingScenarios, fetchScenariosError, fetchScenarios]);
 
   const handleFetchNewScenarios = useCallback(() => {
     setGamePhase('selecting_scenario');
-    void fetchStartingScenarios();
-  }, [fetchStartingScenarios]);
+    void fetchScenarios();
+  }, [fetchScenarios]);
 
   const handleScenarioSelect = useCallback(
     (scenario: Scenario) => {
@@ -301,17 +293,6 @@ const AdventureGame = () => {
     [setTTSVolume]
   );
 
-  const effectiveError = nodeError || fetchScenariosError;
-
-  const rateLimitInfo =
-    typeof effectiveError === 'object' &&
-    effectiveError !== null &&
-    'rateLimitError' in effectiveError
-      ? (effectiveError.rateLimitError as RateLimitError)
-      : null;
-
-  const simpleErrorMessage = typeof effectiveError === 'string' ? effectiveError : null;
-
   const handleRestart = useCallback(() => {
     triggerReset();
     setGamePhase('selecting_scenario');
@@ -337,11 +318,9 @@ const AdventureGame = () => {
 
     const handleMouseMove = (event: MouseEvent) => {
       if (!fullscreenHandle.active) return;
-
       const rect = container.getBoundingClientRect();
       const mouseY = event.clientY - rect.top;
       const threshold = rect.height * 0.2;
-
       if (mouseY <= threshold) {
         setShowFullscreenControls(true);
         if (hideTimeout) clearTimeout(hideTimeout);
@@ -373,27 +352,54 @@ const AdventureGame = () => {
     }, 100);
 
     return () => {
-      container.removeEventListener('mousemove', handleMouseMove);
-      container.removeEventListener('mouseleave', handleMouseLeave);
+      if (container) {
+        container.removeEventListener('mousemove', handleMouseMove);
+        container.removeEventListener('mouseleave', handleMouseLeave);
+      }
       if (hideTimeout) clearTimeout(hideTimeout);
       if (initialCheckTimeout) clearTimeout(initialCheckTimeout);
     };
-  }, [fullscreenHandle.active]);
+  }, [fullscreenHandle.active, setShowFullscreenControls]);
 
-  if (loginRequired) {
+  const effectiveError = nodeError || fetchScenariosError;
+  const rateLimitInfo =
+    typeof effectiveError === 'object' &&
+    effectiveError !== null &&
+    'rateLimitError' in effectiveError
+      ? (effectiveError.rateLimitError as RateLimitError)
+      : null;
+
+  if (effectiveError === 'SCENARIO_PARSE_ERROR') {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
-        <h2 className="text-2xl font-bold text-yellow-400 mb-4">Sign In Required</h2>
-        <p className="mb-4">Please sign in to start your adventure.</p>
-        <p className="text-sm text-gray-400 mb-6">
-          New users are currently added via a waitlist. Sign in to check your status or join!
+        <h2 className="text-2xl font-bold text-yellow-400 mb-4">Scenario Generation Hiccup</h2>
+        <p className="mb-6 text-gray-300">
+          Had a little trouble understanding the scenarios generated. Let&apos;s try again!
         </p>
-        <AuthButton />
         <button
-          onClick={handleRestart}
-          className="mt-4 text-sm text-gray-400 hover:text-white underline"
+          onClick={handleFetchNewScenarios}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white flex items-center"
         >
-          Go back
+          <ArrowPathIcon className="h-5 w-5 mr-2" />
+          Try Generating Scenarios Again
+        </button>
+      </div>
+    );
+  }
+
+  if (effectiveError === 'SCENARIO_FETCH_FAILED') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-4">
+        <h2 className="text-2xl font-bold text-amber-400 mb-4">Scenario Fetch Issue</h2>
+        <p className="mb-6 text-gray-300">
+          Couldn&apos;t fetch new scenarios from the server right now. Maybe try again?
+        </p>
+        <button
+          onClick={handleFetchNewScenarios}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white flex items-center"
+        >
+          <ArrowPathIcon className="h-5 w-5 mr-2" />
+          Retry Fetching Scenarios
         </button>
       </div>
     );
@@ -419,11 +425,18 @@ const AdventureGame = () => {
     );
   }
 
+  const simpleErrorMessage = typeof effectiveError === 'string' ? effectiveError : null;
   if (simpleErrorMessage) {
+    let friendlyMessage = 'Something went wrong. Please try starting over.';
+    if (simpleErrorMessage === 'Failed to fetch') {
+      friendlyMessage =
+        'Could not connect to the server. Please check your connection or click Start Over.';
+    }
+
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
-        <h2 className="text-2xl font-bold text-red-500 mb-4">An Error Occurred</h2>
-        <p className="mb-6">{simpleErrorMessage}</p>
+        <h2 className="text-2xl font-bold text-orange-400 mb-4">Oops! Something Went Wrong</h2>
+        <p className="mb-6 text-gray-300">{friendlyMessage}</p>
         <button
           onClick={handleRestart}
           className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white flex items-center"

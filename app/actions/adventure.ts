@@ -435,11 +435,11 @@ export const generateAdventureNodeAction = async (
   }
 };
 
-// Schema for the array of starting scenarios
-const StartingScenariosSchema = z.array(AdventureChoiceSchema);
+// Schema for the array of scenarios
+const ScenariosSchema = z.array(AdventureChoiceSchema);
 
-type GenerateStartingScenariosResult = {
-  scenarios?: z.infer<typeof StartingScenariosSchema>;
+type GenerateScenariosResult = {
+  scenarios?: z.infer<typeof ScenariosSchema>;
   error?: string;
   rateLimitError?: {
     message: string;
@@ -448,11 +448,11 @@ type GenerateStartingScenariosResult = {
   };
 };
 
-// Helper function to build the prompt for generating starting scenarios
-function buildStartingScenariosPrompt(): string {
+// Helper function to build the prompt for generating scenarios
+function buildScenariosPrompt(): string {
   const jsonStructure = `[
   {
-    "text": "(string) Engaging, specific, and imaginative starting situation text, often surreal or dreamlike. **Keep concise (1-2 sentences max).**",
+    "text": "(string) Engaging, specific, and imaginative scenario text, often surreal or dreamlike. **Keep concise (1-2 sentences max).**",
     "genre": "(string) Genre (e.g., Surreal Sci-Fi, Dreamlike Fantasy, Psychedelic Mystery, 70s Space Opera). Be specific.",
     "tone": "(string) Tone (e.g., Eerie, Oneiric, Hypnagogic, Cosmic Horror, Retrofuturistic, Whimsical yet unsettling). Be specific.",
     "visualStyle": "(string) Visual style (e.g., 70s Sci-Fi Book Cover Art, Psychedelic Illustration, Surrealist Painting, Retro Anime, Vintage Fantasy Art). Be specific."
@@ -460,12 +460,12 @@ function buildStartingScenariosPrompt(): string {
   /* Repeat this structure for 4 highly diverse scenarios, leaning into the requested themes */
 ]`;
 
-  return `You are an extremely creative storyteller specializing in crafting unique adventure hooks. Generate a **highly diverse list of 4 compelling and unique** starting scenarios for an interactive text adventure. Each scenario must include specific, evocative text describing the initial situation, a well-defined genre, a distinct tone, and a specific visual style for potential images.
+  return `You are an extremely creative storyteller specializing in crafting unique scenarios. Generate a **highly diverse list of 4 compelling and unique** scenarios for an interactive text adventure. Each scenario must include specific, evocative text describing the initial scenario, a well-defined genre, a distinct tone, and a specific visual style for potential images.
 
 **Desired Styles & Themes (Include Among the Diverse Options):**
 *   Incorporate **surreal, dreamlike, weird, or psychedelic themes** in some scenarios.
 *   Include options inspired by **70s-era science fiction and fantasy aesthetics** (e.g., Moebius, Frazetta, vintage book covers) for visual style or genre.
-*   Aim for **evocative, specific, and unconventional** starting situations across all scenarios.
+*   Aim for **evocative, specific, and unconventional** scenarios across all scenarios.
 
 **Key Requirements:**
 1.  **High Variation:** The **most important goal** is that the 4 scenarios are significantly different from each other in theme, setting, genre, tone, and style. Do not repeat patterns.
@@ -476,81 +476,80 @@ ${jsonStructure}
 Output only the JSON array. Focus on **maximum diversity, uniqueness, and detail** across the 4 scenarios.`;
 }
 
-export const generateStartingScenariosAction =
-  async (): Promise<GenerateStartingScenariosResult> => {
-    console.log('[Adventure] Generating starting scenarios...');
-    const session = await getSession();
-    if (!session?.user?.id) {
-      return { error: 'User not authenticated.' };
-    }
+export const generateScenariosAction = async (): Promise<GenerateScenariosResult> => {
+  console.log('[Adventure] Generating scenarios...');
+  const session = await getSession();
+  if (!session?.user?.id) {
+    return { error: 'User not authenticated.' };
+  }
 
-    const limitCheck = await checkTextRateLimit();
-    if (!limitCheck.success) {
-      console.warn(`[Adventure] Rate limit exceeded for user ${session.user.id}.`);
-      return {
-        error: limitCheck.errorMessage ?? 'Rate limit exceeded.',
-        rateLimitError: {
-          message: limitCheck.errorMessage ?? 'Rate limit exceeded.',
-          resetTimestamp: limitCheck.reset,
-          apiType: 'text',
-        },
-      };
-    }
+  const limitCheck = await checkTextRateLimit();
+  if (!limitCheck.success) {
+    console.warn(`[Adventure] Rate limit exceeded for user ${session.user.id}.`);
+    return {
+      error: limitCheck.errorMessage ?? 'Rate limit exceeded.',
+      rateLimitError: {
+        message: limitCheck.errorMessage ?? 'Rate limit exceeded.',
+        resetTimestamp: limitCheck.reset,
+        apiType: 'text',
+      },
+    };
+  }
 
+  try {
+    const modelConfig = getActiveModel();
+    const prompt = buildScenariosPrompt();
+    const aiResponseText = await callAIForAdventure(prompt, modelConfig);
+
+    // Attempt to parse the AI response
+    let parsedScenarios: unknown;
     try {
-      const modelConfig = getActiveModel();
-      const prompt = buildStartingScenariosPrompt();
-      const aiResponseText = await callAIForAdventure(prompt, modelConfig);
-
-      // Attempt to parse the AI response
-      let parsedScenarios: unknown;
-      try {
-        // Clean the response text if necessary (remove potential markdown backticks)
-        const cleanedText = aiResponseText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        parsedScenarios = JSON.parse(cleanedText);
-      } catch (parseError) {
-        console.error(
-          '[Adventure] Failed to parse scenarios JSON:',
-          parseError,
-          'Raw response:',
-          aiResponseText
-        );
-        Sentry.captureException(parseError, {
-          extra: { aiResponse: aiResponseText, prompt: prompt },
-        });
-        return { error: 'Failed to parse scenarios from AI response.' };
-      }
-
-      // Validate the parsed response against the Zod schema
-      const validationResult = StartingScenariosSchema.safeParse(parsedScenarios);
-
-      if (!validationResult.success) {
-        console.error(
-          '[Adventure] Scenarios validation failed:',
-          validationResult.error.errors,
-          'Parsed Data:',
-          parsedScenarios
-        );
-        Sentry.captureException(new Error('AI response validation failed for starting scenarios'), {
-          extra: {
-            errors: validationResult.error.errors,
-            aiResponse: parsedScenarios,
-            prompt: prompt,
-          },
-        });
-        return { error: 'Received invalid scenario data structure from AI.' };
-      }
-
-      console.log('[Adventure] Successfully generated and validated starting scenarios.');
-      return { scenarios: validationResult.data };
-    } catch (error) {
-      console.error('[Adventure] Error generating starting scenarios:', error);
-      Sentry.captureException(error);
-      return {
-        error:
-          error instanceof Error
-            ? error.message
-            : 'An unknown error occurred while generating scenarios.',
-      };
+      // Clean the response text if necessary (remove potential markdown backticks)
+      const cleanedText = aiResponseText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      parsedScenarios = JSON.parse(cleanedText);
+    } catch (parseError) {
+      console.error(
+        '[Adventure] Failed to parse scenarios JSON:',
+        parseError,
+        'Raw response:',
+        aiResponseText
+      );
+      Sentry.captureException(parseError, {
+        extra: { aiResponse: aiResponseText, prompt: prompt },
+      });
+      return { error: 'Failed to parse scenarios from AI response.' };
     }
-  };
+
+    // Validate the parsed response against the Zod schema
+    const validationResult = ScenariosSchema.safeParse(parsedScenarios);
+
+    if (!validationResult.success) {
+      console.error(
+        '[Adventure] Scenarios validation failed:',
+        validationResult.error.errors,
+        'Parsed Data:',
+        parsedScenarios
+      );
+      Sentry.captureException(new Error('AI response validation failed for scenarios'), {
+        extra: {
+          errors: validationResult.error.errors,
+          aiResponse: parsedScenarios,
+          prompt: prompt,
+        },
+      });
+      return { error: 'Received invalid scenario data structure from AI.' };
+    }
+
+    console.log('[Adventure] Successfully generated and validated scenarios.');
+    return { scenarios: validationResult.data };
+  } catch (error) {
+    console.error('[Adventure] Error generating scenarios:', error);
+    Sentry.captureException(error);
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : 'An unknown error occurred while generating scenarios.',
+    };
+  }
+};

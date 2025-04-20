@@ -57,9 +57,9 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
   const renderContent = () => {
     if (isLoadingScenarios) {
       return (
-        <div className="flex-grow flex flex-col items-center justify-center">
-          <ArrowPathIcon className="h-10 w-10 text-amber-300 animate-spin mb-4" />
-          <p className="text-gray-400">Generating starting adventures...</p>
+        <div className="flex-grow flex flex-col items-center justify-center text-center p-4">
+          <ArrowPathIcon className="h-8 w-8 text-gray-400 animate-spin mb-4" />
+          <p className="text-gray-400">Generating scenarios...</p>
         </div>
       );
     }
@@ -132,7 +132,7 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
     return (
       <div className="flex-grow flex flex-col items-center w-full">
         <h2 className="text-2xl font-semibold text-amber-100/90 mb-4 font-serif">
-          Choose your starting scenario:
+          Choose a scenario
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl m-4">
           {scenariosToDisplay.map((scenario, index) => (

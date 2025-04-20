@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { type AdventureNode, AdventureChoiceSchema } from '@/lib/domain/schemas';
-import { generateAdventureNodeAction, generateStartingScenariosAction } from '../actions/adventure';
+import { generateAdventureNodeAction, generateScenariosAction } from '../actions/adventure';
 import { z } from 'zod';
 
 // Simplified History Item
@@ -56,7 +56,7 @@ interface AdventureState {
 
 interface AdventureActions {
   fetchAdventureNode: (choiceText?: string, metadata?: AdventureMetadata) => Promise<void>;
-  fetchStartingScenarios: () => Promise<void>;
+  fetchScenarios: () => Promise<void>;
   setCurrentMetadata: (metadata: AdventureMetadata) => void;
   // TTS Actions (Keep)
   stopSpeaking: () => void;
@@ -104,21 +104,28 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         });
       },
 
-      fetchStartingScenarios: async () => {
+      fetchScenarios: async () => {
         set((state) => {
           state.isFetchingScenarios = true;
           state.fetchScenariosError = null;
-          // Optionally clear old scenarios immediately
-          // state.dynamicScenarios = null;
         });
 
         try {
-          const result = await generateStartingScenariosAction();
+          const result = await generateScenariosAction();
 
           if (result.rateLimitError) {
             console.warn('Rate limit hit fetching scenarios:', result.rateLimitError);
             set((state) => {
               state.fetchScenariosError = { rateLimitError: result.rateLimitError! };
+              state.isFetchingScenarios = false;
+            });
+            return;
+          }
+
+          if (result.error === 'Failed to parse scenarios from AI response.') {
+            console.info('[Adventure Store] AI scenario parsing failed. Treating as info.');
+            set((state) => {
+              state.fetchScenariosError = 'SCENARIO_PARSE_ERROR';
               state.isFetchingScenarios = false;
             });
             return;
@@ -137,11 +144,13 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             state.fetchScenariosError = null;
           });
         } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : 'Failed to fetch starting scenarios.';
-          console.error('Error fetching starting scenarios:', error);
+          // Catch errors thrown above or other unexpected issues
+          // const errorMessage =
+          //  error instanceof Error ? error.message : 'Unknown error fetching scenarios.';
+          console.error('Error fetching scenarios:', error); // Keep console error for debugging
           set((state) => {
-            state.fetchScenariosError = errorMessage;
+            // Set a specific error code instead of the raw message
+            state.fetchScenariosError = 'SCENARIO_FETCH_FAILED';
             state.isFetchingScenarios = false;
           });
         }
@@ -275,7 +284,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         // Clear the scenario cache from session storage
         if (typeof window !== 'undefined') {
           try {
-            sessionStorage.removeItem('adventureGame_startingScenarios');
+            sessionStorage.removeItem('adventureGame_scenarios');
           } catch (error) {
             console.error('[Store] Error clearing scenario cache from sessionStorage:', error);
           }

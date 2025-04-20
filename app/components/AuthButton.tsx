@@ -99,11 +99,10 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
                 onClick={() => {
                   triggerReset();
                   setShowUserMenu(false);
-                  window.location.reload();
                 }}
                 className="block px-4 py-2 text-sm text-white hover:bg-gray-700 transition-colors w-full text-left focus:outline-none focus-visible:bg-gray-700 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-600"
               >
-                Start New Adventure
+                New Scenario
               </button>
               <button
                 onClick={() => {
