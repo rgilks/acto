@@ -99,12 +99,12 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
           </svg>
         </button>
 
-        <div
-          className={`absolute right-0 top-full mt-2 w-48 rounded-md shadow-lg z-10 transition-all duration-200 ease-out origin-top-right ${showUserMenu ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
-          aria-hidden={!showUserMenu}
-          role="menu"
-        >
-          <div className="bg-gray-800 rounded-md shadow-xl border border-gray-700 overflow-hidden">
+        {/* User Dropdown Menu - Conditionally Rendered */}
+        {showUserMenu && (
+          <div
+            className="absolute right-0 top-full mt-2 w-48 rounded-md shadow-lg z-10 bg-gray-800 border border-gray-700 overflow-hidden animate-scale-up origin-top-right"
+            role="menu"
+          >
             <div className="px-4 py-3 border-b border-gray-700">
               <p className="text-sm text-white">{session.user?.name}</p>
               <p className="text-xs text-gray-400 truncate">{session.user?.email}</p>
@@ -126,28 +126,26 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
                 New Scenario
               </button>
               <button
-                onClick={() => {
-                  console.log('Save Story clicked - triggering save...');
-                  void saveStory();
+                onClick={async () => {
                   setShowUserMenu(false);
+                  await saveStory();
                 }}
                 className="block px-4 py-2 text-sm text-white hover:bg-gray-700 transition-colors w-full text-left focus:outline-none focus-visible:bg-gray-700 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-600"
               >
-                Save Story
+                Save Story (Download)
               </button>
               <button
-                onClick={() => {
-                  void signOut();
+                onClick={async () => {
                   setShowUserMenu(false);
+                  await signOut({ callbackUrl: '/' });
                 }}
-                data-testid="sign-out-button"
-                className="block px-4 py-2 text-sm text-white hover:bg-gray-700 transition-colors w-full text-left focus:outline-none focus-visible:bg-gray-700 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-600"
+                className="block px-4 py-2 text-sm text-red-400 hover:bg-gray-700 transition-colors w-full text-left focus:outline-none focus-visible:bg-gray-700 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-600"
               >
                 Sign Out
               </button>
             </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }

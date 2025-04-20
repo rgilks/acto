@@ -531,11 +531,16 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         Object.fromEntries(
           Object.entries(state).map(([key, value]) => {
             if (key === 'currentNode' && value) {
-              const { audioBase64, ...rest } = value as AdventureNode;
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              const { audioBase64: _audioBase64, ...rest } = value as AdventureNode;
               return [key, rest];
             }
             if (key === 'storyHistory') {
-              return [key, (value as StoryHistoryItem[]).map(({ audioBase64, ...item }) => item)];
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              return [
+                key,
+                (value as StoryHistoryItem[]).map(({ audioBase64: _audioBase64, ...item }) => item),
+              ];
             }
             return [key, value];
           })

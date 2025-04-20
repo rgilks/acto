@@ -107,6 +107,14 @@ const AdventureGame = () => {
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   const [focusedChoiceIndex, setFocusedChoiceIndex] = useState<number | null>(null);
 
+  // State for image cross-fade
+  const [previousImageUrl, setPreviousImageUrl] = useState<string | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
+  const [isTransitioningImage, setIsTransitioningImage] = useState<boolean>(false);
+
+  // State for explicit user pause action
+  const [userPaused, setUserPaused] = useState<boolean>(false);
+
   const fullscreenHandle = useFullScreenHandle();
   const gameContainerRef = useRef<HTMLDivElement>(null);
 
@@ -120,15 +128,13 @@ const AdventureGame = () => {
     audioData: currentAudioData,
     volume: storeTtsVolume,
     onPlaybackEnd: useCallback(() => {
-      console.log('[AdventureGame] onPlaybackEnd called. Setting showChoices = true.');
       setShowChoices(true);
+      setUserPaused(false); // Audio ended naturally, not paused by user
     }, [setShowChoices]),
     onPlaybackError: useCallback(
-      (errorMsg: string) => {
-        console.log(
-          `[AdventureGame] onPlaybackError called with error: ${errorMsg}. Setting showChoices = true.`
-        );
+      (_errorMsg: string) => {
         setShowChoices(true);
+        setUserPaused(false); // Audio error, not paused by user
       },
       [setShowChoices]
     ),
@@ -145,7 +151,6 @@ const AdventureGame = () => {
       !isFetchingScenarios &&
       !fetchScenariosError
     ) {
-      console.log('[AdventureGame] User logged in, fetching dynamic scenarios...');
       void fetchScenarios();
     }
   }, [sessionStatus, dynamicScenarios, isFetchingScenarios, fetchScenariosError, fetchScenarios]);
@@ -165,12 +170,10 @@ const AdventureGame = () => {
   const handleScenarioSelect = useCallback(
     (scenario: Scenario) => {
       if (sessionStatus === 'loading') {
-        console.log('[AdventureGame] Session status is loading, delaying scenario select.');
         return;
       }
 
       if (!isUserLoggedIn) {
-        console.log('[AdventureGame] User not logged in, setting login required.');
         setLoginRequired(true);
         return;
       }
@@ -195,41 +198,48 @@ const AdventureGame = () => {
 
   const handleImageLoad = useCallback(
     (loadedImageUrl?: string) => {
-      if (displayNode?.imageUrl && loadedImageUrl === displayNode.imageUrl) {
-        setIsCurrentImageLoading(false);
-        console.log('[AdventureGame handleImageLoad] Ready to potentially play.', {
-          hasUserInteracted,
-          hasAudio: !!currentAudioData,
-          isTTSPlaying,
-        });
+      // Check if the loaded image is the one we are transitioning to
+      if (loadedImageUrl && loadedImageUrl === currentImageUrl) {
+        setIsCurrentImageLoading(false); // Mark loading as complete for the *new* image
+        setIsTransitioningImage(true); // Trigger the opacity swap
+
+        // After the transition duration, update the previous image URL
+        // Adjust timeout duration based on CSS transition duration (1000ms here)
+        setTimeout(() => {
+          setPreviousImageUrl(loadedImageUrl);
+          setIsTransitioningImage(false); // Reset transition state
+        }, 1000); // Match CSS transition duration
+
+        // --- Start TTS if applicable ---
         if (hasUserInteracted && currentAudioData && !isTTSPlaying) {
-          console.log(
-            '[AdventureGame handleImageLoad] User interacted, audio exists, not playing. Calling playTTS().'
-          );
+          setUserPaused(false); // Play is starting
           playTTS();
         } else if (!currentAudioData) {
+          // If there's no audio at all for this node, show choices after image load
           setShowChoices(true);
         }
       }
     },
-    [displayNode, hasUserInteracted, currentAudioData, isTTSPlaying, playTTS, setShowChoices]
+    [currentImageUrl, currentAudioData, hasUserInteracted, isTTSPlaying, playTTS, setShowChoices]
   );
 
   useEffect(() => {
     const syncHydratedState = () => {
       const state = useAdventureStore.getState();
       if (state.currentNode) {
-        console.log('[AdventureGame Hydration] Rehydrated node found, setting initial state.');
         setGamePhase((currentPhase) =>
           currentPhase === 'selecting_scenario' ? 'playing' : currentPhase
         );
         setDisplayNode(state.currentNode);
-        setCurrentAudioData(state.currentNode.audioBase64 ?? null);
+        const initialAudioData = state.currentNode.audioBase64 ?? null;
+        setCurrentAudioData(initialAudioData);
+        // Set initial image states for potential crossfade on first real node change
+        setCurrentImageUrl(state.currentNode.imageUrl ?? null);
+        setPreviousImageUrl(state.currentNode.imageUrl ?? null);
         setIsCurrentImageLoading(!!state.currentNode.imageUrl);
         setShowChoices(false);
         setFocusedChoiceIndex(null);
-      } else {
-        console.log('[AdventureGame Hydration] Store hydrated, but no currentNode found.');
+        setUserPaused(!!initialAudioData); // If audio exists on load, consider it paused initially
       }
     };
 
@@ -237,7 +247,6 @@ const AdventureGame = () => {
       syncHydratedState();
     } else {
       const unsubscribe = useAdventureStore.persist.onFinishHydration(() => {
-        console.log('[AdventureGame Hydration] Hydration finished via subscription.');
         syncHydratedState();
         unsubscribe();
       });
@@ -259,33 +268,45 @@ const AdventureGame = () => {
     // If store node changes (and is different from the currently displayed one), update component state
     if (newlyFetchedNode && newlyFetchedNode !== displayNode) {
       // Check object reference
-      console.log('[AdventureGame Sync Effect] Syncing store currentNode to displayNode.');
       stopTTS();
       setShowChoices(false); // Hide choices for the new node initially
       setClickedChoiceIndex(null); // Reset clicked choice visual state
       setFocusedChoiceIndex(null);
-      setIsCurrentImageLoading(!!newlyFetchedNode.imageUrl); // Set image loading based on new node
-      setCurrentAudioData(newlyFetchedNode.audioBase64 ?? null); // Set audio data
-      setDisplayNode(newlyFetchedNode); // Update the displayed node *last*
+      // Don't set isCurrentImageLoading here directly, handleImageLoad will do it
+      const newAudioData = newlyFetchedNode.audioBase64 ?? null;
+      setCurrentAudioData(newAudioData); // Set audio data
+      setDisplayNode(newlyFetchedNode); // Update the displayed node content
+      setUserPaused(!!newAudioData); // Assume paused if new audio exists, play will unpause
+
+      // Set image URLs for cross-fade
+      if (newlyFetchedNode.imageUrl && newlyFetchedNode.imageUrl !== currentImageUrl) {
+        setPreviousImageUrl(currentImageUrl); // Store the old URL
+        setCurrentImageUrl(newlyFetchedNode.imageUrl); // Set the new target URL
+        setIsCurrentImageLoading(true); // Start loading spinner for the new image
+        setIsTransitioningImage(false); // Ensure transition starts clean
+      } else if (!newlyFetchedNode.imageUrl) {
+        // Handle case where new node has no image
+        setPreviousImageUrl(currentImageUrl);
+        setCurrentImageUrl(null);
+        setIsCurrentImageLoading(false);
+        setIsTransitioningImage(true); // Trigger fade out of old image
+        setTimeout(() => {
+          setPreviousImageUrl(null);
+          setIsTransitioningImage(false);
+        }, 1000);
+      }
 
       if (gamePhase === 'loading_first_node') {
-        console.log(
-          '[AdventureGame Sync Effect] Transitioning from loading_first_node to playing.'
-        );
         setGamePhase('playing');
       }
 
       // If no image or audio, show choices immediately
       if (!newlyFetchedNode.imageUrl && !newlyFetchedNode.audioBase64) {
-        console.log('[AdventureGame Sync Effect] No image or audio, showing choices immediately.');
         setShowChoices(true);
       }
     } else if (!newlyFetchedNode && displayNode) {
       // Handle case where currentNode becomes null (e.g., after reset)
       // Only reset if displayNode was previously set, to avoid loop on initial load/hydration
-      console.log(
-        '[AdventureGame Sync Effect] Store currentNode is null and displayNode exists, resetting phase.'
-      );
       if (gamePhase !== 'selecting_scenario') {
         setGamePhase('selecting_scenario');
         setDisplayNode(null);
@@ -309,6 +330,7 @@ const AdventureGame = () => {
     setFocusedChoiceIndex, // Update state
     setIsCurrentImageLoading, // Update state
     setCurrentAudioData, // Update state
+    currentImageUrl, // Add missing dependency for image transition logic
     // Note: playTTS, hasUserInteracted, isTTSPlaying are used in handleImageLoad, not directly here
   ]);
 
@@ -339,8 +361,10 @@ const AdventureGame = () => {
   const togglePlayPause = useCallback(() => {
     if (isTTSPlaying) {
       pauseTTS();
+      setUserPaused(true); // User explicitly paused
     } else {
       playTTS();
+      setUserPaused(false); // User explicitly played
     }
   }, [isTTSPlaying, playTTS, pauseTTS]);
 
@@ -349,8 +373,13 @@ const AdventureGame = () => {
       const newVolume = parseFloat(event.target.value);
       setLocalVolume(newVolume);
       setTTSVolume(newVolume);
+      setShowChoices(false);
+      setClickedChoiceIndex(null);
+      setFocusedChoiceIndex(null);
+      setUserPaused(false); // Reset pause state
+      stopTTS();
     },
-    [setTTSVolume]
+    [setTTSVolume, stopTTS]
   );
 
   const handleRestart = useCallback(() => {
@@ -392,7 +421,8 @@ const AdventureGame = () => {
         if (hideTimeout) clearTimeout(hideTimeout);
         hideTimeout = setTimeout(() => setShowFullscreenControls(false), 2000);
       } else {
-        if (hideTimeout) clearTimeout(hideTimeout);
+        if (hideTimeout) clearTimeout(hideTimeout); // Clear timeout if mouse moves below threshold
+        setShowFullscreenControls(false); // Hide controls immediately when mouse moves below threshold
       }
     };
 
@@ -531,7 +561,6 @@ const AdventureGame = () => {
   // Effect to reset loginRequired when session status changes
   useEffect(() => {
     if (sessionStatus === 'authenticated' && loginRequired) {
-      console.log('[AdventureGame] User is now authenticated, resetting loginRequired flag.');
       setLoginRequired(false);
       // If a scenario was selected just before logging in, potentially restart the selection process
       // This depends on desired UX, for now, just reset the flag.
@@ -706,29 +735,86 @@ const AdventureGame = () => {
                   }
                 `}
               >
-                {displayNode.imageUrl && (
-                  <>
-                    {isCurrentImageLoading && (
-                      <div className="absolute inset-0 bg-slate-600 flex items-center justify-center z-10">
-                        <ArrowPathIcon className="h-8 w-8 text-slate-400 animate-spin" />
-                      </div>
-                    )}
+                {/* Previous Image (Bottom Layer) */}
+                {previousImageUrl && (
+                  <Image
+                    key={`prev-${previousImageUrl}`}
+                    src={previousImageUrl}
+                    alt="Previous adventure scene"
+                    fill
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
+                      isTransitioningImage ? 'opacity-0' : 'opacity-100'
+                    }`}
+                    priority // Load previous image with priority if needed
+                    sizes={
+                      fullscreenHandle.active
+                        ? '100vw'
+                        : '(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw'
+                    }
+                  />
+                )}
+
+                {/* Current Image (Top Layer) - Loads and Fades In */}
+                {currentImageUrl && (
+                  <Image
+                    key={`curr-${currentImageUrl}`}
+                    src={currentImageUrl}
+                    alt="Adventure scene"
+                    fill
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
+                      isTransitioningImage ? 'opacity-100' : 'opacity-0'
+                    }`}
+                    priority
+                    sizes={
+                      fullscreenHandle.active
+                        ? '100vw'
+                        : '(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw'
+                    }
+                    onLoad={() => handleImageLoad(currentImageUrl)}
+                    onError={() => {
+                      console.error('Image failed to load:', currentImageUrl);
+                      setIsCurrentImageLoading(false);
+                      // Potentially trigger transition anyway or show error
+                      setIsTransitioningImage(true);
+                      setTimeout(() => {
+                        setPreviousImageUrl(currentImageUrl); // Even if failed, treat as stable
+                        setIsTransitioningImage(false);
+                      }, 1000);
+                    }}
+                  />
+                )}
+
+                {/* Loading Spinner (shows while new image is loading, before transition starts) */}
+                {isCurrentImageLoading && (
+                  <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-sm flex items-center justify-center z-10">
+                    <ArrowPathIcon className="h-8 w-8 text-slate-400 animate-spin" />
+                  </div>
+                )}
+
+                {/* Centered Pause icon - Show only if explicitly paused by user or on initial load with audio */}
+                {userPaused && (
+                  <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                    <PauseIcon className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 text-white/75" />
+                  </div>
+                )}
+
+                {/* Fullscreen Toggle Button */}
+                {fullscreenHandle.active !== undefined &&
+                  !isTouchDevice && ( // Don't show on touch or if API unavailable
                     <button
                       onClick={
                         fullscreenHandle.active ? fullscreenHandle.exit : fullscreenHandle.enter
                       }
-                      className={`absolute top-2 left-2 z-20 p-1.5 bg-black/40 text-white/80 rounded-full hover:bg-black/60 hover:text-white transition-all
-                        ${
-                          fullscreenHandle.active
-                            ? showFullscreenControls && !isTouchDevice
-                              ? 'opacity-100 pointer-events-auto duration-200'
-                              : 'opacity-0 pointer-events-none duration-300'
-                            : !isTouchDevice
-                              ? 'opacity-50 hover:opacity-100 transition-opacity duration-200'
-                              : 'opacity-0 pointer-events-none'
-                        }
-                      `}
-                      aria-label={fullscreenHandle.active ? 'Exit fullscreen' : 'Enter fullscreen'}
+                      className={`absolute top-2 left-2 z-20 p-1.5 bg-black/40 rounded-full text-white/80 hover:text-white transition-all
+                      ${
+                        fullscreenHandle.active
+                          ? showFullscreenControls
+                            ? 'opacity-100 pointer-events-auto duration-200' // Show on hover in fullscreen
+                            : 'opacity-0 pointer-events-none duration-300' // Hide when not hovered in fullscreen
+                          : 'opacity-50 hover:opacity-100' // Default visibility outside fullscreen
+                      }
+                    `}
+                      aria-label={fullscreenHandle.active ? 'Exit Fullscreen' : 'Enter Fullscreen'}
                     >
                       {fullscreenHandle.active ? (
                         <ArrowsPointingInIcon className="h-5 w-5" />
@@ -736,36 +822,7 @@ const AdventureGame = () => {
                         <ArrowsPointingOutIcon className="h-5 w-5" />
                       )}
                     </button>
-                    <Image
-                      key={displayNode.imageUrl}
-                      src={displayNode.imageUrl}
-                      alt="Adventure scene"
-                      fill
-                      className={`
-                        ${fullscreenHandle.active ? 'absolute inset-0 w-full h-full object-cover' : 'object-cover'}
-                        transition-opacity duration-500 ${isCurrentImageLoading ? 'opacity-0' : 'opacity-100'}
-                      `}
-                      priority
-                      sizes={
-                        fullscreenHandle.active
-                          ? '100vw'
-                          : '(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw'
-                      }
-                      onLoad={() => handleImageLoad(displayNode.imageUrl)}
-                      onError={() => {
-                        console.error('Image failed to load:', displayNode.imageUrl);
-                        setIsCurrentImageLoading(false);
-                      }}
-                    />
-                  </>
-                )}
-
-                {/* Centered Pause icon */}
-                {currentAudioData && !isTTSPlaying && !isNodeLoading && !showChoices && (
-                  <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-                    <PauseIcon className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 text-white/75" />
-                  </div>
-                )}
+                  )}
 
                 {/* Click handler overlay */}
                 <div

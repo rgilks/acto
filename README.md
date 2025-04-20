@@ -500,3 +500,10 @@ CREATE INDEX IF NOT EXISTS idx_rate_limits_user_window ON rate_limits_user(user_
 ## License
 
 MIT License. See [LICENSE](LICENSE) file.
+
+## Recent UI/UX Improvements
+
+- **Image Cross-Fade**: Implemented a smooth cross-fade transition between scene images for a more visually appealing experience.
+- **Refined Pause Icon Logic**: The pause icon now only appears when the user explicitly pauses the audio or on initial load if audio is present but not playing, preventing flashes during loading.
+- **Fullscreen Control Refinements**: Added the fullscreen toggle button back and improved the hide/show behavior of the fullscreen and volume controls (they now fade out when the mouse leaves the top control area).
+- **Accessibility Fix**: Resolved an `aria-hidden` focus issue related to the user menu dropdown.
