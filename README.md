@@ -1,6 +1,6 @@
 # acto - AI Interactive Storyteller
 
-An interactive storytelling application powered by Next.js and generative AI (Google Gemini).
+An interactive storytelling application powered by Next.js and Google's generative AI models.
 
 [![CI/CD](https://github.com/rgilks/acto/actions/workflows/fly.yml/badge.svg)](https://github.com/rgilks/acto/actions/workflows/fly.yml)
 
@@ -12,24 +12,25 @@ An interactive storytelling application powered by Next.js and generative AI (Go
 
 ## Overview
 
-`acto` is an AI-powered interactive storytelling application. Users can start with an initial scenario (either chosen or generated) and make choices that influence the direction of the narrative. The application uses Google's Gemini AI models to generate story passages, subsequent choices, and relevant imagery based on the user's input and the story's history. It also features Text-to-Speech (TTS) capabilities to read passages aloud. Audio begins playing automatically when ready.
+`acto` is an AI-powered interactive storytelling application. Users can start with an initial scenario (either chosen or generated) and make choices that influence the direction of the narrative. The application uses Google's generative AI models (via the `@google/genai` SDK) to generate story passages, subsequent choices, and relevant imagery based on the user's input and the story's history. It also features Text-to-Speech (TTS) capabilities using Google Cloud TTS to read passages aloud.
 
 ## Features
 
-- **AI-Generated Narrative**: Unique story passages and scenarios crafted by Google AI (Gemini models) based on user choices and story history (prompt refined for better narrative cohesion and conclusion).
-- **Dynamic Choices**: AI generates relevant choices for the user at each step, influencing the story progression.
-- **Starting Scenarios**: Generates diverse starting points for new stories across different genres (prompt refined for better variation and conciseness; hardcoded scenarios updated for variety and brevity).
-- **AI-Generated Images**: Images created based on the narrative using Imagen via the Gemini API (prompt refined to explicitly request first-person perspective, excluding hands).
+- **AI-Generated Narrative**: Unique story passages and scenarios crafted by Google AI (via `@google/genai`) based on user choices and story history (prompt refined for coherence and engaging descriptions).
+- **Dynamic Choices**: AI generates 3 relevant, distinct choices for the player at each step, influencing the story progression.
+- **Starting Scenarios**: Generates diverse starting points for new stories across different genres (prompt refined for variation and conciseness).
+- **AI-Generated Images**: Images generated (via `@google/genai`) based on the narrative content, reflecting the specified genre, tone, and visual style.
 - **Text-to-Speech (TTS)**: Reads story passages aloud using Google Cloud TTS. Audio begins playing automatically when ready.
-- **Stateful Interaction**: The application maintains the story history to provide context for the AI.
+- **Stateful Interaction**: The application maintains the story history (summary + recent steps) to provide context for the AI.
 - **User Authentication**: (Optional) Secure login via GitHub, Google, and Discord OAuth using NextAuth.
-- **Data Persistence**: (Likely, uses SQLite) Store user data or potentially story progress.
+- **Rate Limiting**: Per-user daily limits for AI text, image, and TTS generation implemented using SQLite.
+- **Data Persistence**: Uses SQLite (`better-sqlite3`) for user data and rate limit tracking.
 - **Responsive Design**: Optimized for both desktop and mobile devices using Tailwind CSS.
 - **Modern UI**: Clean interface built with React and Next.js.
-- **Enhanced & Responsive Game UI**: Improved image-centric layout that adapts to different screen sizes, featuring integrated minimal audio controls (play/pause, volume), a subtle glow effect, and a fullscreen option to enhance visual immersion.
-- **Improved Landscape/Fullscreen View**: Enhanced CSS to provide a near edge-to-edge image experience on mobile devices (like iPhones) in landscape mode (viewport scaling also restricted to prevent unwanted zoom).
+- **Enhanced & Responsive Game UI**: Image-centric layout adapting to different screen sizes, integrated minimal audio controls, subtle glow effect, and fullscreen option.
+- **Improved Landscape/Fullscreen View**: Enhanced CSS for near edge-to-edge image experience on mobile landscape.
 - **Robust Validation**: Uses Zod for validating AI responses.
-- **State Management**: Uses `zustand` for managing client-side application state.
+- **State Management**: Uses `zustand` with `immer` and `persist` (custom pruning localStorage) for managing client-side application state.
 - **Continuous Deployment**: Automatic deployment to Fly.io via GitHub Actions.
 - **Admin Panel**: (Optional) Secure area for administrators to view application data.
 - **Testing**: Includes unit/integration tests (Jest) and end-to-end tests (Playwright).
@@ -41,8 +42,8 @@ You can save your current adventure progress at any time using the "Save Story" 
 
 This will download a `.zip` file containing:
 
-- **`story.json`**: A structured representation of your story history, including passages, summaries, and metadata.
-- **`prompt_log.json`**: A log file detailing the prompts sent to the AI and the key parts of the response (passage, choices, image prompt, summary) for each step. Useful for debugging or understanding AI behavior.
+- **`story.json`**: A structured representation of your story history, including passages, summaries, choice text, and media file references.
+- **`prompt_log.json`**: A log file detailing the prompts sent to the LLM and the key parts of the response (passage, choices, image prompt, summary) for each step. Useful for debugging or understanding AI behavior.
 - **`media/` folder**: Contains the generated images (`.png`) and audio files (`.mp3`) for each step.
 
 ## Technology Stack
@@ -52,14 +53,14 @@ This will download a `.zip` file containing:
 - **Tailwind CSS**: Utility-first CSS framework
 - **TypeScript**: Strong typing for code quality
 - **next-auth**: Authentication (GitHub, Google, Discord) _(Optional)_
-- **Google Generative AI SDK (`@google/genai`)**: Gemini model integration (Text/Image Generation)
-- **Google Cloud Client Libraries (`@google-cloud/text-to-speech`)**: Cloud Text-to-Speech
-- **SQLite**: `better-sqlite3` database storage (user data, rate limits)
+- **`@google/genai`**: Google AI SDK integration (Text & Image Generation)
+- **`@google-cloud/text-to-speech`**: Google Cloud Text-to-Speech
+- **SQLite (`better-sqlite3`)**: Database storage (user data, rate limits)
 - **Zod**: Schema validation (especially for AI responses)
-- **zustand / immer**: Client-side state management
+- **zustand / immer / zustand/middleware**: Client-side state management with persistence
 - **@ducanh2912/next-pwa**: Progressive Web App features
 - **@sentry/nextjs**: Error tracking
-- **Playwright**: End-to-end testing (typically run locally)
+- **Playwright**: End-to-end testing
 - **Jest / React Testing Library**: Unit/Integration testing
 - **ESLint / Prettier**: Linting & Formatting
 - **Husky / lint-staged**: Git hooks
@@ -70,32 +71,44 @@ This will download a `.zip` file containing:
 
 1.  **(Optional) Sign in**: Use GitHub, Google, or Discord authentication.
 2.  **Start Story**: Choose from AI-generated starting scenarios or begin a default story.
-3.  **Receive Passage & Choices**: The AI generates the current part of the story and presents choices.
+3.  **Receive Passage & Choices**: The AI generates the current part of the story and presents 3 choices.
 4.  **Make Choice**: Select an action/dialogue option.
-5.  **AI Responds**: The application sends the story history and the user's choice to the AI. The AI generates the outcome, the next passage, and new choices based on the context.
+5.  **AI Responds**: The application sends the relevant story history (summary + recent steps) and style context to the AI. The AI generates the outcome, the next passage, new choices, an image prompt, and an updated summary.
 6.  **Repeat**: Continue making choices and progressing the AI-generated narrative.
+
+## Prompt Engineering Highlights
+
+The quality of the generated story heavily relies on the prompts sent to the AI. Key strategies include:
+
+- **Structured Output**: Requesting responses in a specific JSON format using Zod schemas for validation ensures predictable data handling.
+- **Contextual Awareness**: The prompt dynamically includes:
+  - **Style Hints**: Genre, Tone, and Visual Style selections.
+  - **Long-Term Context**: The AI's previously generated summary of the story so far.
+  - **Short-Term Context**: The passages and choices from the last 5 steps.
+- **Targeted Instructions**: Explicit instructions guide the AI on generating engaging passages, distinct choices, relevant image prompts (matching the passage, genre, tone, and style), and concise summaries.
+- **Efficiency**: Initial scenario context is only included in the very first prompt to avoid redundancy.
 
 ## API Cost Management & Rate Limiting
 
-acto implements strategies to manage AI API costs:
+`acto` implements strategies to manage AI API costs:
 
 - **Rate Limiting**:
   - Uses a per-user **daily counter** stored in the `rate_limits_user` SQLite table (resets at UTC midnight).
-  - Applies separate limits for different Google AI API types (text generation, image generation, TTS).
+  - Applies separate limits for different Google API types (text generation via `@google/genai`, image generation via `@google/genai`, and Google Cloud TTS).
   - Requires users to be logged in (via NextAuth) to make rate-limited API calls.
   - Default limits are defined in `lib/rateLimitSqlite.ts` (e.g., **100** text requests/day, **100** image requests/day, **100** TTS requests/day).
-  - Adjust limits directly in `lib/rateLimitSqlite.ts` or consider moving them to environment variables for easier configuration.
-  - Exceeding the limit returns an error to the user and logs details to the console and Sentry (if configured).
-- **Database Caching**: _(Not currently implemented for adventure game state)_
+  - Adjust limits directly in `lib/rateLimitSqlite.ts` or consider moving them to environment variables.
+  - Exceeding the limit returns an error to the user and logs details.
+- **Payload Optimization**: Only essential history data (passage, choice, summary) is sent from the client to the server action to avoid exceeding payload size limits.
 
 ## Setup and Running
 
 ### Prerequisites
 
 1.  **Node.js:** Version 20 or higher (Check `.nvmrc`).
-2.  **npm:** Package manager (Comes with Node.js).
+2.  **npm:** Package manager.
 3.  **Git:** For cloning.
-4.  **API Keys & Credentials:** Obtain the necessary keys/secrets for the services you intend to use (see Environment Variables section below).
+4.  **API Keys & Credentials:** Obtain necessary keys/secrets (see Environment Variables below).
 
 ### Running Locally
 
@@ -110,42 +123,34 @@ acto implements strategies to manage AI API costs:
     npm install
     ```
 
-    This command also runs the `prepare` script, which installs Git hooks and may download browser binaries for Playwright tests (skipped in CI environments).
+    Installs dependencies and Git hooks.
 
 3.  **Configure Environment Variables:**
 
     - Copy `.env.example` to `.env.local`: `cp .env.example .env.local`
-    - Edit `.env.local` and fill in the required values. **See `.env.example` for comments on each variable.**
+    - Edit `.env.local` and fill in the required values. **See `.env.example` for comments.**
 
     **Required for Core Functionality:**
 
-    - `GOOGLE_AI_API_KEY`: For Google AI (Gemini text generation & Imagen image generation via Gemini API). Get from [Google AI Studio](https://aistudio.google.com/app/apikey).
-    - `GOOGLE_APP_CREDS_JSON`: Contains the full JSON content of your Google Cloud service account key file. **Required for Cloud Text-to-Speech**. The application reads the credentials directly from this variable.
-      - **Formatting:** The JSON content must be provided as a **single line**. You can generate this format from your key file using `jq` (replace `/path/to/your/keyfile.json` with the actual path):
-        ```bash
-        jq -c . < /path/to/your/keyfile.json
-        ```
-      - Copy the entire single-line output of this command and paste it directly after the `=` sign for `GOOGLE_APP_CREDS_JSON` in your `.env.local` file (do **not** add surrounding quotes).
+    - `GOOGLE_AI_API_KEY`: For Google AI (`@google/genai` SDK - used for both Text & Image generation). Get from [Google AI Studio](https://aistudio.google.com/app/apikey).
+    - `GOOGLE_APP_CREDS_JSON`: Contains the **single-line** JSON content of your Google Cloud service account key file. **Required for Cloud Text-to-Speech**. Generate the single line using `jq -c . < /path/to/your/keyfile.json` and paste the raw output into `.env.local`.
 
     **Required for Authentication (if used):**
 
     - `AUTH_SECRET`: Generate with `openssl rand -base64 32`.
     - `NEXTAUTH_URL=http://localhost:3000`
-    - OAuth credentials (`GITHUB_ID`/`SECRET`, `GOOGLE_CLIENT_ID`/`SECRET`, `DISCORD_CLIENT_ID`/`SECRET`) for enabled providers.
+    - OAuth credentials (`GITHUB_ID`/`SECRET`, etc.) for enabled providers.
 
     **Required for Deployment/Build Features:**
 
-    - `NEXT_PUBLIC_SENTRY_DSN`: Sentry DSN for client-side error tracking.
+    - `NEXT_PUBLIC_SENTRY_DSN`: Sentry DSN for client-side errors.
     - `SENTRY_AUTH_TOKEN`: Sentry token for build-time source map upload.
-    - `SENTRY_ORG`: Your Sentry organization slug.
-    - `SENTRY_PROJECT`: Your Sentry project slug.
+    - `SENTRY_ORG` / `SENTRY_PROJECT`: Your Sentry slugs.
 
     **Optional (Remove if not used):**
 
-    - `ADMIN_EMAILS`: For admin panel access.
-    - `ALLOWED_EMAILS`: Comma-separated list of additional emails allowed access when the waiting list mode is implicitly active (i.e., if `ALLOWED_EMAILS` is set).
-    - `DATABASE_URL`: Optional. Usually not required; database path is typically handled internally (e.g., by LiteFS on Fly.io). See `.env.example` for details.
-    - `COMMIT_SHA`: Optional. Used to link Sentry errors to specific code versions. Often injected automatically during the CI/CD build process. See `.env.example`.
+    - `ADMIN_EMAILS` / `ALLOWED_EMAILS`: For admin/waiting list access.
+    - See `.env.example` for others like `DATABASE_URL`, `COMMIT_SHA`.
 
 4.  **Run Dev Server:**
 
@@ -157,73 +162,19 @@ acto implements strategies to manage AI API costs:
 
 ### Deploying to Fly.io
 
-This project includes a `Dockerfile`, `fly.toml`, and `entrypoint.sh` configured for deployment on Fly.io. Continuous Deployment via GitHub Actions (`.github/workflows/fly.yml`) is recommended after the initial setup.
+(Instructions remain largely the same - review the detailed steps in the previous README version if needed, ensuring all required secrets mentioned above are set on Fly.io, especially `GOOGLE_AI_API_KEY` and the single-line `GOOGLE_APP_CREDS_JSON`).
 
-**First-Time Fly.io Setup Script:**
+**Key Secrets to Set on Fly.io:**
 
-The following commands will guide you through the initial setup. Run them in your terminal from the project root directory.
+- `GOOGLE_AI_API_KEY`
+- `GOOGLE_APP_CREDS_JSON` (as a single line)
+- `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_SENTRY_DSN`
+- `AUTH_SECRET` (if using Auth)
+- `NEXTAUTH_URL=https://<your-fly-app-name>.fly.dev` (if using Auth)
+- OAuth Provider Secrets (if using Auth)
+- `ADMIN_EMAILS` / `ALLOWED_EMAILS` (if using restricted access)
 
-1.  **Install Fly CLI & Login:**
-
-    - Install `flyctl`: [Official Instructions](https://fly.io/docs/hands-on/install-flyctl/)
-    - Login to your Fly.io account:
-      ```bash
-      fly auth login
-      ```
-
-2.  **Launch the App (Creates Fly App if it doesn't exist):**
-
-    - This command creates the application on Fly.io, links it to your local directory, but _doesn't_ deploy yet. Adjust the name (`acto`) or region (`lhr`) if desired.
-      ```bash
-      fly launch --name acto --region lhr --no-deploy --copy-config=false
-      ```
-    - _(Note: We use `--copy-config=false` because we already have a `fly.toml`)_
-
-3.  **Create Persistent Volume for Database:**
-
-    - This creates a 1GB persistent volume named `data` where the SQLite database will live.
-      ```bash
-      fly volumes create data --region lhr --size 1 --app acto
-      ```
-
-4.  **Set Secrets:**
-
-    - **Crucial - Google Cloud Credentials:** Set your service account JSON key content as a secret. Paste the _entire JSON content_ when prompted.
-      ```bash
-      echo "Paste your entire Google Cloud Service Account JSON key content here, then press Enter:"
-      read -s GOOGLE_APP_CREDS_JSON_CONTENT && fly secrets set GOOGLE_APP_CREDS_JSON="$GOOGLE_APP_CREDS_JSON_CONTENT" --app acto
-      # (Ensure the content is pasted correctly within quotes if not using the read command)
-      ```
-    - **Other Secrets:** Create a `.env.production` file locally (copy from `.env.example`, **DO NOT COMMIT**). Fill in all other required production keys/tokens (`GOOGLE_AI_API_KEY`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_SENTRY_DSN`, `AUTH_SECRET`, `NEXTAUTH_URL=https://acto.fly.dev`). Then import them:
-      ```bash
-      # Ensure .env.production is populated with production values!
-      # Required: GOOGLE_AI_API_KEY, SENTRY_AUTH_TOKEN, SENTRY_ORG, SENTRY_PROJECT, NEXT_PUBLIC_SENTRY_DSN
-      # Required if using Auth: AUTH_SECRET, NEXTAUTH_URL=https://<your-fly-app-name>.fly.dev, Provider secrets
-      fly secrets import --app acto < .env.production
-      ```
-    - **Important `NEXTAUTH_URL` Note:** For OAuth providers (Google, GitHub, Discord) to work correctly in production, the `NEXTAUTH_URL` secret **must** be set to the full base URL of your deployed application (e.g., `https://acto.fly.dev`). This is crucial for OAuth redirects.
-    - **Verify Secrets:** Check required secrets are listed (run `fly secrets list --app acto`). Ensure `GOOGLE_AI_API_KEY`, `GOOGLE_APP_CREDS_JSON`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_SENTRY_DSN` are present. Also check `AUTH_SECRET` and `NEXTAUTH_URL` if using authentication. Check `ADMIN_EMAILS` and `ALLOWED_EMAILS` if those features are used.
-
-5.  **Deploy the Application:**
-
-    - This builds the Docker image using the local `Dockerfile` and deploys it.
-      ```bash
-      fly deploy --app acto
-      ```
-
-6.  **(Optional) Setup GitHub Actions for CI/CD:**
-    - Get a Fly API token:
-      ```bash
-      fly auth token
-      ```
-    - Go to your GitHub repository > Settings > Secrets and variables > Actions.
-    - Create a new repository secret named `FLY_API_TOKEN` and paste the token value.
-    - Pushes to the `main` branch should now trigger automatic deployments via the `.github/workflows/fly.yml` workflow.
-
-**Subsequent Deployments:**
-
-- If CI/CD is set up: `git push origin main`
-- Manually: `fly deploy --app acto`
+Deploy manually with `fly deploy` or set up CI/CD using the `FLY_API_TOKEN` secret in GitHub Actions.
 
 ## Key Features Explained
 

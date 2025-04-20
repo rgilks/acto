@@ -272,18 +272,25 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
 
         try {
           // --- CONSTRUCT PARAMS JUST BEFORE CALL ---
-          const currentHistory = get().storyHistory; // Get the latest history state HERE
+          const fullHistory = get().storyHistory; // Get the latest full history state HERE
+          // Trim history for payload size
+          const trimmedHistory = fullHistory.map((item) => ({
+            passage: item.passage,
+            choiceText: item.choiceText,
+            summary: item.summary,
+          }));
+
           const actionParams: Parameters<typeof generateAdventureNodeAction>[0] = {
-            storyContext: { history: currentHistory }, // Use it here
+            storyContext: { history: trimmedHistory }, // Use trimmed history here
             genre: metadata?.genre ?? get().currentGenre ?? undefined,
             tone: metadata?.tone ?? get().currentTone ?? undefined,
             visualStyle: metadata?.visualStyle ?? get().currentVisualStyle ?? undefined,
           };
           // --- Log prompt AFTER constructing params ---
+          // Build prompt uses the same structure, so pass the trimmed history context here too
           fullPromptForLog = buildAdventurePrompt(
-            // Assign to the variable
-            actionParams.storyContext, // Pass the correct context
-            choiceText ? choiceText : undefined,
+            actionParams.storyContext,
+            undefined, // choiceText is now handled by history
             actionParams.genre,
             actionParams.tone,
             actionParams.visualStyle
@@ -330,19 +337,20 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           // --- SUCCESS PATH ---
           const newNode = result.adventureNode;
           set((state) => {
-            const lastHistoryIndex = state.storyHistory.length - 1;
-            if (lastHistoryIndex >= 0) {
-              state.storyHistory[lastHistoryIndex] = {
-                ...state.storyHistory[lastHistoryIndex],
-                passage: newNode.passage,
-                summary: newNode.updatedSummary,
-                imageUrl: newNode.imageUrl,
-                audioBase64: newNode.audioBase64,
-                prompt: fullPromptForLog,
-                imagePrompt: newNode.imagePrompt,
-                choices: newNode.choices,
-              };
-            }
+            // Push a NEW history item containing the results of this step
+            const newHistoryItem: StoryHistoryItem = {
+              passage: newNode.passage,
+              summary: newNode.updatedSummary,
+              imageUrl: newNode.imageUrl,
+              audioBase64: newNode.audioBase64,
+              prompt: fullPromptForLog,
+              imagePrompt: newNode.imagePrompt,
+              choices: newNode.choices,
+              // choiceText remains undefined here; it will be set by the *next* makeChoice call
+            };
+            state.storyHistory.push(newHistoryItem);
+
+            // Update the current node displayed to the user
             state.currentNode = newNode;
             state.isLoading = false;
             state.error = null;
@@ -373,7 +381,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
 
       makeChoice: (choice: z.infer<typeof AdventureChoiceSchema>) => {
         const isInitialCall = get().storyHistory.length === 0;
-        const previousNode = get().currentNode; // Get state *before* choice
+        // Get fetchAdventureNode before potentially modifying state
         const { fetchAdventureNode, setCurrentMetadata } = get();
 
         // Store metadata if it's the first call (scenario selection)
@@ -384,38 +392,33 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             visualStyle: choice.visualStyle,
           };
           setCurrentMetadata(metadata);
-          // Store the chosen voice for the rest of the adventure
           set((state) => {
             state.currentVoice = choice.voice ?? null;
-          });
-
-          // Push initial placeholder history item for step 0
-          set((state) => {
+            // Push the initial history item (Step 0)
             state.storyHistory.push({
               passage: choice.text, // Use the scenario text as the first "passage"
-              choiceText: '(Scenario Selection)', // Explicitly mark the choice type
-              // Other fields (prompt, imagePrompt, summary, etc.) will be filled by fetchAdventureNode
+              choiceText: '(Scenario Selection)', // Mark the choice type
+              // Other fields will be filled when Step 1 is fetched and pushed
             });
           });
-
-          void fetchAdventureNode(choice.text, metadata); // Fetch first real node (step 1) using scenario text as initial context
+          // Fetch first real node (Step 1), passing metadata
+          void fetchAdventureNode(undefined, metadata);
         } else {
           // This is a subsequent choice within the adventure
-          if (previousNode) {
-            // Push a new history item representing the state *after* the choice is made,
-            // but *before* the next node is fetched.
-            set((state) => {
-              const historyItem: StoryHistoryItem = {
-                passage: '...', // Placeholder passage
-                choiceText: choice.text, // Record the choice that leads *to* the next step
-              };
-              state.storyHistory.push(historyItem);
-            });
-          } else {
-            console.warn('[makeChoice] Cannot record history step: previousNode is null.');
-          }
-
-          void fetchAdventureNode(choice.text); // Fetch next node based on the chosen text
+          // Update the *previous* history item (N-1) with the choice made
+          set((state) => {
+            const lastHistoryIndex = state.storyHistory.length - 1;
+            if (lastHistoryIndex >= 0) {
+              state.storyHistory[lastHistoryIndex].choiceText = choice.text;
+            } else {
+              // Should not happen if not isInitialCall, but log just in case
+              console.warn(
+                '[makeChoice] Attempted to update choice on non-initial call with empty history.'
+              );
+            }
+          });
+          // Fetch the next node (Step N)
+          void fetchAdventureNode(); // No need to pass choiceText explicitly
         }
       },
 
