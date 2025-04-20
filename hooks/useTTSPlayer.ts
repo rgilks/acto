@@ -95,7 +95,8 @@ function useTTSPlayer({
     setError(null);
 
     if (audioElement.paused || !isPlaying) {
-      console.log('[useTTSPlayer] Attempting to play...');
+      console.log('[useTTSPlayer] Attempting to load and play...');
+      audioElement.load();
       audioElement
         .play()
         .then(() => {
