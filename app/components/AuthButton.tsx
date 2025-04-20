@@ -20,6 +20,9 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const triggerReset = useAdventureStore((state) => state.triggerReset);
+  const saveStory = useAdventureStore((state) => state.saveStory);
+  const storyHistory = useAdventureStore((state) => state.storyHistory);
+  const currentNode = useAdventureStore((state) => state.currentNode);
 
   useEffect(() => {
     setIsMounted(true);
@@ -37,6 +40,27 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  const handleNewScenarioClick = async () => {
+    const storyExists = storyHistory.length > 0 || !!currentNode;
+
+    if (storyExists) {
+      const shouldSave = window.confirm(
+        'You have an ongoing story. Do you want to download it before starting a new one? '
+      );
+      if (shouldSave) {
+        try {
+          await saveStory();
+          console.log('[AuthButton] Story saved before reset.');
+        } catch (error) {
+          console.error('[AuthButton] Error saving story before reset:', error);
+        }
+      }
+    }
+
+    triggerReset();
+    setShowUserMenu(false);
+  };
 
   if (!isMounted || status === 'loading') {
     return <div className="animate-pulse bg-gray-700 h-10 w-32 rounded-lg"></div>;
@@ -96,13 +120,20 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
                 </Link>
               )}
               <button
+                onClick={handleNewScenarioClick}
+                className="block px-4 py-2 text-sm text-white hover:bg-gray-700 transition-colors w-full text-left focus:outline-none focus-visible:bg-gray-700 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-600"
+              >
+                New Scenario
+              </button>
+              <button
                 onClick={() => {
-                  triggerReset();
+                  console.log('Save Story clicked - triggering save...');
+                  void saveStory();
                   setShowUserMenu(false);
                 }}
                 className="block px-4 py-2 text-sm text-white hover:bg-gray-700 transition-colors w-full text-left focus:outline-none focus-visible:bg-gray-700 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-600"
               >
-                New Scenario
+                Save Story
               </button>
               <button
                 onClick={() => {

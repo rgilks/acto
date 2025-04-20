@@ -4,6 +4,7 @@ import { persist, createJSONStorage, type StorageValue } from 'zustand/middlewar
 import { type AdventureNode, AdventureChoiceSchema } from '@/lib/domain/schemas';
 import { generateAdventureNodeAction, generateScenariosAction } from '../actions/adventure';
 import { z } from 'zod';
+import JSZip from 'jszip';
 
 // --- Custom Storage with Pruning ---
 
@@ -133,6 +134,7 @@ interface AdventureActions {
   makeChoice: (choice: z.infer<typeof AdventureChoiceSchema>) => void;
   resetAdventure: () => void;
   triggerReset: () => void;
+  saveStory: () => Promise<void>;
 }
 
 // Simplified Initial State
@@ -347,7 +349,116 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
       },
 
       triggerReset: () => {
-        get().resetAdventure();
+        console.log('[Adventure Store] Triggering Reset');
+        set(initialState);
+      },
+
+      saveStory: async () => {
+        const { storyHistory, currentNode, currentGenre, currentTone, currentVisualStyle } = get();
+        if (!storyHistory.length && !currentNode) {
+          console.warn('[Save Story] No story data to save.');
+          return;
+        }
+
+        const zip = new JSZip();
+
+        // Prepare history data, potentially adding the last node
+        const fullHistoryForJson = [...storyHistory];
+
+        if (currentNode) {
+          fullHistoryForJson.push({
+            passage: currentNode.passage,
+            summary: currentNode.updatedSummary,
+            imageUrl: currentNode.imageUrl,
+            audioBase64: undefined,
+            choiceText: undefined,
+          });
+        }
+
+        // 1. Create and add story.json
+        const storyData = {
+          metadata: {
+            genre: currentGenre,
+            tone: currentTone,
+            visualStyle: currentVisualStyle,
+            savedAt: new Date().toISOString(),
+          },
+          history: fullHistoryForJson.map((item, index) => ({
+            ...item,
+            imageFile: item.imageUrl ? `media/image_${index}.png` : undefined,
+            audioFile: item.audioBase64 ? `media/audio_${index}.mp3` : undefined,
+            audioBase64: undefined,
+          })),
+        };
+        zip.file('story.json', JSON.stringify(storyData, null, 2));
+
+        // Create a subfolder for media files within the zip
+        const mediaFolder = zip.folder('media');
+
+        if (!mediaFolder) {
+          console.error('[Save Story] Could not create media folder in zip.');
+          return;
+        }
+
+        // 2. Fetch images and add them to the zip
+        const imagePromises = fullHistoryForJson.map(async (item, index) => {
+          if (item.imageUrl) {
+            try {
+              const response = await fetch(item.imageUrl);
+              if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+              const blob = await response.blob();
+              // Basic file extension check (can be improved)
+              const extension = blob.type.split('/')[1] || 'png';
+              mediaFolder.file(`image_${index}.${extension}`, blob);
+              console.log(`[Save Story] Added image_${index}.${extension} to zip.`);
+            } catch (error) {
+              console.error(
+                `[Save Story] Failed to fetch or add image ${index} (${item.imageUrl}):`,
+                error
+              );
+            }
+          }
+        });
+
+        // 3. Decode base64 audio and add it to the zip
+        const audioPromises = fullHistoryForJson.map(async (item, index) => {
+          if (item.audioBase64) {
+            try {
+              // Assuming audio is MP3 format as stored
+              const fetchResponse = await fetch(`data:audio/mpeg;base64,${item.audioBase64}`);
+              const blob = await fetchResponse.blob();
+              mediaFolder.file(`audio_${index}.mp3`, blob);
+              console.log(`[Save Story] Added audio_${index}.mp3 to zip.`);
+            } catch (error) {
+              console.error(`[Save Story] Failed to decode or add audio ${index}:`, error);
+            }
+          }
+        });
+
+        // Wait for all images and audio files to be processed
+        await Promise.all([...imagePromises, ...audioPromises]);
+
+        // 4. Generate the zip file and trigger download
+        try {
+          const zipBlob = await zip.generateAsync({ type: 'blob' });
+          const url = URL.createObjectURL(zipBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          // Create a filename (e.g., acto-story-SciFi-2023-10-27.zip)
+          const dateStr = new Date().toISOString().split('T')[0];
+          const genrePart = currentGenre
+            ? `- ${currentGenre.substring(0, 15).replace(/\W+/g, '')}`
+            : '';
+          a.download = `acto-story${genrePart}-${dateStr}.zip`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          console.log('[Save Story] Story zip file download triggered.');
+        } catch (error) {
+          console.error('[Save Story] Error generating or downloading zip file:', error);
+          // Optionally, update state with a save error
+        }
       },
 
       // TTS Actions (Unchanged)
