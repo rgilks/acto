@@ -28,28 +28,32 @@ type Scenario = z.infer<typeof AdventureChoiceSchema>;
 
 const hardcodedScenarios: Scenario[] = [
   {
-    text: `You farm bio-luminescent fungi on a rogue asteroid nearing a sentient gas giant. Your prize mushroom has started singing.`,
-    genre: `Weird Sci-Fi`,
-    tone: `Curious, Slightly Ominous, Isolated`,
-    visualStyle: `Bioluminescent Art, Soft Focus`,
+    text: "The aroma of stale ozone and regret hangs heavy in the abandoned orbital laundromat; before you, a sentient tumble dryer with a penchant for existential dread displays a cryptic message: 'CLEANSE THE VOID.'",
+    genre: 'Surrealist Science Fiction Comedy',
+    tone: 'Absurdist and melancholic',
+    visualStyle:
+      'Low-poly 3D rendering with highly stylized, pastel-colored lighting and exaggerated machine details.',
   },
   {
-    text: `As the royal poison taster, you've developed an unusual tolerance. Today's appetizer didn't kill you, but it *did* grant you the ability to taste secrets.`,
-    genre: `Low Fantasy / Intrigue`,
-    tone: `Suspenseful, Wry, Political`,
-    visualStyle: `Renaissance Painting, Dark Palette`,
+    text: 'Sun-baked scrolls whisper secrets of the Whispering Dunes, where a colossal, sand-serpent goddess demands a sacrifice of pure starlight; the only way to procure it is through a riddle-laced ritual beneath the crimson moon.',
+    genre: 'Mythic Desert Fantasy',
+    tone: 'Epic and awe-inspiring, tinged with dread',
+    visualStyle:
+      'Painterly, reminiscent of Art Nouveau illustration, emphasizing flowing sand textures and vibrant, celestial lighting.',
   },
   {
-    text: `Your quantum cat has phased through the wrong reality again. You find yourself in a world where emotions manifest as tangible, and often dangerous, weather patterns.`,
-    genre: `Conceptual Fantasy / Adventure`,
-    tone: `Whimsical, Perilous, Urgent`,
-    visualStyle: `Surrealist Landscape, Vibrant Colors`,
+    text: 'Dimly lit, the air in a hidden Venetian canal is thick with the scent of jasmine and decay; you find yourself cornered, facing a group of spectral gondoliers who demand the return of a stolen memory: the taste of lemon.',
+    genre: 'Gothic Mystery Romance',
+    tone: 'Romantic, suspenseful, and subtly heartbreaking',
+    visualStyle:
+      'Photorealistic, with a strong emphasis on chiaroscuro lighting, emphasizing the play of light and shadow on crumbling architecture and flowing water; a palette of deep blues, greens, and golds.',
   },
   {
-    text: `You run a dusty pawn shop on the edge of the multiverse. A being made of shifting clockwork offers you a broken pocket watch that doesn't just tell time, it *sells* it.`,
-    genre: `Urban Fantasy / Mystery`,
-    tone: `Mysterious, Gritty, Esoteric`,
-    visualStyle: `Film Noir Photography, Steampunk Elements`,
+    text: 'Lost in the neon-drenched labyrinth of a glitching, virtual reality arcade, you stumble upon a digital samurai, wielding a katana made of binary code; he offers you a quest to defeat a virus that manifests as a giant, pixelated, karaoke machine.',
+    genre: "Cyberpunk Beat 'em Up",
+    tone: 'Fast-paced, energetic, and slightly chaotic with a touch of ironic humor',
+    visualStyle:
+      'Pixel art influenced by 1980s arcade aesthetics and Japanese ukiyo-e prints, featuring vibrant neon colors and dynamic action poses.',
   },
 ];
 

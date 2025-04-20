@@ -45,6 +45,7 @@ type GenerateAdventureNodeResult = {
     resetTimestamp: number;
     apiType: 'text' | 'image' | 'tts';
   };
+  prompt?: string;
 };
 
 function buildAdventurePrompt(
@@ -66,7 +67,7 @@ function buildAdventurePrompt(
         ? history[0]?.passage
         : null;
 
-  const jsonStructure = `{\n  "passage": "(string) Next part of the adventure, describing outcome of last choice and current situation.",\n  "choices": [ /* Array of 3-4 { "text": string } objects for player choices. */ ],\n  "imagePrompt": "(string) Concise visual prompt (max 50 words) based ONLY on the \\\"passage\\\" but **strongly and consistently** reflecting the specified Adventure Style (Genre: ${genre ?? 'any'}, Tone: ${tone ?? 'any'}, Visual Style: ${visualStyle ?? 'any'}). **Crucially, describe the scene from a first-person perspective; do NOT show the player character or hands.** E.g., for sci-fi/mysterious/digital painting: \\\"Dim alien spaceship corridor, digital painting\\\"",\n  "updatedSummary": "(string) A brief (1-2 sentence) summary encompassing the entire story so far, updated with the events of this new 'passage'.\n}`;
+  const jsonStructure = `{\n  "passage": "(string) Next part of the adventure, describing outcome of last choice and current situation.",\n  "choices": [ /* Array of 3-4 { "text": string } objects for player choices. */ ],\n  "imagePrompt": "(string) Concise visual prompt (max 50 words) based ONLY on the \\\"passage\\\". **Crucially, write this prompt *as if* describing an image in the specified Visual Style: ${visualStyle ?? 'any'}**, strongly reflecting the Genre: ${genre ?? 'any'} and Tone: ${tone ?? 'any'}. Also, ensure the scene is described from a first-person perspective (do NOT show the player character or hands). Example for [Style: digital painting, Genre: sci-fi, Tone: mysterious]: \\\"Dim alien spaceship corridor, digital painting\\\"",\n  "updatedSummary": "(string) A brief (1-2 sentence) summary encompassing the entire story so far, updated with the events of this new 'passage'.\n}`;
 
   const initialContextSection = initialContextText
     ? `Initial Scenario Context/Goal:\n${initialContextText}`
@@ -138,7 +139,7 @@ function buildAdventurePrompt(
 3.  **Meaningful Choices:** Choices offered should ideally provide distinct paths, potentially influencing the direction towards resolution.
 4.  **Strict JSON Output:** Respond ONLY with a valid JSON object matching this structure:
 ${jsonStructure}
-Output only the JSON object. Provide an 'updatedSummary' reflecting the entire story including the new 'passage'. **Crucially, ensure the 'imagePrompt' is based on the current passage, strongly and consistently reflects the required Genre, Tone, and Visual Style, and describes the scene from a first-person perspective (do not show the protagonist).**`;
+Output only the JSON object. Provide an 'updatedSummary' reflecting the entire story including the new 'passage'. **Crucially, ensure the 'imagePrompt' is written *in the specified style* and describes the scene from a first-person perspective (do not show the protagonist).**`;
 
   return `${basePrompt}
 \n${adventureStyleSection}
@@ -197,19 +198,21 @@ async function generateImageWithGemini(
     };
   }
 
-  let stylePrefix = visualStyle ? visualStyle + ' style. ' : 'Detailed, atmospheric illustration. ';
-  if (genre) {
-    stylePrefix += `Genre: ${genre}. `;
-  }
-  if (tone) {
-    stylePrefix += `Tone: ${tone}. `;
-  }
+  // Format style details for clarity in the final prompt
+  const styleDetails = [
+    visualStyle ? `Style: ${visualStyle}` : null,
+    genre ? `Genre: ${genre}` : null,
+    tone ? `Tone: ${tone}` : null,
+  ]
+    .filter(Boolean)
+    .join('. '); // Join valid parts with '. '
 
-  // Add constraint to exclude the player character and hands
+  // Constraint for first-person perspective, excluding player character
   const sceneConstraint =
-    " The image should represent the scene from the protagonist's point of view. Do NOT depict the protagonist, player character, player's hands, or any representation of 'self'.";
+    "Perspective: First-person view. Do NOT depict the protagonist, player character, player's hands, or any representation of 'self'.";
 
-  const finalImagePrompt = `${stylePrefix}${imagePrompt}${sceneConstraint}`;
+  // Restructure the final prompt
+  const finalImagePrompt = `Scene Description: ${imagePrompt}. ${styleDetails}. ${sceneConstraint}`;
 
   console.log('[Adventure Image] Sending final prompt to Imagen API:', finalImagePrompt);
 
@@ -427,7 +430,7 @@ export const generateAdventureNodeAction = async (
     };
 
     console.log('[Adventure] Successfully generated node with summary and style context.');
-    return { adventureNode: finalNode };
+    return { adventureNode: finalNode, prompt: prompt };
   } catch (error) {
     console.error('[Adventure] Error generating adventure node:', error);
     Sentry.captureException(error);
@@ -452,26 +455,22 @@ type GenerateScenariosResult = {
 function buildScenariosPrompt(): string {
   const jsonStructure = `[
   {
-    "text": "(string) Engaging, specific, and imaginative scenario text, often surreal or dreamlike. **Keep concise (1-2 sentences max).**",
-    "genre": "(string) Genre (e.g., Surreal Sci-Fi, Dreamlike Fantasy, Psychedelic Mystery, 70s Space Opera). Be specific.",
-    "tone": "(string) Tone (e.g., Eerie, Oneiric, Hypnagogic, Cosmic Horror, Retrofuturistic, Whimsical yet unsettling). Be specific.",
-    "visualStyle": "(string) Visual style (e.g., 70s Sci-Fi Book Cover Art, Psychedelic Illustration, Surrealist Painting, Retro Anime, Vintage Fantasy Art). Be specific."
+    "text": "(string) Engaging, specific, and imaginative scenario text. **Keep concise (1-2 sentences max).**",
+    "genre": "(string) Genre (e.g., Sci-Fi, Fantasy, Mystery, Horror, Western). Be specific.",
+    "tone": "(string) Tone (e.g., Humorous, Dark, Suspenseful, Whimsical, Epic). Be specific.",
+    "visualStyle": "(string) Visual style for image generation (e.g., Photorealistic, Anime, Oil Painting, Pixel Art, Comic Book). Be specific and descriptive."
   }
-  /* Repeat this structure for 4 highly diverse scenarios, leaning into the requested themes */
+  /* Repeat this structure for 4 highly diverse scenarios */
 ]`;
 
   return `You are an extremely creative storyteller specializing in crafting unique scenarios. Generate a **highly diverse list of 4 compelling and unique** scenarios for an interactive text adventure. Each scenario must include specific, evocative text describing the initial scenario, a well-defined genre, a distinct tone, and a specific visual style for potential images.
 
-**Desired Styles & Themes (Include Among the Diverse Options):**
-*   Incorporate **surreal, dreamlike, weird, or psychedelic themes** in some scenarios.
-*   Include options inspired by **70s-era science fiction and fantasy aesthetics** (e.g., Moebius, Frazetta, vintage book covers) for visual style or genre.
-*   Aim for **evocative, specific, and unconventional** scenarios across all scenarios.
-
 **Key Requirements:**
-1.  **High Variation:** The **most important goal** is that the 4 scenarios are significantly different from each other in theme, setting, genre, tone, and style. Do not repeat patterns.
+1.  **High Variation:** The **most important goal** is that the 4 scenarios are significantly different from each other in theme, setting, genre, tone, and visual style. Do not repeat patterns.
 2.  **Specificity & Conciseness:** Use concrete, unusual details in the scenario text, **keeping it brief (1-2 sentences)**. Instead of "a mysterious artifact", try "a pulsating obsidian orb humming discordant energy".
-3.  **Creative Styles:** Use varied and specific genres, tones, and visual styles, drawing inspiration from the desired themes above where appropriate.
-4.  **Strict JSON Output:** Respond ONLY with a valid JSON array matching this exact structure (do not add any text before or after the JSON):
+3.  **Creative Styles:** Use varied and specific genres, tones, and visual styles.
+4.  **Avoid Tropes:** Steer clear of overused sci-fi/fantasy tropes like finding data chips or dealing with generic rogue AIs, unless approached with significant originality.
+5.  **Strict JSON Output:** Respond ONLY with a valid JSON array matching this exact structure (do not add any text before or after the JSON):
 ${jsonStructure}
 Output only the JSON array. Focus on **maximum diversity, uniqueness, and detail** across the 4 scenarios.`;
 }

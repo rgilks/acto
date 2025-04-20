@@ -35,6 +35,16 @@ An interactive storytelling application powered by Next.js and generative AI (Go
 - **Testing**: Includes unit/integration tests (Jest) and end-to-end tests (Playwright).
 - **Error Tracking**: Sentry integration for monitoring.
 
+### Saving Your Story
+
+You can save your current adventure progress at any time using the "Save Story" option in the user menu (available when logged in).
+
+This will download a `.zip` file containing:
+
+- **`story.json`**: A structured representation of your story history, including passages, summaries, and metadata.
+- **`prompt_log.json`**: A log file detailing the prompts sent to the AI and the key parts of the response (passage, choices, image prompt, summary) for each step. Useful for debugging or understanding AI behavior.
+- **`media/` folder**: Contains the generated images (`.png`) and audio files (`.mp3`) for each step.
+
 ## Technology Stack
 
 - **Next.js**: Latest version using App Router

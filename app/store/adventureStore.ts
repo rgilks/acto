@@ -77,6 +77,9 @@ export interface StoryHistoryItem {
   summary?: string;
   imageUrl?: string | null;
   audioBase64?: string | null;
+  prompt?: string;
+  imagePrompt?: string;
+  choices?: z.infer<typeof AdventureChoiceSchema>[];
 }
 
 // Type for structured rate limit errors passed from the server
@@ -234,10 +237,15 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           // Prepare history for the action call
           const historyForAction = [...currentHistory];
           if (choiceText && !isInitialCall && historyForAction.length > 0) {
-            historyForAction[historyForAction.length - 1] = {
-              ...historyForAction[historyForAction.length - 1],
-              choiceText: choiceText,
-            };
+            // Find the last actual history item (might not be the last element if currentNode was pushed temporarily)
+            const lastHistoryItemIndex = historyForAction.length - 1;
+            // Ensure we don't modify a non-existent item (shouldn't happen here, but safe)
+            if (lastHistoryItemIndex >= 0) {
+              historyForAction[lastHistoryItemIndex] = {
+                ...historyForAction[lastHistoryItemIndex],
+                choiceText: choiceText,
+              };
+            }
           }
 
           const storyContextForAction = {
@@ -273,6 +281,9 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
 
           const result = await generateAdventureNodeAction(actionParams);
 
+          // Capture the prompt used for this specific call
+          const promptForThisNode = result.prompt;
+
           if (result.rateLimitError) {
             console.warn('Rate limit hit:', result.rateLimitError);
             set((state) => {
@@ -297,6 +308,9 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
               summary: newNode.updatedSummary,
               imageUrl: newNode.imageUrl,
               audioBase64: newNode.audioBase64,
+              prompt: promptForThisNode,
+              imagePrompt: newNode.imagePrompt,
+              choices: newNode.choices,
             });
             state.currentNode = newNode;
             state.isLoading = false;
@@ -362,20 +376,46 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
 
         const zip = new JSZip();
 
-        // Prepare history data, potentially adding the last node
-        const fullHistoryForJson = [...storyHistory];
+        // Prepare history data and log data simultaneously
+        const fullHistoryForJson = [];
+        const promptLog = [];
 
+        for (let i = 0; i < storyHistory.length; i++) {
+          const item = storyHistory[i];
+          const logEntry = {
+            step: i,
+            prompt: item.prompt ?? 'Prompt not recorded',
+            passage: item.passage,
+            imagePrompt: item.imagePrompt ?? 'Image prompt not recorded',
+            choices: item.choices?.map((c) => c.text) ?? [],
+            summary: item.summary ?? 'Summary not recorded',
+            choiceMade: item.choiceText ?? (i > 0 ? '(Initial Node)' : '(Not recorded)'),
+          };
+          promptLog.push(logEntry);
+
+          fullHistoryForJson.push({
+            ...item,
+            // Prepare item for story.json (removing unnecessary fields for this file)
+            imageFile: item.imageUrl ? `media/image_${i}.png` : undefined,
+            audioFile: item.audioBase64 ? `media/audio_${i}.mp3` : undefined,
+            audioBase64: undefined,
+            prompt: undefined,
+            imagePrompt: undefined,
+            choices: undefined,
+          });
+        }
+
+        // Add current node info if exists (as the final state, not a full step in prompt log)
         if (currentNode) {
           fullHistoryForJson.push({
             passage: currentNode.passage,
             summary: currentNode.updatedSummary,
             imageUrl: currentNode.imageUrl,
-            audioBase64: undefined,
-            choiceText: undefined,
+            // Omit prompt, choiceText, audio etc. for the final node state in story.json
           });
         }
 
-        // 1. Create and add story.json
+        // 1. Create and add story.json (using cleaned history)
         const storyData = {
           metadata: {
             genre: currentGenre,
@@ -383,14 +423,12 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             visualStyle: currentVisualStyle,
             savedAt: new Date().toISOString(),
           },
-          history: fullHistoryForJson.map((item, index) => ({
-            ...item,
-            imageFile: item.imageUrl ? `media/image_${index}.png` : undefined,
-            audioFile: item.audioBase64 ? `media/audio_${index}.mp3` : undefined,
-            audioBase64: undefined,
-          })),
+          history: fullHistoryForJson, // Use the prepared array
         };
         zip.file('story.json', JSON.stringify(storyData, null, 2));
+
+        // 1.5 Add prompt_log.json
+        zip.file('prompt_log.json', JSON.stringify(promptLog, null, 2));
 
         // Create a subfolder for media files within the zip
         const mediaFolder = zip.folder('media');
@@ -400,8 +438,8 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           return;
         }
 
-        // 2. Fetch images and add them to the zip
-        const imagePromises = fullHistoryForJson.map(async (item, index) => {
+        // 2. Fetch images and add them to the zip (Use original storyHistory for image URLs)
+        const imagePromises = storyHistory.map(async (item, index) => {
           if (item.imageUrl) {
             try {
               const response = await fetch(item.imageUrl);
@@ -420,8 +458,8 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           }
         });
 
-        // 3. Decode base64 audio and add it to the zip
-        const audioPromises = fullHistoryForJson.map(async (item, index) => {
+        // 3. Decode base64 audio and add it to the zip (Use original storyHistory for audio data)
+        const audioPromises = storyHistory.map(async (item, index) => {
           if (item.audioBase64) {
             try {
               // Assuming audio is MP3 format as stored
