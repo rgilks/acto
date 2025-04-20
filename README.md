@@ -1,7 +1,3 @@
-<div align="center">
-  <a href='https://ko-fi.com/N4N31DPNUS' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi2.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
-</div>
-
 # acto - AI Interactive Storyteller
 
 An interactive storytelling application powered by Next.js and generative AI (Google Gemini).
@@ -9,6 +5,10 @@ An interactive storytelling application powered by Next.js and generative AI (Go
 [![CI/CD](https://github.com/rgilks/acto/actions/workflows/fly.yml/badge.svg)](https://github.com/rgilks/acto/actions/workflows/fly.yml)
 
 ![acto Screenshot](/public/screenshot.png)
+
+<div align="center">
+  <a href='https://ko-fi.com/N4N31DPNUS' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi2.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
+</div>
 
 ## Overview
 
@@ -44,7 +44,7 @@ An interactive storytelling application powered by Next.js and generative AI (Go
 - **next-auth**: Authentication (GitHub, Google, Discord) _(Optional)_
 - **Google Generative AI SDK (`@google/genai`)**: Gemini model integration (Text/Image Generation)
 - **Google Cloud Client Libraries (`@google-cloud/text-to-speech`)**: Cloud Text-to-Speech
-- **SQLite**: `better-sqlite3` likely for database storage (user data, rate limits)
+- **SQLite**: `better-sqlite3` database storage (user data, rate limits)
 - **Zod**: Schema validation (especially for AI responses)
 - **zustand / immer**: Client-side state management
 - **@ducanh2912/next-pwa**: Progressive Web App features
@@ -70,13 +70,13 @@ An interactive storytelling application powered by Next.js and generative AI (Go
 acto implements strategies to manage AI API costs:
 
 - **Rate Limiting**:
-  - Uses a per-user sliding window counter stored in the `rate_limits_user` SQLite table.
+  - Uses a per-user **daily counter** stored in the `rate_limits_user` SQLite table (resets at UTC midnight).
   - Applies separate limits for different Google AI API types (text generation, image generation, TTS).
   - Requires users to be logged in (via NextAuth) to make rate-limited API calls.
-  - Default limits are defined in `lib/rateLimitSqlite.ts` (e.g., 10 text requests/min, 5 image requests/hour).
+  - Default limits are defined in `lib/rateLimitSqlite.ts` (e.g., **100** text requests/day, **100** image requests/day, **100** TTS requests/day).
   - Adjust limits directly in `lib/rateLimitSqlite.ts` or consider moving them to environment variables for easier configuration.
   - Exceeding the limit returns an error to the user and logs details to the console and Sentry (if configured).
-- **Database Caching**: _(Not currently implemented for adventure game state. Previous caching mechanisms for other features may have been removed.)_
+- **Database Caching**: _(Not currently implemented for adventure game state)_
 
 ## Setup and Running
 
@@ -116,7 +116,6 @@ acto implements strategies to manage AI API costs:
         jq -c . < /path/to/your/keyfile.json
         ```
       - Copy the entire single-line output of this command and paste it directly after the `=` sign for `GOOGLE_APP_CREDS_JSON` in your `.env.local` file (do **not** add surrounding quotes).
-    - `GOOGLE_APPLICATION_CREDENTIALS`: _Legacy variable, no longer used by the TTS client._ Previously pointed to the service account key file path. Can likely be removed from `.env.local` unless used by other SDKs.
 
     **Required for Authentication (if used):**
 
@@ -361,7 +360,7 @@ Accessible at `/admin` for users whose email is in `ADMIN_EMAILS`.
 
 **Features:**
 
-- View data from `users`, `rate_limits_user`, potentially game state or feedback tables. _(Verify available tables)_
+- View data from `users` and `rate_limits_user` tables.
 - Basic pagination.
 - Requires login; redirects non-admins.
 
@@ -483,7 +482,7 @@ CREATE INDEX IF NOT EXISTS idx_rate_limits_user_window ON rate_limits_user(user_
 - **Auth Errors:** Verify `.env.local` / Fly secrets (`AUTH_SECRET`, provider IDs/secrets, `NEXTAUTH_URL`). Ensure OAuth callback URLs match.
 - **API Key Errors:** Check AI provider keys in env/secrets. Ensure billing/quotas are sufficient. Check `lib/modelConfig.ts`.
 - **AI Errors:** Check Sentry/console logs for errors from the AI API. Ensure the AI is returning valid JSON matching the expected Zod schema in `app/actions/adventure.ts`. Refine prompts if needed.
-- **Rate Limit Errors:** Wait for the window to reset or adjust limits in `lib/rateLimitSqlite.ts` if necessary. Check `rate_limits_user` table for current counts.
+- **Rate Limit Errors:** Wait for the daily limit to reset (UTC midnight) or adjust limits in `lib/rateLimitSqlite.ts` if necessary. Check `rate_limits_user` table for current counts.
 - **Admin Access Denied:** Confirm logged-in user's email is EXACTLY in `ADMIN_EMAILS`. Check Fly secrets value.
 - **Deployment Issues:** Examine GitHub Actions logs and `fly logs --app <your-app-name>`.
 - **State Management Issues:** Use React DevTools/Zustand DevTools to inspect game state.
