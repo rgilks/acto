@@ -9,25 +9,21 @@ import {
 } from '@/lib/domain/schemas';
 import * as Sentry from '@sentry/nextjs';
 import { GoogleGenAI } from '@google/genai';
-import { type StoryHistoryItem } from '@/store/adventureStore';
 import { synthesizeSpeechAction, type SynthesizeSpeechResult } from './tts';
 import { TTS_VOICE_NAME } from '@/lib/constants';
 import { getSession } from '@/app/auth';
 import { checkTextRateLimit, checkImageRateLimit } from '@/lib/rateLimitSqlite';
-
-const StoryHistoryItemSchema = z.object({
-  passage: z.string(),
-  choiceText: z.string().optional(),
-  summary: z.string().optional(),
-});
-
-type StoryContext = {
-  history: StoryHistoryItem[];
-};
+import { buildAdventurePrompt } from '@/lib/promptUtils';
 
 const GenerateAdventureNodeParamsSchema = z.object({
   storyContext: z.object({
-    history: z.array(StoryHistoryItemSchema),
+    history: z.array(
+      z.object({
+        passage: z.string(),
+        choiceText: z.string().optional(),
+        summary: z.string().optional(),
+      })
+    ),
   }),
   initialScenarioText: z.string().optional(),
   genre: z.string().optional(),
@@ -47,84 +43,6 @@ type GenerateAdventureNodeResult = {
   };
   prompt?: string;
 };
-
-function buildAdventurePrompt(
-  context: StoryContext | undefined,
-  initialScenarioText?: string | null,
-  genre?: string | null,
-  tone?: string | null,
-  visualStyle?: string | null
-): string {
-  const history = context?.history ?? [];
-  const maxHistoryItems = 2;
-
-  const latestSummary = history.length > 0 ? history[history.length - 1]?.summary : null;
-
-  const initialContextText =
-    history.length === 0 && initialScenarioText
-      ? initialScenarioText
-      : history.length > 0
-        ? history[0]?.passage
-        : null;
-
-  const jsonStructure = `{\n  "passage": "(string) The next part of the story, describing the current situation and outcome of the last choice.",\n  "choices": [ { "text": string }, ... ], /* Array of 3 distinct player choices */\n  "imagePrompt": "(string) A visual description for an image based *only* on the \"passage\". Describe the scene from a first-person view, reflecting the specified Visual Style: ${visualStyle ?? 'any'}. **Do not describe the player character.**",\n  "updatedSummary": "(string) A brief (1-2 sentence) summary of the entire story up to and including this new \"passage\"."
-}`;
-
-  const initialContextSection = initialContextText
-    ? `Initial Scenario Context/Goal: ${initialContextText}`
-    : '';
-
-  let adventureStyleSection = 'Adventure Style Hints:\n';
-  if (genre) adventureStyleSection += `- Genre: ${genre}\n`;
-  if (tone) adventureStyleSection += `- Tone: ${tone}\n`;
-  if (visualStyle) adventureStyleSection += `- Visual Style (for image prompts): ${visualStyle}\n`;
-  if (!genre && !tone && !visualStyle) adventureStyleSection += '(None specified)\n';
-
-  let recentHistoryText = 'Recent Events:\n';
-  if (history.length === 0) {
-    recentHistoryText += '(This is the first step after the Initial Scenario Context.)\n';
-  } else {
-    const recentHistory = history.slice(-maxHistoryItems);
-    recentHistory.forEach((item, index) => {
-      if (index === 0 && history.length > maxHistoryItems) {
-        recentHistoryText += `(...earlier events summarized below...)\n`;
-      }
-      recentHistoryText += `Previously: ${item.passage}\n`;
-      if (item.choiceText) {
-        recentHistoryText += `Choice Made: ${item.choiceText}\n`;
-      } else if (index === 0 && history.length === 1) {
-        recentHistoryText += `(Generated from initial scenario text)\n`;
-      }
-    });
-  }
-
-  const storySummarySection = latestSummary ? `Previous Summary: ${latestSummary}` : '';
-
-  const basePrompt = `You are a storyteller creating an interactive adventure.
-
-**Your Goal:** Write the next part of the story based on the history and summary. Provide 3 distinct choices. Create an image prompt that visually describes the new \"passage\" in the specified \"Visual Style\". Update the story summary.
-
-**Instructions:**
-1.  **Continue the Story:** Write a compelling \"passage\" that follows logically from the \"Recent Events\" and \"Previous Summary\". Maintain the specified \"Adventure Style Hints\".
-2.  **Offer Choices:** Provide 3 distinct \"choices\" for the player.
-3.  **Image Prompt:** Write an \"imagePrompt\" describing the scene in the new \"passage\" from a first-person view. **Crucially, the prompt must visually match the \"passage\" and reflect the \"Visual Style\".** Do not include the player character.
-4.  **Update Summary:** Write a concise \"updatedSummary\" covering the whole story so far, including the new \"passage\".
-5.  **Output Format:** Respond ONLY with a valid JSON object matching this structure:
-${jsonStructure}
-
-**Context for Next Step:**`;
-
-  const promptParts = [
-    basePrompt,
-    adventureStyleSection,
-    initialContextSection,
-    storySummarySection,
-    recentHistoryText,
-    '\nGenerate the JSON for the next step:',
-  ];
-
-  return promptParts.filter(Boolean).join('\n\n');
-}
 
 async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Promise<string> {
   console.log('[Adventure] Calling AI...');
@@ -401,6 +319,7 @@ export const generateAdventureNodeAction = async (
     const finalNode: AdventureNode = {
       passage: validatedNode.passage,
       choices: validatedNode.choices,
+      imagePrompt: imagePromptFromAI,
       imageUrl: imageUrl ?? validatedNode.imageUrl,
       audioBase64: audioBase64,
       updatedSummary: updatedSummary,

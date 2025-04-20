@@ -59,14 +59,6 @@ const hardcodedScenarios: Scenario[] = [
 
 // Add the list of voices
 const chirp3Voices = [
-  'en-AU-Chirp3-HD-Aoede',
-  'en-AU-Chirp3-HD-Charon',
-  'en-AU-Chirp3-HD-Fenrir',
-  'en-AU-Chirp3-HD-Kore',
-  'en-AU-Chirp3-HD-Leda',
-  'en-AU-Chirp3-HD-Orus',
-  'en-AU-Chirp3-HD-Puck',
-  'en-AU-Chirp3-HD-Zephyr',
   'en-GB-Chirp3-HD-Aoede',
   'en-GB-Chirp3-HD-Charon',
   'en-GB-Chirp3-HD-Fenrir',

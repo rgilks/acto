@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, type StorageValue } from 'zustand/middleware';
 import { type AdventureNode, AdventureChoiceSchema } from '@/lib/domain/schemas';
-import { generateAdventureNodeAction, generateScenariosAction } from '../actions/adventure';
+import { generateAdventureNodeAction, generateScenariosAction } from '@/app/actions/adventure';
+import { buildAdventurePrompt } from '@/lib/promptUtils';
 import { z } from 'zod';
 import JSZip from 'jszip';
 
@@ -96,9 +97,9 @@ type Scenario = z.infer<typeof AdventureChoiceSchema>;
 
 // Type for the metadata to be stored and passed
 interface AdventureMetadata {
-  genre?: string | null;
-  tone?: string | null;
-  visualStyle?: string | null;
+  genre?: string;
+  tone?: string;
+  visualStyle?: string;
 }
 
 // Interface for prompt log entries
@@ -279,6 +280,14 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             tone: metadata?.tone ?? get().currentTone ?? undefined,
             visualStyle: metadata?.visualStyle ?? get().currentVisualStyle ?? undefined,
           };
+          const fullPromptForLog = buildAdventurePrompt(
+            // Regenerate prompt for logging
+            actionParams.storyContext,
+            isInitialCall && choiceText ? choiceText : undefined,
+            actionParams.genre,
+            actionParams.tone,
+            actionParams.visualStyle
+          );
 
           // Add initialScenarioText only on the first call (using the original choiceText passed)
           if (isInitialCall && choiceText) {
@@ -308,15 +317,20 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           const newNode = result.adventureNode;
 
           set((state) => {
-            state.storyHistory.push({
-              passage: newNode.passage,
-              summary: newNode.updatedSummary,
-              imageUrl: newNode.imageUrl,
-              audioBase64: newNode.audioBase64,
-              prompt: result.prompt,
-              imagePrompt: newNode.imagePrompt,
-              choices: newNode.choices,
-            });
+            // Update the *last* history item (created in makeChoice) with the data FROM this step
+            const lastHistoryIndex = state.storyHistory.length - 1;
+            if (lastHistoryIndex >= 0) {
+              state.storyHistory[lastHistoryIndex] = {
+                ...state.storyHistory[lastHistoryIndex], // Keep passage, choiceText etc.
+                summary: newNode.updatedSummary,
+                imageUrl: newNode.imageUrl,
+                audioBase64: newNode.audioBase64,
+                prompt: fullPromptForLog, // Store the full prompt used for this step
+                imagePrompt: newNode.imagePrompt, // Store the specific image prompt generated
+                choices: newNode.choices, // Store choices *available from* this new state
+              };
+            }
+            // Set the current node for the UI
             state.currentNode = newNode;
             state.isLoading = false;
             state.error = null;
@@ -345,7 +359,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
 
       makeChoice: (choice: z.infer<typeof AdventureChoiceSchema>) => {
         const isInitialCall = get().storyHistory.length === 0;
-        const previousNode = get().currentNode;
+        const previousNode = get().currentNode; // Get state *before* choice
         const { fetchAdventureNode, setCurrentMetadata } = get();
 
         // Store metadata if it's the first call (scenario selection)
@@ -361,31 +375,30 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             state.currentVoice = choice.voice ?? null;
           });
 
-          // Push initial node (placeholder or actual, depending on design)
+          // Push initial placeholder history item for step 0
           set((state) => {
             state.storyHistory.push({
               passage: choice.text, // Use the scenario text as the first "passage"
-              // No choiceText here as it's the beginning
+              choiceText: '(Scenario Selection)', // Explicitly mark the choice type
+              // Other fields (prompt, imagePrompt, summary, etc.) will be filled by fetchAdventureNode
             });
           });
 
-          void fetchAdventureNode(undefined, metadata); // Fetch first node without choice text
+          void fetchAdventureNode(choice.text, metadata); // Fetch first real node (step 1) using scenario text as initial context
         } else {
           // This is a subsequent choice within the adventure
-          // Add the previous node's details and the chosen choice text to history
           if (previousNode) {
+            // Push a new history item representing the state *after* the choice is made,
+            // but *before* the next node is fetched.
             set((state) => {
               const historyItem: StoryHistoryItem = {
-                passage: previousNode.passage,
-                choiceText: choice.text,
-                summary: previousNode.updatedSummary,
-                imageUrl: previousNode.imageUrl,
-                audioBase64: previousNode.audioBase64,
-                prompt: previousNode.imagePrompt, // Include prompt in history?
-                choices: previousNode.choices, // Store choices made *from* this node
+                passage: '...', // Placeholder passage
+                choiceText: choice.text, // Record the choice that leads *to* the next step
               };
               state.storyHistory.push(historyItem);
             });
+          } else {
+            console.warn('[makeChoice] Cannot record history step: previousNode is null.');
           }
 
           void fetchAdventureNode(choice.text); // Fetch next node based on the chosen text
