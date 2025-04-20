@@ -8,7 +8,7 @@ import {
   type AdventureNode,
 } from '@/lib/domain/schemas';
 import * as Sentry from '@sentry/nextjs';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from '@google/genai';
 import { synthesizeSpeechAction, type SynthesizeSpeechResult } from './tts';
 import { TTS_VOICE_NAME } from '@/lib/constants';
 import { getSession } from '@/app/auth';
@@ -54,7 +54,31 @@ async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Pro
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: {
         temperature: 1.3,
-        topP: 1.0,
+        topP: 0.95,
+        topK: 40,
+        frequencyPenalty: 0.3,
+        presencePenalty: 0.6,
+        candidateCount: 1,
+        maxOutputTokens: 900,
+        stopSequences: ['### END_SCENE ###'],
+        safetySettings: [
+          {
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+          },
+          {
+            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+          },
+        ],
       },
     });
     const text = result.text;
