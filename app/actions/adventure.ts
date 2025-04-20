@@ -48,6 +48,9 @@ async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Pro
   console.log('[Adventure] Calling AI...');
 
   try {
+    // console.log('----------------- PROMPT START -----------------');
+    // console.log(prompt);
+    // console.log('-----------------  PROMPT END  -----------------');
     const genAI: GoogleGenAI = getGoogleAIClient();
     const result = await genAI.models.generateContent({
       model: modelConfig.name,
@@ -55,10 +58,10 @@ async function callAIForAdventure(prompt: string, modelConfig: ModelConfig): Pro
       config: {
         temperature: 1.3,
         topP: 0.95,
-        // topK: 40,
-        // frequencyPenalty: 0.3,
-        // presencePenalty: 0.6,
-        // candidateCount: 1,
+        topK: 40,
+        frequencyPenalty: 0.3,
+        presencePenalty: 0.6,
+        candidateCount: 1,
         maxOutputTokens: 900,
         safetySettings: [
           {

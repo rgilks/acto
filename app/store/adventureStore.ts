@@ -264,24 +264,32 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         });
 
         const currentVoice = voice !== undefined ? voice : get().currentVoice;
-        const actionParams: Parameters<typeof generateAdventureNodeAction>[0] = {
-          storyContext: { history: [] },
-          genre: metadata?.genre ?? get().currentGenre ?? undefined,
-          tone: metadata?.tone ?? get().currentTone ?? undefined,
-          visualStyle: metadata?.visualStyle ?? get().currentVisualStyle ?? undefined,
-        };
-        const fullPromptForLog = buildAdventurePrompt(
-          actionParams.storyContext,
-          choiceText ? choiceText : undefined,
-          actionParams.genre,
-          actionParams.tone,
-          actionParams.visualStyle
-        );
-
         // Store params *before* the call in case it fails retryably
         const currentFetchParams: FetchParams = { choiceText, metadata, voice: currentVoice };
 
+        // Define variable to hold the prompt for logging and history update
+        let fullPromptForLog: string | undefined = undefined;
+
         try {
+          // --- CONSTRUCT PARAMS JUST BEFORE CALL ---
+          const currentHistory = get().storyHistory; // Get the latest history state HERE
+          const actionParams: Parameters<typeof generateAdventureNodeAction>[0] = {
+            storyContext: { history: currentHistory }, // Use it here
+            genre: metadata?.genre ?? get().currentGenre ?? undefined,
+            tone: metadata?.tone ?? get().currentTone ?? undefined,
+            visualStyle: metadata?.visualStyle ?? get().currentVisualStyle ?? undefined,
+          };
+          // --- Log prompt AFTER constructing params ---
+          fullPromptForLog = buildAdventurePrompt(
+            // Assign to the variable
+            actionParams.storyContext, // Pass the correct context
+            choiceText ? choiceText : undefined,
+            actionParams.genre,
+            actionParams.tone,
+            actionParams.visualStyle
+          );
+          // --- END ---
+
           // Pass the parameter object and the voice to the action
           const result = await generateAdventureNodeAction(actionParams, currentVoice);
 

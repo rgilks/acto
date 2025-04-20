@@ -14,7 +14,7 @@ export function buildAdventurePrompt(
   visualStyle: string | undefined = undefined
 ): string {
   const history = context?.history ?? [];
-  const maxHistoryItems = 2;
+  const maxHistoryItems = 5;
 
   const latestSummary = history.length > 0 ? history[history.length - 1]?.summary : null;
 
@@ -25,7 +25,7 @@ export function buildAdventurePrompt(
         ? history[0]?.passage // Use passage from the very first history item
         : null;
 
-  const jsonStructure = `{\n  "passage": "(string) The next part of the story, describing the current situation and outcome of the last choice.",\n  "choices": [ { "text": string }, ... ], /* Array of 3 distinct player choices */\n  "imagePrompt": "(string) A visual description for an image based *only* on the \"passage\". Describe the scene, reflecting the specified Visual Style: ${visualStyle ?? 'any'}.",
+  const jsonStructure = `{\n  "passage": "(string) The next part of the story, describing the current situation and outcome of the last choice.",\n  "choices": [ { "text": string }, ... ], /* Array of 3 or 4 distinct player choices */\n  "imagePrompt": "(string) A visual description for an image based *only* on the \"passage\". Describe the scene, reflecting the specified Visual Style: ${visualStyle ?? 'any'}.",
   "updatedSummary": "(string) A brief (1-2 sentence) summary of the entire story up to and including this new \"passage\"."
 }`;
 
@@ -67,13 +67,13 @@ export function buildAdventurePrompt(
 
   const basePrompt = `You are a storyteller creating an interactive adventure.
 
-**Your Goal:** Write the next part of the story based on the history and summary. Provide 3 distinct choices. Create an image prompt that visually describes the new \"passage\" in the specified \"Visual Style\". Update the story summary.
+**Your Goal:** Write the next part of the story based on the history and summary. Provide 3 or 4 distinct choices. Create an image prompt that visually describes the new "passage" in the specified "Visual Style". Update the story summary.
 
 **Instructions:**
-1.  **Continue the Story:** Write a compelling \"passage\" that follows logically from the \"Recent Events\" and \"Previous Summary\". Maintain the specified \"Adventure Style Hints\".
-2.  **Offer Choices:** Provide 3 distinct \"choices\" for the player.
-3.  **Image Prompt:** Write an \"imagePrompt\" describing the scene in the new \"passage\" from a first-person view. **Crucially, the prompt must visually match the \"passage\" and reflect the \"Visual Style\".** Do not include the player character.
-4.  **Update Summary:** Write a concise \"updatedSummary\" covering the whole story so far, including the new \"passage\".
+1.  **Continue the Story:** Write an engaging and descriptive "passage" that flows logically from the "Previous Summary" (for overall context) and the "Recent Events" (for immediate action). Maintain the specified "Adventure Style Hints" (Genre, Tone) in the writing.
+2.  **Offer Choices:** Provide 3 or 4 distinct "choices" for the player.
+3.  **Image Prompt:** Write an "imagePrompt" describing ONLY the scene detailed in the NEW "passage" above, from a first-person view. **The mood and content of the image prompt should align with the specified Genre and Tone.** Do not describe elements from previous steps unless they are explicitly visible in the new passage. Crucially, the prompt must visually match the "passage" and reflect the "Visual Style": ${visualStyle ?? 'any'}. Do not include the player character.
+4.  **Update Summary:** Write a concise "updatedSummary" covering the whole story so far, including the new "passage".
 5.  **Output Format:** Respond ONLY with a valid JSON object matching this structure:
 ${jsonStructure}
 
@@ -82,7 +82,7 @@ ${jsonStructure}
   const promptParts = [
     basePrompt,
     adventureStyleSection,
-    initialContextSection,
+    history.length <= 1 ? initialContextSection : '', // Only include initial context for first step(s)
     storySummarySection,
     recentHistoryText,
     '\nGenerate the JSON for the next step:',
