@@ -418,10 +418,11 @@ const AdventureGame = () => {
     };
   }, [fullscreenHandle.active, isTouchDevice, setShowFullscreenControls]);
 
-  // Effect for keyboard shortcuts (Fullscreen + Choices)
+  // Effect for keyboard shortcuts (Fullscreen, Choices, Volume)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
+      const volumeStep = 0.05; // Adjust volume by 5%
 
       // Fullscreen Toggle (F or Space)
       if (key === 'f' || key === ' ') {
@@ -434,8 +435,10 @@ const AdventureGame = () => {
         return; // Don't process further if it was a fullscreen toggle
       }
 
-      // Choice Navigation/Selection (only if choices are visible)
+      // Choice Navigation/Selection
       if (showChoices && displayNode && displayNode.choices.length > 0) {
+        if (isNodeLoading) return;
+
         const numChoices = displayNode.choices.length;
 
         if (key === 'arrowleft') {
@@ -474,6 +477,22 @@ const AdventureGame = () => {
             }
           }
         }
+
+        // If it was a choice key, don't process volume changes
+        return;
+      }
+
+      // Volume Control (Up/Down Arrows, +/-, =)
+      if (key === 'arrowup' || key === '=' || key === '+') {
+        event.preventDefault();
+        const newVolume = Math.min(1, localVolume + volumeStep);
+        setLocalVolume(newVolume);
+        setTTSVolume(newVolume);
+      } else if (key === 'arrowdown' || key === '-') {
+        event.preventDefault();
+        const newVolume = Math.max(0, localVolume - volumeStep);
+        setLocalVolume(newVolume);
+        setTTSVolume(newVolume);
       }
     };
 
@@ -481,7 +500,17 @@ const AdventureGame = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [fullscreenHandle, showChoices, displayNode, focusedChoiceIndex, handleChoiceClick]);
+  }, [
+    fullscreenHandle,
+    showChoices,
+    displayNode,
+    focusedChoiceIndex,
+    handleChoiceClick,
+    isNodeLoading,
+    localVolume,
+    setLocalVolume,
+    setTTSVolume,
+  ]);
 
   const effectiveError = nodeError || fetchScenariosError;
   const rateLimitInfo =
@@ -715,8 +744,8 @@ const AdventureGame = () => {
                             </>
                           )}
 
-                          {/* Centered Pause icon */}
-                          {currentAudioData && !isTTSPlaying && !isNodeLoading && (
+                          {/* Centered Pause icon - Hide if loading next node OR if choices are shown */}
+                          {currentAudioData && !isTTSPlaying && !isNodeLoading && !showChoices && (
                             <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
                               <PauseIcon className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 text-white/75" />
                             </div>
