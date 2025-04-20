@@ -22,17 +22,38 @@ const createPruningStorage = (storage = localStorage, maxAttempts = MAX_PRUNE_AT
     while (attempts < maxAttempts) {
       try {
         storage.setItem(name, currentValue);
-
+        // console.log('[LocalStorage] Successfully saved state.'); // Optional: uncomment for success logging
         return;
       } catch (e: unknown) {
         if (
           e instanceof DOMException &&
           (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') // Firefox
         ) {
-          console.warn(
-            `LocalStorage quota exceeded (attempt ${attempts + 1}). Pruning oldest history item.`
-          );
           attempts++;
+          console.warn(
+            `[LocalStorage] Quota exceeded (attempt ${attempts}). Pruning oldest history item.`
+          );
+
+          // --- Log Storage Usage ---
+          try {
+            const itemToSaveSize = new Blob([currentValue]).size;
+            let currentTotalUsage = 0;
+            for (let i = 0; i < storage.length; i++) {
+              const key = storage.key(i);
+              if (key) {
+                const item = storage.getItem(key);
+                if (item) {
+                  currentTotalUsage += new Blob([item]).size;
+                }
+              }
+            }
+            console.log(
+              `[LocalStorage] Item size trying to save (${name}): ~${(itemToSaveSize / 1024 / 1024).toFixed(2)} MB. Estimated total usage: ~${(currentTotalUsage / 1024 / 1024).toFixed(2)} MB. Typical quota is 5-10MB.`
+            );
+          } catch (logError) {
+            console.error('[LocalStorage] Error estimating storage usage:', logError);
+          }
+          // --- End Log Storage Usage ---
 
           try {
             const stateWithValue = JSON.parse(currentValue) as StorageValue<AdventureState>;
@@ -77,7 +98,6 @@ export interface StoryHistoryItem {
   choiceText?: string;
   summary?: string;
   imageUrl?: string | null;
-  audioBase64?: string | null;
   prompt?: string;
   imagePrompt?: string;
   choices?: z.infer<typeof AdventureChoiceSchema>[];
@@ -342,7 +362,6 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
               passage: newNode.passage,
               summary: newNode.updatedSummary,
               imageUrl: newNode.imageUrl,
-              audioBase64: newNode.audioBase64,
               prompt: fullPromptForLog,
               imagePrompt: newNode.imagePrompt,
               choices: newNode.choices,
@@ -481,7 +500,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
 
           // Determine media file references
           const imageFileRef = item.imageUrl ? `media/image_${i}.png` : undefined; // Assuming png for simplicity
-          const audioFileRef = item.audioBase64 ? `media/audio_${i}.mp3` : undefined;
+          // const audioFileRef = item.audioBase64 ? `media/audio_${i}.mp3` : undefined; // Removed audio ref
 
           // Use the specific interface directly now
           const logEntry: PromptLogEntry = {
@@ -498,9 +517,9 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           if (imageFileRef) {
             logEntry.imageFile = imageFileRef;
           }
-          if (audioFileRef) {
-            logEntry.audioFile = audioFileRef;
-          }
+          // if (audioFileRef) { // Removed audio ref logic
+          //   logEntry.audioFile = audioFileRef;
+          // }
 
           // Push the typed object
           promptLog.push(logEntry);
@@ -509,8 +528,8 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             ...item,
             // Prepare item for story.json (removing unnecessary fields for this file)
             imageFile: item.imageUrl ? `media/image_${i}.png` : undefined,
-            audioFile: item.audioBase64 ? `media/audio_${i}.mp3` : undefined,
-            audioBase64: undefined,
+            // audioFile: item.audioBase64 ? `media/audio_${i}.mp3` : undefined, // Removed audio ref
+            // audioBase64: undefined, // No longer exists
             prompt: undefined,
             imagePrompt: undefined,
             choices: undefined,
@@ -570,23 +589,23 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           }
         });
 
-        // 3. Decode base64 audio and add it to the zip (Use original storyHistory for audio data)
-        const audioPromises = storyHistory.map(async (item, index) => {
-          if (item.audioBase64) {
-            try {
-              // Assuming audio is MP3 format as stored
-              const fetchResponse = await fetch(`data:audio/mpeg;base64,${item.audioBase64}`);
-              const blob = await fetchResponse.blob();
-              mediaFolder.file(`audio_${index}.mp3`, blob);
-              console.log(`[Save Story] Added audio_${index}.mp3 to zip.`);
-            } catch (error) {
-              console.error(`[Save Story] Failed to decode or add audio ${index}:`, error);
-            }
-          }
-        });
+        // 3. Decode base64 audio and add it to the zip (Use original storyHistory for audio data) // REMOVED
+        // const audioPromises = storyHistory.map(async (item, index) => { // REMOVED
+        //   if (item.audioBase64) { // REMOVED
+        //     try { // REMOVED
+        //       // Assuming audio is MP3 format as stored // REMOVED
+        //       const fetchResponse = await fetch(`data:audio/mpeg;base64,${item.audioBase64}`); // REMOVED
+        //       const blob = await fetchResponse.blob(); // REMOVED
+        //       mediaFolder.file(`audio_${index}.mp3`, blob); // REMOVED
+        //       console.log(`[Save Story] Added audio_${index}.mp3 to zip.`); // REMOVED
+        //     } catch (error) { // REMOVED
+        //       console.error(`[Save Story] Failed to decode or add audio ${index}:`, error); // REMOVED
+        //     } // REMOVED
+        //   } // REMOVED
+        // }); // REMOVED
 
         // Wait for all images and audio files to be processed
-        await Promise.all([...imagePromises, ...audioPromises]);
+        await Promise.all([...imagePromises]); // Removed audioPromises
 
         // 4. Generate the zip file and trigger download
         try {
@@ -659,24 +678,6 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
     {
       name: 'adventure-storage',
       storage: createJSONStorage(() => createPruningStorage(localStorage)),
-      partialize: (state) =>
-        Object.fromEntries(
-          Object.entries(state).map(([key, value]) => {
-            if (key === 'currentNode' && value) {
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              const { audioBase64: _audioBase64, ...rest } = value as AdventureNode;
-              return [key, rest];
-            }
-            if (key === 'storyHistory') {
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              return [
-                key,
-                (value as StoryHistoryItem[]).map(({ audioBase64: _audioBase64, ...item }) => item),
-              ];
-            }
-            return [key, value];
-          })
-        ) as Partial<AdventureState & AdventureActions>,
     }
   )
 );
