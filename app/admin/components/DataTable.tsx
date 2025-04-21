@@ -114,16 +114,7 @@ const DataTable: React.FC<DataTableProps> = ({ tableName, onRowSelect }) => {
       )}
 
       <div className="flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-0 mb-4 text-sm min-h-[38px]">
-        {currentPage === 1 ? (
-          <button
-            onClick={handleRefreshClick}
-            disabled={isLoadingData || !!error}
-            className={`${refreshButtonClass} ${totalRows === 0 || !!error ? 'invisible' : ''} px-3 py-1 sm:px-4 sm:py-2`}
-          >
-            <HeroRefreshIcon className="h-4 w-4" aria-hidden="true" />
-            <span>{isLoadingData ? 'Refreshing...' : 'Refresh'}</span>{' '}
-          </button>
-        ) : (
+        <div className="flex items-center gap-2">
           <button
             onClick={handlePreviousPageClick}
             disabled={currentPage <= 1 || isLoadingData}
@@ -131,17 +122,26 @@ const DataTable: React.FC<DataTableProps> = ({ tableName, onRowSelect }) => {
           >
             <HeroChevronLeftIcon className="h-4 w-4" aria-hidden="true" />
           </button>
-        )}
+          <button
+            onClick={handleNextPageClick}
+            disabled={currentPage >= totalPages || isLoadingData || totalRows === 0}
+            className={secondaryButtonClass}
+          >
+            <HeroChevronRightIcon className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
 
         <span className={`text-gray-300 ${totalRows === 0 || !!error ? 'invisible' : ''}`}>
           Page {currentPage} of {totalPages} (Total: {totalRows} rows)
         </span>
+
         <button
-          onClick={handleNextPageClick}
-          disabled={currentPage >= totalPages || isLoadingData}
-          className={secondaryButtonClass}
+          onClick={handleRefreshClick}
+          disabled={isLoadingData || !!error}
+          className={`${refreshButtonClass} ${totalRows === 0 || !!error ? 'invisible' : ''} px-3 py-1 sm:px-4 sm:py-2`}
         >
-          <HeroChevronRightIcon className="h-4 w-4" aria-hidden="true" />
+          <HeroRefreshIcon className="h-4 w-4" aria-hidden="true" />
+          <span>{isLoadingData ? 'Refreshing...' : 'Refresh'}</span>{' '}
         </button>
       </div>
 
