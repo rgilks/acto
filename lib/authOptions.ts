@@ -141,6 +141,36 @@ export const authOptions: NextAuthOptions = {
   pages: {},
   callbacks: {
     signIn: ({ user, account }: { user: User | AdapterUser; account: Account | null }) => {
+      // --- Store/Update user data in DB ---
+      try {
+        if (user && account) {
+          db.prepare(
+            `
+            INSERT INTO users (provider_id, provider, name, email, image, last_login, language)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
+            ON CONFLICT(provider_id, provider)
+            DO UPDATE SET name = ?, email = ?, image = ?, last_login = CURRENT_TIMESTAMP
+          `
+          ).run(
+            user.id,
+            account.provider,
+            user.name || null,
+            user.email || null,
+            user.image || null,
+            'en',
+            user.name || null,
+            user.email || null,
+            user.image || null
+          );
+        }
+      } catch (error) {
+        console.error('[AUTH] Error storing user data:', error);
+        Sentry.captureException(error);
+        // Optionally, decide if the sign-in should fail if the DB operation fails
+        // return false;
+      }
+      // --- End Store/Update user data in DB ---
+
       // --- Waiting List / Admin Check ---
       const rawAllowedEmails = validatedAuthEnv?.ALLOWED_EMAILS;
       const rawAdminEmails = validatedAuthEnv?.ADMIN_EMAILS;
@@ -183,31 +213,7 @@ export const authOptions: NextAuthOptions = {
       }
       // --- End Waiting List / Admin Check ---
 
-      try {
-        if (user && account) {
-          db.prepare(
-            `
-            INSERT INTO users (provider_id, provider, name, email, image, last_login, language)
-            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-            ON CONFLICT(provider_id, provider)
-            DO UPDATE SET name = ?, email = ?, image = ?, last_login = CURRENT_TIMESTAMP
-          `
-          ).run(
-            user.id,
-            account.provider,
-            user.name || null,
-            user.email || null,
-            user.image || null,
-            'en',
-            user.name || null,
-            user.email || null,
-            user.image || null
-          );
-        }
-      } catch (error) {
-        console.error('[AUTH] Error storing user data:', error);
-        Sentry.captureException(error);
-      }
+      // If the code reaches here, the user is either approved or no list check is needed.
       return true;
     },
     jwt: ({
