@@ -1,48 +1,53 @@
+import { describe, it, expect, beforeEach, afterEach, vi, Mock } from 'vitest';
 import { getTableNames, getTableData } from './actions';
 import db from '@/lib/db';
 import { getServerSession } from 'next-auth';
 
-jest.mock('next-auth', () => ({
-  getServerSession: jest.fn(),
+vi.mock('next-auth', () => ({
+  getServerSession: vi.fn(),
 }));
 
-jest.mock('next/router', () => ({
-  useRouter: jest.fn(() => ({
+vi.mock('next/router', () => ({
+  useRouter: vi.fn(() => ({
     events: {
-      on: jest.fn(),
-      off: jest.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
     },
   })),
 }));
 
-jest.mock('@/lib/authOptions', () => ({
+vi.mock('@/lib/authOptions', () => ({
   authOptions: {},
 }));
 
-jest.mock('@/lib/db', () => ({
+vi.mock('@/lib/db', () => ({
   __esModule: true,
   default: {
-    prepare: jest.fn(() => ({
-      all: jest.fn(),
-      get: jest.fn(),
-      run: jest.fn(),
+    prepare: vi.fn(() => ({
+      all: vi.fn(),
+      get: vi.fn(),
+      run: vi.fn(),
     })),
-    transaction: jest.fn((cb) => cb()),
+    transaction: vi.fn((cb) => cb()),
   },
 }));
+
+const mockGetServerSession = getServerSession as Mock;
+const mockDbPrepare = db.prepare as Mock;
+const mockDbTransaction = db.transaction as Mock;
 
 const originalEnv = process.env;
 
 describe('Admin actions security', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     process.env = { ...originalEnv, ADMIN_EMAILS: 'admin@example.com,another@example.com' };
 
-    const mockAll = jest.fn().mockReturnValue([{ name: 'users' }, { name: 'logs' }]);
-    const mockGet = jest.fn().mockReturnValue({ totalRows: 10 });
-    const mockRun = jest.fn();
+    const mockAll = vi.fn().mockReturnValue([{ name: 'users' }, { name: 'logs' }]);
+    const mockGet = vi.fn().mockReturnValue({ totalRows: 10 });
+    const mockRun = vi.fn();
 
-    (db.prepare as jest.Mock).mockImplementation(() => ({
+    mockDbPrepare.mockImplementation(() => ({
       all: mockAll,
       get: mockGet,
       run: mockRun,
@@ -55,13 +60,13 @@ describe('Admin actions security', () => {
 
   describe('isAdmin function', () => {
     it('should return false if user is not logged in', async () => {
-      (getServerSession as jest.Mock).mockResolvedValue(null);
+      mockGetServerSession.mockResolvedValue(null);
       const result = await getTableNames();
       expect(result).toEqual({ error: 'Unauthorized' });
     });
 
     it('should return false if user has no email', async () => {
-      (getServerSession as jest.Mock).mockResolvedValue({
+      mockGetServerSession.mockResolvedValue({
         user: { name: 'Test User' },
       });
       const result = await getTableNames();
@@ -69,7 +74,7 @@ describe('Admin actions security', () => {
     });
 
     it('should return false if user email is not in ADMIN_EMAILS', async () => {
-      (getServerSession as jest.Mock).mockResolvedValue({
+      mockGetServerSession.mockResolvedValue({
         user: { name: 'Test User', email: 'user@example.com' },
       });
       const result = await getTableNames();
@@ -77,7 +82,7 @@ describe('Admin actions security', () => {
     });
 
     it('should return true if user email is in ADMIN_EMAILS', async () => {
-      (getServerSession as jest.Mock).mockResolvedValue({
+      mockGetServerSession.mockResolvedValue({
         user: { name: 'Admin User', email: 'admin@example.com' },
       });
       const result = await getTableNames();
@@ -86,7 +91,7 @@ describe('Admin actions security', () => {
 
     it('should handle empty ADMIN_EMAILS environment variable', async () => {
       process.env.ADMIN_EMAILS = '';
-      (getServerSession as jest.Mock).mockResolvedValue({
+      mockGetServerSession.mockResolvedValue({
         user: { name: 'Admin User', email: 'admin@example.com' },
       });
       const result = await getTableNames();
@@ -96,7 +101,7 @@ describe('Admin actions security', () => {
 
   describe('getTableData function', () => {
     it('should return unauthorized error if user is not an admin', async () => {
-      (getServerSession as jest.Mock).mockResolvedValue({
+      mockGetServerSession.mockResolvedValue({
         user: { name: 'Test User', email: 'user@example.com' },
       });
       const result = await getTableData('users');
@@ -104,20 +109,18 @@ describe('Admin actions security', () => {
     });
 
     it('should return data if user is an admin', async () => {
-      (getServerSession as jest.Mock).mockResolvedValue({
+      mockGetServerSession.mockResolvedValue({
         user: { name: 'Admin User', email: 'admin@example.com' },
       });
 
       const mockPaginatedData = [{ id: 1, name: 'User 1' }];
-      (db.transaction as jest.Mock).mockImplementation(() => {
-        return () => {
-          return {
-            data: mockPaginatedData,
-            totalRows: 10,
-            page: 1,
-            limit: 10,
-          };
-        };
+      mockDbTransaction.mockImplementation(() => {
+        return vi.fn().mockReturnValue({
+          data: mockPaginatedData,
+          totalRows: 10,
+          page: 1,
+          limit: 10,
+        });
       });
 
       const result = await getTableData('users');

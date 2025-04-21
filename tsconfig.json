@@ -17,6 +17,7 @@
     "exactOptionalPropertyTypes": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "types": ["node", "vitest/globals"],
     "plugins": [
       {
         "name": "next"

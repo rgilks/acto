@@ -1,33 +1,40 @@
 import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
-import '@testing-library/jest-dom';
+// Remove the direct import, rely on global setup
+// import '@testing-library/jest-dom';
 import { useSession } from 'next-auth/react';
 import AdminPage from './page';
+// Import Vitest functions including Mock
+import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
 
-jest.mock('next-auth/react', () => ({
-  useSession: jest.fn(),
+vi.mock('next-auth/react', () => ({
+  useSession: vi.fn(),
 }));
 
 import { getTableNames, getTableData } from './actions';
 
-jest.mock('./actions', () => ({
-  getTableNames: jest.fn(),
-  getTableData: jest.fn(),
+vi.mock('./actions', () => ({
+  getTableNames: vi.fn(),
+  getTableData: vi.fn(),
 }));
+
+const mockUseSession = useSession as Mock;
+const mockGetTableNames = getTableNames as Mock;
+const mockGetTableData = getTableData as Mock;
 
 describe('AdminPage component', () => {
   let tableNamesPromiseResolve: (value: any) => void;
   let tableNamesPromise: Promise<any>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     tableNamesPromise = new Promise((resolve) => {
       tableNamesPromiseResolve = resolve;
     });
 
-    (getTableNames as jest.Mock).mockImplementation(() => tableNamesPromise);
-    (getTableData as jest.Mock).mockImplementation(() =>
+    mockGetTableNames.mockImplementation(() => tableNamesPromise);
+    mockGetTableData.mockImplementation(() =>
       Promise.resolve({
         data: {
           data: [{ id: 1, name: 'Test User' }],
@@ -40,9 +47,10 @@ describe('AdminPage component', () => {
   });
 
   it('should show loading state while checking authentication', async () => {
-    (useSession as jest.Mock).mockReturnValue({
+    mockUseSession.mockReturnValue({
       data: null,
       status: 'loading',
+      update: vi.fn(),
     });
 
     await act(async () => {
@@ -53,9 +61,10 @@ describe('AdminPage component', () => {
   });
 
   it('should show unauthorized message when user is not logged in', async () => {
-    (useSession as jest.Mock).mockReturnValue({
+    mockUseSession.mockReturnValue({
       data: null,
       status: 'unauthenticated',
+      update: vi.fn(),
     });
 
     await act(async () => {
@@ -67,15 +76,17 @@ describe('AdminPage component', () => {
   });
 
   it('should show unauthorized message when user is not an admin', async () => {
-    (useSession as jest.Mock).mockReturnValue({
+    mockUseSession.mockReturnValue({
       data: {
         user: {
           name: 'Regular User',
           email: 'user@example.com',
           isAdmin: false,
         },
+        expires: '2100-01-01T00:00:00.000Z',
       },
       status: 'authenticated',
+      update: vi.fn(),
     });
 
     await act(async () => {
@@ -87,15 +98,17 @@ describe('AdminPage component', () => {
   });
 
   it('should load table names when user is an admin', async () => {
-    (useSession as jest.Mock).mockReturnValue({
+    mockUseSession.mockReturnValue({
       data: {
         user: {
           name: 'Admin User',
           email: 'admin@example.com',
           isAdmin: true,
         },
+        expires: '2100-01-01T00:00:00.000Z',
       },
       status: 'authenticated',
+      update: vi.fn(),
     });
 
     await act(async () => {
@@ -114,27 +127,29 @@ describe('AdminPage component', () => {
       expect(screen.getByText('logs')).toBeInTheDocument();
     });
 
-    expect(getTableNames).toHaveBeenCalled();
+    expect(mockGetTableNames).toHaveBeenCalled();
   });
 
   it('should handle error when loading table names fails', async () => {
-    (useSession as jest.Mock).mockReturnValue({
+    mockUseSession.mockReturnValue({
       data: {
         user: {
           name: 'Admin User',
           email: 'admin@example.com',
           isAdmin: true,
         },
+        expires: '2100-01-01T00:00:00.000Z',
       },
       status: 'authenticated',
+      update: vi.fn(),
     });
 
     await act(async () => {
       render(<AdminPage />);
-      tableNamesPromiseResolve({ error: 'Unauthorized' });
     });
 
     await act(async () => {
+      tableNamesPromiseResolve({ error: 'Unauthorized' });
       await tableNamesPromise;
     });
 

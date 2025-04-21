@@ -2,16 +2,17 @@ import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 const middleware = async (req: import('next/server').NextRequest) => {
-  const token = await getToken({ req });
-  const isAdmin = token?.isAdmin === true;
   const pathname = req.nextUrl.pathname;
-  const isAdminRoute = pathname.startsWith('/admin');
 
   try {
     if (pathname.startsWith('/api/auth/')) {
       console.log(`[Middleware] Skipping auth route: ${pathname}`);
       return NextResponse.next();
     }
+
+    const token = await getToken({ req });
+    const isAdmin = token?.isAdmin === true;
+    const isAdminRoute = pathname.startsWith('/admin');
 
     console.log(`[Middleware] Path: ${pathname}`);
     console.log(`[Middleware] isAdmin check result: ${isAdmin}`);

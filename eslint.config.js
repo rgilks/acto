@@ -8,6 +8,13 @@ import hooksPlugin from 'eslint-plugin-react-hooks';
 import prettierConfig from 'eslint-config-prettier';
 import globals from 'globals'; // Import globals
 
+// Helper function to remove a specific global from a globals object
+const removeGlobal = (globalsObj, globalToRemove) => {
+  const rest = { ...globalsObj };
+  delete rest[globalToRemove]; // Delete the key directly
+  return rest;
+};
+
 export default tseslint.config(
   // 1. Global ignores and base rules for all files
   {
@@ -34,8 +41,9 @@ export default tseslint.config(
         tsconfigRootDir: import.meta.dirname,
       },
       globals: {
-        ...globals.browser, // Add browser globals for TSX files
+        ...removeGlobal(globals.browser, 'AudioWorkletGlobalScope '), // Remove potential bad one
         ...globals.node, // Add Node globals if needed in TS files
+        AudioWorkletGlobalScope: 'readonly', // Add correct one
       },
     },
     rules: {
@@ -72,7 +80,8 @@ export default tseslint.config(
     languageOptions: {
       globals: {
         ...globals.node, // Add Node.js globals
-        ...globals.browser, // Add Browser globals if needed for some JS
+        ...removeGlobal(globals.browser, 'AudioWorkletGlobalScope '), // Remove potential bad one
+        AudioWorkletGlobalScope: 'readonly', // Add correct one
       },
     },
     rules: {
@@ -90,7 +99,8 @@ export default tseslint.config(
     },
     languageOptions: {
       globals: {
-        ...globals.browser, // Ensure browser globals for React components
+        ...removeGlobal(globals.browser, 'AudioWorkletGlobalScope '), // Remove potential bad one
+        AudioWorkletGlobalScope: 'readonly', // Add correct one
       },
     },
     rules: {
@@ -109,16 +119,9 @@ export default tseslint.config(
   // 5. Overrides (Apply after main configs)
   // Test files override
   {
-    files: [
-      '**/__tests__/**/*.ts?(x)',
-      '**/*.test.ts?(x)',
-      '**/jest.setup.js',
-      '**/jest.config.js',
-      '**/playwright.config.js',
-    ],
+    files: ['**/__tests__/**/*.ts?(x)', '**/*.test.ts?(x)', '**/playwright.config.js'],
     languageOptions: {
       globals: {
-        ...globals.jest, // Add Jest globals
         ...globals.node, // Ensure Node globals for config files
       },
     },

@@ -33,7 +33,7 @@ An interactive storytelling application powered by Next.js and Google's generati
 - **State Management**: Uses `zustand` with `immer` and `persist` (custom pruning localStorage) for managing client-side application state.
 - **Continuous Deployment**: Automatic deployment to Fly.io via GitHub Actions.
 - **Admin Panel**: (Optional) Secure area for administrators to view application data.
-- **Testing**: Includes unit/integration tests (Jest) and end-to-end tests (Playwright).
+- **Testing**: Includes unit/integration tests (Vitest) and end-to-end tests (Playwright).
 
 ### Saving Your Story
 
@@ -59,7 +59,7 @@ This will download a `.zip` file containing:
 - **zustand / immer / zustand/middleware**: Client-side state management with persistence
 - **@ducanh2912/next-pwa**: Progressive Web App features
 - **Playwright**: End-to-end testing
-- **Jest / React Testing Library**: Unit/Integration testing
+- **Vitest / React Testing Library**: Unit/Integration testing
 - **ESLint / Prettier**: Linting & Formatting
 - **Husky / lint-staged**: Git hooks
 - **Fly.io**: Deployment platform
@@ -235,11 +235,14 @@ npm run verify
 # Fix formatting & linting, run type checks, unit tests, e2e tests
 npm run check
 
-# Run unit/integration tests (Jest)
+# Run unit/integration tests (Vitest)
 npm run test
 
-# Run Jest in watch mode
+# Run Vitest in watch mode
 npm run test:watch
+
+# Run Vitest with coverage report
+npm run test:coverage
 
 # Run end-to-end tests (Playwright)
 npm run test:e2e
@@ -257,11 +260,11 @@ npm run nuke
 ### Testing Strategy
 
 - **Co-location**: Test files (`*.test.ts`, `*.test.tsx`) live alongside the source files they test.
-- **Unit/Integration**: Jest and React Testing Library (`npm test`) test components and utility functions.
+- **Unit/Integration**: Vitest and React Testing Library (`npm test`) test components and utility functions.
 - **End-to-End**: Playwright (`npm run test:e2e`) checks full user flows through the adventure game.
   - See E2E Authentication Setup below if testing authenticated features.
 - **Git Hooks**: Husky and lint-staged automatically run checks:
-  - **Pre-commit**: Formats staged files (`prettier`) and runs related Jest tests (`test:quick`).
+  - **Pre-commit**: Formats staged files (`prettier`) and runs related Vitest tests (`test:quick`).
   - **Pre-push**: Runs `npm run preview-build` to ensure a preview build succeeds before pushing. _(See `.husky/pre-push`)_
 
 ## Production Considerations
@@ -314,7 +317,6 @@ npm run nuke
 ├── next.config.js            # Next.js configuration (verify filename)
 ├── tailwind.config.js        # Tailwind CSS configuration (verify filename)
 ├── tsconfig.json             # TypeScript configuration
-├── jest.config.js            # Jest configuration
 ├── playwright.config.js      # Playwright configuration (verify filename)
 ├── fly.toml / Dockerfile     # Deployment configuration
 ├── package.json              # Project dependencies and scripts
