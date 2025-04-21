@@ -8,19 +8,18 @@ import ScenarioLoadingIndicator from './ScenarioLoadingIndicator';
 import ScenarioErrorDisplay from './ScenarioErrorDisplay';
 import NoScenariosMessage from './NoScenariosMessage';
 import ScenarioListDisplay from './ScenarioListDisplay';
+import { choiceButtonClasses } from '@/app/styles/buttonStyles';
 
 type Scenario = z.infer<typeof StoryChoiceSchema>;
 
-// Scenario errors are likely 'text'
-
 interface ScenarioSelectorProps {
   onScenarioSelect: (scenario: Scenario) => void;
-  isLoadingSelection: boolean; // Indicates parent is processing the selection
+  isLoadingSelection: boolean;
   scenariosToDisplay: Scenario[] | null;
   isLoadingScenarios: boolean;
   fetchError: ErrorState;
   onFetchNewScenarios: () => void;
-  isUserLoggedIn: boolean; // To show specific messages/button
+  isUserLoggedIn: boolean;
 }
 
 const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
@@ -32,11 +31,6 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
   onFetchNewScenarios,
   isUserLoggedIn,
 }) => {
-  const buttonBaseClasses =
-    'px-4 py-2 rounded-md border transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800';
-  const choiceButtonClasses =
-    'w-full text-left justify-start p-4 h-auto border-amber-800/50 bg-gradient-to-br from-amber-100/5 via-amber-100/10 to-amber-100/5 text-amber-100/80 hover:text-amber-100 hover:border-amber-700 hover:from-amber-100/10 hover:to-amber-100/10 focus:ring-amber-500 shadow-md hover:shadow-lg';
-
   const renderContent = () => {
     if (isLoadingScenarios) {
       return <ScenarioLoadingIndicator />;
@@ -50,7 +44,6 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
       return <NoScenariosMessage />;
     }
 
-    // Display Scenarios using the new component
     return (
       <ScenarioListDisplay
         scenariosToDisplay={scenariosToDisplay}
@@ -59,7 +52,6 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
         isUserLoggedIn={isUserLoggedIn}
         onFetchNewScenarios={onFetchNewScenarios}
         isLoadingScenarios={isLoadingScenarios}
-        buttonBaseClasses={buttonBaseClasses}
         choiceButtonClasses={choiceButtonClasses}
       />
     );
