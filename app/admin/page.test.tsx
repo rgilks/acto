@@ -1,10 +1,7 @@
 import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
-// Remove the direct import, rely on global setup
-// import '@testing-library/jest-dom';
 import { useSession } from 'next-auth/react';
 import AdminPage from './page';
-// Import Vitest functions including Mock
 import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
 
 vi.mock('next-auth/react', () => ({

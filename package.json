@@ -42,6 +42,7 @@
   "devDependencies": {
     "@flydotio/dockerfile": "^0.7.10",
     "@playwright/test": "^1.51.1",
+    "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@types/better-sqlite3": "^7.6.12",
     "@types/jszip": "^3.4.0",

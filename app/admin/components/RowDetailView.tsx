@@ -21,34 +21,34 @@ const RowDetailView = ({
       return value ? 'True' : 'False';
     }
 
-    if (typeof value === 'string' && (key === 'created_at' || key === 'updated_at')) {
+    if (typeof value === 'string') {
+      if (key === 'created_at' || key === 'updated_at') {
+        try {
+          const date = new Date(value);
+          if (!isNaN(date.getTime())) {
+            return date.toLocaleString(undefined, {
+              dateStyle: 'medium',
+              timeStyle: 'medium',
+            });
+          }
+        } catch (e) {
+          console.info('Info: Could not parse date string:', value, e);
+        }
+      }
+
       try {
-        const date = new Date(value);
-        if (!isNaN(date.getTime())) {
-          return date.toLocaleString(undefined, {
-            dateStyle: 'medium',
-            timeStyle: 'medium',
-          });
+        const parsedJson: unknown = JSON.parse(value);
+        if (nonNullObjectOrArraySchema.safeParse(parsedJson).success) {
+          return (
+            <pre className="bg-gray-100 p-2 rounded overflow-auto text-sm whitespace-pre-wrap break-words">
+              {JSON.stringify(parsedJson, null, 2)}
+            </pre>
+          );
         }
       } catch (e) {
-        console.info('Info: Could not parse date string:', value, e);
+        console.info('Info: Could not parse string as JSON object/array:', value, e);
       }
-    }
 
-    if (typeof value === 'string') {
-      const jsonMatch =
-        value.match(/^.*?({\[\\s\\S]*?}).*?$/) || value.match(/^.*?(\\[[\\s\\S]*?\\]).*?$/);
-      const potentialJson = jsonMatch ? jsonMatch[1] : value;
-      try {
-        const parsedJson = JSON.parse(potentialJson) as Record<string, unknown>;
-        return (
-          <pre className="bg-gray-100 p-2 rounded overflow-auto text-sm whitespace-pre-wrap break-words">
-            {JSON.stringify(parsedJson, null, 2)}
-          </pre>
-        );
-      } catch (e) {
-        console.info('Info: Could not parse potential JSON:', potentialJson, e);
-      }
       return value;
     }
 
@@ -60,7 +60,7 @@ const RowDetailView = ({
       );
     }
 
-    if (typeof value === 'number' || typeof value === 'boolean') {
+    if (typeof value === 'number') {
       return String(value);
     }
 
