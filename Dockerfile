@@ -10,10 +10,14 @@ RUN npm ci
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY tsconfig.json next.config.js* middleware.ts* ./
+COPY package.json package-lock.json* tsconfig.json next.config.js* middleware.ts* ./
 
-COPY . .
-RUN npm install --omit=dev --no-audit --no-fund --no-update-notifier
+COPY app ./app
+COPY lib ./lib
+COPY public ./public
+COPY hooks ./hooks
+COPY types ./types
+
 RUN npm run build
 
 FROM base AS runner
@@ -26,8 +30,11 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+RUN chown -R nextjs:nodejs /app/.next
+
 USER nextjs
 EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
+# Assuming server.js is part of the standalone output
 CMD ["node", "server.js"]
