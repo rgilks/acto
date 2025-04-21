@@ -78,10 +78,9 @@ if (!authEnvVars.success) {
     '❌ Invalid Auth environment variables:',
     JSON.stringify(authEnvVars.error.format(), null, 4)
   );
-  throw new Error('Invalid Authentication environment variables. See logs.');
 }
 
-const validatedAuthEnv = authEnvVars.data;
+const validatedAuthEnv = authEnvVars.success ? authEnvVars.data : undefined;
 
 interface UserWithEmail extends User {
   email?: string | null;
@@ -89,7 +88,7 @@ interface UserWithEmail extends User {
 
 const providers = [];
 
-if (validatedAuthEnv.GITHUB_ID && validatedAuthEnv.GITHUB_SECRET) {
+if (validatedAuthEnv?.GITHUB_ID && validatedAuthEnv.GITHUB_SECRET) {
   console.log('[NextAuth] GitHub OAuth credentials found, adding provider');
   providers.push(
     GitHub({
@@ -97,11 +96,11 @@ if (validatedAuthEnv.GITHUB_ID && validatedAuthEnv.GITHUB_SECRET) {
       clientSecret: validatedAuthEnv.GITHUB_SECRET,
     })
   );
-} else if (!validatedAuthEnv.GITHUB_ID && !validatedAuthEnv.GITHUB_SECRET) {
+} else if (!validatedAuthEnv?.GITHUB_ID && !validatedAuthEnv?.GITHUB_SECRET) {
   console.warn('[NextAuth] GitHub OAuth credentials missing (GITHUB_ID and GITHUB_SECRET)');
 }
 
-if (validatedAuthEnv.GOOGLE_CLIENT_ID && validatedAuthEnv.GOOGLE_CLIENT_SECRET) {
+if (validatedAuthEnv?.GOOGLE_CLIENT_ID && validatedAuthEnv.GOOGLE_CLIENT_SECRET) {
   console.log('[NextAuth] Google OAuth credentials found, adding provider');
   providers.push(
     Google({
@@ -109,13 +108,13 @@ if (validatedAuthEnv.GOOGLE_CLIENT_ID && validatedAuthEnv.GOOGLE_CLIENT_SECRET) 
       clientSecret: validatedAuthEnv.GOOGLE_CLIENT_SECRET,
     })
   );
-} else if (!validatedAuthEnv.GOOGLE_CLIENT_ID && !validatedAuthEnv.GOOGLE_CLIENT_SECRET) {
+} else if (!validatedAuthEnv?.GOOGLE_CLIENT_ID && !validatedAuthEnv?.GOOGLE_CLIENT_SECRET) {
   console.warn(
     '[NextAuth] Google OAuth credentials missing (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)'
   );
 }
 
-if (validatedAuthEnv.DISCORD_CLIENT_ID && validatedAuthEnv.DISCORD_CLIENT_SECRET) {
+if (validatedAuthEnv?.DISCORD_CLIENT_ID && validatedAuthEnv.DISCORD_CLIENT_SECRET) {
   console.log('[NextAuth] Discord OAuth credentials found, adding provider');
   providers.push(
     Discord({
@@ -123,7 +122,7 @@ if (validatedAuthEnv.DISCORD_CLIENT_ID && validatedAuthEnv.DISCORD_CLIENT_SECRET
       clientSecret: validatedAuthEnv.DISCORD_CLIENT_SECRET,
     })
   );
-} else if (!validatedAuthEnv.DISCORD_CLIENT_ID && !validatedAuthEnv.DISCORD_CLIENT_SECRET) {
+} else if (!validatedAuthEnv?.DISCORD_CLIENT_ID && !validatedAuthEnv?.DISCORD_CLIENT_SECRET) {
   console.warn(
     '[NextAuth] Discord OAuth credentials missing (DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET)'
   );
@@ -133,8 +132,8 @@ console.log(`[NextAuth] Configured ${providers.length} authentication providers`
 
 export const authOptions: NextAuthOptions = {
   providers,
-  secret: validatedAuthEnv.AUTH_SECRET,
-  debug: (validatedAuthEnv.NODE_ENV || process.env.NODE_ENV) !== 'production',
+  secret: validatedAuthEnv?.AUTH_SECRET ?? '',
+  debug: (validatedAuthEnv?.NODE_ENV || process.env.NODE_ENV) !== 'production',
   session: {
     strategy: 'jwt' as const,
   },
@@ -169,8 +168,8 @@ export const authOptions: NextAuthOptions = {
       // --- End Store/Update user data in DB ---
 
       // --- Waiting List / Admin Check ---
-      const rawAllowedEmails = validatedAuthEnv.ALLOWED_EMAILS;
-      const rawAdminEmails = validatedAuthEnv.ADMIN_EMAILS;
+      const rawAllowedEmails = validatedAuthEnv?.ALLOWED_EMAILS;
+      const rawAdminEmails = validatedAuthEnv?.ADMIN_EMAILS;
       const waitingListEnabled =
         typeof rawAllowedEmails === 'string' && rawAllowedEmails.length > 0;
       const adminListExists = typeof rawAdminEmails === 'string' && rawAdminEmails.length > 0;
@@ -250,7 +249,7 @@ export const authOptions: NextAuthOptions = {
           );
         }
 
-        const rawAdminEmails = validatedAuthEnv.ADMIN_EMAILS;
+        const rawAdminEmails = validatedAuthEnv?.ADMIN_EMAILS;
         let adminEmails: string[] = [];
         if (typeof rawAdminEmails === 'string' && rawAdminEmails.length > 0) {
           adminEmails = rawAdminEmails
@@ -284,14 +283,14 @@ export const authOptions: NextAuthOptions = {
   cookies: {
     sessionToken: {
       name:
-        (validatedAuthEnv.NODE_ENV || process.env.NODE_ENV) === 'production'
+        (validatedAuthEnv?.NODE_ENV || process.env.NODE_ENV) === 'production'
           ? `__Secure-next-auth.session-token`
           : `next-auth.session-token`,
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: (validatedAuthEnv.NODE_ENV || process.env.NODE_ENV) === 'production',
+        secure: (validatedAuthEnv?.NODE_ENV || process.env.NODE_ENV) === 'production',
       },
     },
   },
