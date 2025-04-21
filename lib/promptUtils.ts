@@ -90,3 +90,10 @@ ${jsonStructure}
 
   return promptParts.filter(Boolean).join('\n\n');
 }
+
+export function buildScenariosPrompt(): string {
+  const jsonStructure = `[\n  {\n    "text": "(string) Engaging, highly imaginative starting scenario text (1-2 sentences max).",\n    "genre": "(string) Core genre or unique genre blend.",\n    "tone": "(string) Dominant tone or mood.",\n    "visualStyle": "(string) Evocative description of the visual aesthetic."
+  }\n  /* Repeat structure for 4 scenarios */\n]`;
+
+  return `You are an experimental generator of highly diverse and unexpected story scenarios.\n\n**Goal:** Generate a list of 4 radically different and unique starting scenarios for an interactive text adventure.\n\n**Key Requirements:**\n1.  **Extreme Diversity:** The 4 scenarios MUST be maximally different from each other across multiple dimensions: theme, setting, core concepts, mood, and visual aesthetic. Avoid predictable combinations.\n2.  **Imaginative Specificity:** Use vivid, concrete details in the scenario text and visual style description. Aim for unique and evocative descriptions, not just standard labels.\n3.  **Conciseness:** Keep the scenario text brief (1-2 sentences).\n4.  **Novelty:** Prioritize unusual combinations and unexpected juxtapositions in genre, tone, and visual style.\n5.  **Strict JSON Output:** Respond ONLY with a valid JSON array matching this structure:\n${jsonStructure}\n\nGenerate 4 highly diverse, unexpected, and imaginative scenarios now.`;
+}
