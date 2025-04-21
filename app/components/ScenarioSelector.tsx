@@ -57,7 +57,10 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
   const renderContent = () => {
     if (isLoadingScenarios) {
       return (
-        <div className="flex-grow flex flex-col items-center justify-center text-center p-4">
+        <div
+          data-testid="scenario-selector-loading"
+          className="flex-grow flex flex-col items-center justify-center text-center p-4"
+        >
           <ArrowPathIcon className="h-8 w-8 text-gray-400 animate-spin mb-4" />
           <p className="text-gray-400">Generating scenarios...</p>
         </div>
@@ -71,7 +74,10 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
       const genericMessage = typeof fetchError === 'string' ? fetchError : null;
 
       return (
-        <div className="flex-grow flex flex-col items-center justify-center text-center p-4">
+        <div
+          data-testid="scenario-selector-error"
+          className="flex-grow flex flex-col items-center justify-center text-center p-4"
+        >
           <ExclamationTriangleIcon className="h-12 w-12 text-red-400 mb-4" />
           {rateLimitInfo ? (
             <>
@@ -92,7 +98,10 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
 
     if (!scenariosToDisplay || scenariosToDisplay.length === 0) {
       return (
-        <div className="flex-grow flex flex-col items-center justify-center text-center p-4">
+        <div
+          data-testid="scenario-selector-no-scenarios"
+          className="flex-grow flex flex-col items-center justify-center text-center p-4"
+        >
           <p className="text-xl font-semibold mb-4 text-gray-400">No Scenarios Available</p>
           <p className="mb-6 text-gray-400">
             Could not load any starting scenarios. Please try again later.
@@ -104,13 +113,17 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
     // Display Scenarios
     return (
       <div className="flex-grow flex flex-col items-center w-full">
-        <h2 className="text-2xl font-semibold text-amber-100/90 mb-4 font-serif">
+        <h2
+          data-testid="scenario-selector-heading"
+          className="text-2xl font-semibold text-amber-100/90 mb-4 font-serif"
+        >
           Choose a scenario
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl m-4">
           {scenariosToDisplay.map((scenario, index) => (
             <button
               key={index}
+              data-testid="scenario-choice-button"
               onClick={() => {
                 onScenarioSelect(scenario);
               }}
@@ -131,6 +144,7 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
         {isUserLoggedIn && (
           <button
             onClick={onFetchNewScenarios}
+            data-testid="scenario-generate-new-button"
             className={`${buttonBaseClasses} flex items-center justify-center border-sky-500 text-sky-300 hover:bg-sky-500/10 hover:border-sky-400 hover:text-sky-200 mt-6 px-5 py-2.5 text-base shadow-md hover:shadow-lg`}
             disabled={isLoadingScenarios}
           >
