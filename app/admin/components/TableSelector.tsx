@@ -53,7 +53,7 @@ const TableSelector: React.FC<TableSelectorProps> = ({ selectedTable, onTableSel
 
   return (
     <div className="mb-6">
-      <div className="flex gap-3 overflow-x-auto whitespace-nowrap py-2">
+      <div className="flex gap-3 overflow-x-auto whitespace-nowrap py-2 px-4">
         {tableNames.map((name) => (
           <button
             key={name}

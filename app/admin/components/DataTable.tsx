@@ -149,20 +149,20 @@ const DataTable: React.FC<DataTableProps> = ({ tableName, onRowSelect }) => {
         className={`overflow-x-auto relative ${isLoadingData ? 'opacity-60' : ''} transition-opacity duration-200`}
       >
         {!error && (
-          <table className="min-w-full bg-white border border-gray-300">
+          <table className="min-w-full bg-gray-800 border border-gray-600">
             <thead>
-              <tr className="bg-gray-100">
+              <tr className="bg-gray-700">
                 {tableData.length > 0 ? (
                   Object.keys(tableData[0]).map((key) => (
                     <th
                       key={key}
-                      className="py-1 px-2 sm:py-2 sm:px-4 border-b text-left text-gray-900 font-semibold"
+                      className="py-1 px-2 sm:py-2 sm:px-4 border-b border-gray-600 text-left text-gray-200 font-semibold"
                     >
                       {key}
                     </th>
                   ))
                 ) : (
-                  <th className="py-1 px-2 sm:py-2 sm:px-4 border-b text-left text-gray-900 font-semibold">
+                  <th className="py-1 px-2 sm:py-2 sm:px-4 border-b border-gray-600 text-left text-gray-200 font-semibold">
                     &nbsp;
                   </th>
                 )}
@@ -173,7 +173,7 @@ const DataTable: React.FC<DataTableProps> = ({ tableName, onRowSelect }) => {
                 ? tableData.map((row, rowIndex) => (
                     <tr
                       key={rowIndex}
-                      className="hover:bg-gray-50 cursor-pointer"
+                      className="hover:bg-gray-700 cursor-pointer even:bg-gray-900"
                       onClick={() => {
                         onRowSelect(row);
                       }}
@@ -181,7 +181,7 @@ const DataTable: React.FC<DataTableProps> = ({ tableName, onRowSelect }) => {
                       {Object.values(row).map((value, colIndex) => (
                         <td
                           key={colIndex}
-                          className="py-1 px-2 sm:py-2 sm:px-4 border-b text-gray-900 text-sm"
+                          className="py-1 px-2 sm:py-2 sm:px-4 border-b border-gray-600 text-gray-300 text-sm"
                         >
                           {typeof value === 'string'
                             ? value.length > 100
