@@ -121,8 +121,6 @@ const AdventureGame = () => {
     triggerReset,
     retryLastFetch,
     stopSpeaking: stopTTS,
-    setLoginRequired,
-    loginRequired,
     lastFetchParamsForRetry,
   } = store;
 
@@ -217,11 +215,6 @@ const AdventureGame = () => {
         return;
       }
 
-      if (!isUserLoggedIn) {
-        setLoginRequired(true);
-        return;
-      }
-
       setIsSelectingScenario(true);
       setGamePhase('loading_first_node');
       if (!hasUserInteracted) {
@@ -235,13 +228,12 @@ const AdventureGame = () => {
       setFocusedChoiceIndex(null);
       stopTTS();
 
-      // Select a random voice and add it to the scenario data
       const voice = getRandomVoice();
       const scenarioWithVoice = { ...scenario, voice };
 
       makeChoice(scenarioWithVoice);
     },
-    [isUserLoggedIn, setLoginRequired, makeChoice, hasUserInteracted, stopTTS, sessionStatus]
+    [makeChoice, hasUserInteracted, stopTTS, sessionStatus]
   );
 
   const handleImageLoad = useCallback(
@@ -670,17 +662,6 @@ const AdventureGame = () => {
   ]);
 
   const effectiveError = nodeError || fetchScenariosError;
-
-  // Effect to reset loginRequired when session status changes
-  useEffect(() => {
-    if (sessionStatus === 'authenticated' && loginRequired) {
-      setLoginRequired(false);
-      // If a scenario was selected just before logging in, potentially restart the selection process
-      // This depends on desired UX, for now, just reset the flag.
-    }
-    // NOTE: The check above implicitly handles the case where the component mounts
-    // and the user is already logged in but loginRequired was persisted.
-  }, [sessionStatus, loginRequired, setLoginRequired]);
 
   // --- ADDED: Specific handling for Rate Limit Error ---
   if (
