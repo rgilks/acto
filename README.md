@@ -155,7 +155,6 @@ The quality of the generated story heavily relies on the prompts sent to the AI.
     **Optional (Remove if not used):**
 
     - `ADMIN_EMAILS` / `ALLOWED_EMAILS`: For admin/waiting list access.
-    - See `.env.example` for others like `DATABASE_URL`, `COMMIT_SHA`.
 
 5.  **Run Dev Server:**
 
@@ -190,7 +189,6 @@ Ensure the following secrets are set on your Fly.io app dashboard (`fly secrets 
 - `NEXTAUTH_URL=https://<your-fly-app-name>.fly.dev`: Required if using NextAuth.
 - OAuth Provider Secrets (`GITHUB_ID`, `GITHUB_SECRET`, etc.): Required for specific NextAuth providers.
 - `ADMIN_EMAILS` / `ALLOWED_EMAILS`: Optional, for restricted access modes.
-- `DATABASE_URL=/data/sqlite.db`: (Or your chosen path on the persistent volume).
 
 **(Manual Deployment):** While automated deployment is recommended, you can still deploy manually from your local machine using `fly deploy` after logging in with `fly auth login` and ensuring your local `.fly/launch.toml` is configured. Remember to set the required secrets locally as well if building locally.
 
