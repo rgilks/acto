@@ -61,6 +61,7 @@ const TableSelector: React.FC<TableSelectorProps> = ({ selectedTable, onTableSel
               onTableSelect(name);
             }}
             className={selectedTable === name ? primaryButtonClass : secondaryButtonClass}
+            aria-pressed={selectedTable === name}
           >
             {name}
           </button>
