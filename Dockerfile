@@ -1,40 +1,26 @@
-FROM node:20-alpine AS base
+FROM node:20-alpine AS builder
 WORKDIR /app
 
-FROM base AS deps
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY package.json package-lock.json* tsconfig.json next.config.js* middleware.ts* ./
-
-COPY app ./app
-COPY lib ./lib
-COPY public ./public
-COPY hooks ./hooks
-COPY types ./types
-
+COPY . .
 RUN npm run build
 
-FROM base AS runner
+FROM node:20-alpine AS runner
+RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
+
 WORKDIR /app
-ENV NODE_ENV production
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-COPY package.json package-lock.json* ./
+COPY --from=builder --chown=nextjs:nodejs /app/package.json /app/package-lock.json ./
+
 RUN npm ci --omit=dev
-COPY --from=builder /app/public ./public
+
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-RUN chown -R nextjs:nodejs /app/.next
 
 USER nextjs
+
+ENV NODE_ENV=production
 EXPOSE 3000
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
-# Assuming server.js is part of the standalone output
-CMD ["node", "server.js"]
+ENTRYPOINT ["node", "server.js"]
