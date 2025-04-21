@@ -86,13 +86,13 @@ describe('RowDetailView', () => {
     const { container } = render(<RowDetailView {...defaultProps} />);
     const dlElement = container.querySelector('dl');
     expect(dlElement).toBeInTheDocument();
-    if (!dlElement) return;
-
-    const rows = dlElement.children;
-    expect(rows.length).toBeGreaterThan(2);
-    expect(rows[0]).toHaveClass('bg-gray-50');
-    expect(rows[1]).toHaveClass('bg-white');
-    expect(rows[2]).toHaveClass('bg-gray-50');
+    if (dlElement) {
+      const rows = dlElement.children;
+      expect(rows.length).toBeGreaterThan(2);
+      expect(rows[0]).toHaveClass('bg-gray-900');
+      expect(rows[1]).toHaveClass('bg-gray-800');
+      expect(rows[2]).toHaveClass('bg-gray-900');
+    }
   });
 
   it('renders non-date string values correctly', () => {
