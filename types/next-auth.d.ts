@@ -1,8 +1,6 @@
 // types/next-auth.d.ts
 import 'next-auth';
-import { JWT } from 'next-auth/jwt';
-import NextAuth, { DefaultSession, DefaultUser } from 'next-auth';
-import { JWT as DefaultJWT } from 'next-auth/jwt';
+import { DefaultSession } from 'next-auth';
 
 declare module 'next-auth' {
   interface User {
@@ -17,10 +15,6 @@ declare module 'next-auth' {
       isAdmin?: boolean | null;
       provider?: string | null;
     } & DefaultSession['user'];
-  }
-
-  interface User extends DefaultUser {
-    // Add custom properties to the User object if needed from provider profile
   }
 }
 

@@ -20,6 +20,7 @@ const middleware = async (req: import('next/server').NextRequest) => {
     console.log(`[Middleware] Allowing access to ${pathname}`);
     return NextResponse.next();
   } catch (error) {
+    console.error('[Middleware] Error:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 };

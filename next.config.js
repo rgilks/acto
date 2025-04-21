@@ -86,6 +86,7 @@ const nextConfig = withPWA({
   },
   eslint: {
     ignoreDuringBuilds: true,
+    dirs: ['.', 'app', 'components', 'lib'],
   },
 });
 

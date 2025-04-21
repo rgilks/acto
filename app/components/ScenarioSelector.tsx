@@ -67,9 +67,7 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
     if (fetchError) {
       const rateLimitInfo =
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        typeof fetchError === 'object' && fetchError !== null && 'rateLimitError' in fetchError
-          ? fetchError.rateLimitError
-          : null;
+        typeof fetchError === 'object' && fetchError !== null ? fetchError.rateLimitError : null;
       const genericMessage = typeof fetchError === 'string' ? fetchError : null;
 
       return (

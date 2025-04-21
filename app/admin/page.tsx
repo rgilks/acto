@@ -10,6 +10,11 @@ import {
 } from '@heroicons/react/24/solid';
 import { useSession } from 'next-auth/react';
 
+// Type guard to check for non-null objects
+function isNonNullObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 export default function AdminPage() {
   const { data: session, status } = useSession();
   const [tableNames, setTableNames] = useState<string[]>([]);
@@ -37,19 +42,19 @@ export default function AdminPage() {
         const result = await getTableNames();
 
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (!isMounted) return;
-
-        if (result.error) {
-          setError(result.error);
-        } else if (result.data) {
-          setTableNames(result.data);
+        if (isMounted) {
+          if (result.error) {
+            setError(result.error);
+          } else if (result.data) {
+            setTableNames(result.data);
+          }
         }
       } catch (err) {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (!isMounted) return;
-
         console.error('Error fetching table names:', err);
-        setError('Failed to load tables');
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        if (isMounted) {
+          setError('Failed to load tables');
+        }
       } finally {
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (isMounted) {
@@ -195,8 +200,7 @@ export default function AdminPage() {
         return value;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (typeof value === 'object' && value !== null) {
+      if (isNonNullObject(value)) {
         return (
           <pre className="bg-gray-100 p-2 rounded overflow-auto text-sm whitespace-pre-wrap break-words">
             {JSON.stringify(value, null, 2)}
@@ -390,8 +394,7 @@ export default function AdminPage() {
                                             : value
                                           : value === null || value === undefined
                                             ? 'NULL'
-                                            : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-                                              typeof value === 'object' && value !== null
+                                            : isNonNullObject(value)
                                               ? JSON.stringify(value)
                                               : typeof value === 'number' ||
                                                   typeof value === 'boolean'
