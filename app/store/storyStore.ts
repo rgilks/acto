@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { persist, createJSONStorage, type StorageValue } from 'zustand/middleware';
-import { type AdventureScene, AdventureChoiceSchema } from '@/lib/domain/schemas';
-import { generateAdventureSceneAction } from '@/app/actions/generateAdventureScene';
+import { type StoryScene, StoryChoiceSchema } from '@/lib/domain/schemas';
+import { generateStorySceneAction } from '@/app/actions/generateStoryScene';
 import { generateScenariosAction } from '@/app/actions/generateScenarios';
-import { buildAdventurePrompt } from '@/lib/promptUtils';
+import { buildStoryPrompt } from '@/lib/promptUtils';
 import { z } from 'zod';
 import JSZip from 'jszip';
 import { type RateLimitError } from '@/lib/types';
@@ -102,10 +102,10 @@ export interface StoryHistoryItem {
   imageUrl?: string | null | undefined;
   prompt?: string | undefined;
   imagePrompt?: string | undefined;
-  choices?: z.infer<typeof AdventureChoiceSchema>[] | undefined;
+  choices?: z.infer<typeof StoryChoiceSchema>[] | undefined;
 }
 
-// Parameters needed to retry fetchAdventureScene
+// Parameters needed to retry fetchStoryScene
 interface FetchParams {
   choiceText?: string | undefined;
   metadata?: AdventureMetadata | undefined;
@@ -115,7 +115,7 @@ interface FetchParams {
 // Type for the error state, which can be a string or a structured rate limit error
 export type ErrorState = string | { rateLimitError: RateLimitError } | null;
 
-type Scenario = z.infer<typeof AdventureChoiceSchema>;
+type Scenario = z.infer<typeof StoryChoiceSchema>;
 
 // Type for the metadata to be stored and passed - Exported
 export interface AdventureMetadata {
@@ -140,7 +140,7 @@ interface PromptLogEntry {
 
 // Simplified State
 interface AdventureState {
-  currentNode: AdventureScene | null;
+  currentNode: StoryScene | null;
   storyHistory: StoryHistoryItem[];
   isLoading: boolean;
   error: ErrorState;
@@ -170,7 +170,7 @@ interface AdventureState {
 }
 
 interface AdventureActions {
-  fetchAdventureScene: (
+  fetchStoryScene: (
     choiceText?: string,
     metadata?: AdventureMetadata,
     voice?: string | null
@@ -183,7 +183,7 @@ interface AdventureActions {
   setSpeaking: (isSpeaking: boolean) => void;
   setTTSError: (error: string | null) => void;
   setTTSVolume: (volume: number) => void;
-  makeChoice: (choice: z.infer<typeof AdventureChoiceSchema>) => void;
+  makeChoice: (choice: z.infer<typeof StoryChoiceSchema>) => void;
   resetAdventure: () => void;
   triggerReset: () => void;
   saveStory: () => Promise<void>;
@@ -285,7 +285,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         }
       },
 
-      fetchAdventureScene: async (choiceText, metadata, voice) => {
+      fetchStoryScene: async (choiceText, metadata, voice) => {
         const { storyHistory, currentMetadata, currentVoice } = get();
 
         // Use provided metadata if available, otherwise use current store metadata
@@ -320,7 +320,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             summary: item.summary,
           }));
 
-          const actionParams: Parameters<typeof generateAdventureSceneAction>[0] = {
+          const actionParams: Parameters<typeof generateStorySceneAction>[0] = {
             storyContext: { history: trimmedHistory },
             genre: currentGenre ?? undefined,
             tone: currentTone ?? undefined,
@@ -329,7 +329,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
               storyHistory.length === 0 ? currentMetadata?.initialScenarioText : undefined,
           };
           // --- Log prompt AFTER constructing params ---
-          fullPromptForLog = buildAdventurePrompt(
+          fullPromptForLog = buildStoryPrompt(
             actionParams.storyContext,
             undefined,
             actionParams.genre,
@@ -339,7 +339,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           // --- END ---
 
           // Pass the parameter object and the voice to the action
-          const result = await generateAdventureSceneAction(actionParams, currentVoice);
+          const result = await generateStorySceneAction(actionParams, currentVoice);
 
           // Handle rate limit errors first
           if (result.rateLimitError) {
@@ -372,12 +372,12 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           }
 
           // Check for missing node
-          if (!result.adventureScene) {
+          if (!result.storyScene) {
             throw new Error('No adventure scene received from the server.');
           }
 
           // --- SUCCESS PATH ---
-          const newScene = result.adventureScene;
+          const newScene = result.storyScene;
           const updatedHistory = [
             ...storyHistory,
             {
@@ -422,10 +422,10 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         }
       },
 
-      makeChoice: (choice: z.infer<typeof AdventureChoiceSchema>) => {
+      makeChoice: (choice: z.infer<typeof StoryChoiceSchema>) => {
         const isInitialCall = get().storyHistory.length === 0;
-        // Get fetchAdventureScene before potentially modifying state
-        const { fetchAdventureScene, setCurrentMetadata } = get();
+        // Get fetchStoryScene before potentially modifying state
+        const { fetchStoryScene, setCurrentMetadata } = get();
 
         // Store metadata if it's the first call (scenario selection)
         if (isInitialCall) {
@@ -444,7 +444,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             });
           });
           // Fetch first real node (Step 1), passing metadata
-          void fetchAdventureScene(undefined, metadata);
+          void fetchStoryScene(undefined, metadata);
         } else {
           // This is a subsequent choice within the adventure
           // Update the *previous* history item (N-1) with the choice made
@@ -460,7 +460,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             }
           });
           // Fetch the next node (Step N)
-          void fetchAdventureScene();
+          void fetchStoryScene();
         }
       },
 
@@ -690,10 +690,10 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         });
       },
       retryLastFetch: () => {
-        const { lastFetchParamsForRetry, fetchAdventureScene } = get();
+        const { lastFetchParamsForRetry, fetchStoryScene } = get();
         if (lastFetchParamsForRetry) {
           console.log('[Adventure Store] Retrying last fetch...');
-          void fetchAdventureScene(
+          void fetchStoryScene(
             lastFetchParamsForRetry.choiceText,
             lastFetchParamsForRetry.metadata,
             lastFetchParamsForRetry.voice
@@ -703,8 +703,8 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         }
       },
       startNewAdventure: (metadata) => {
-        // Get fetchAdventureScene before potentially modifying state
-        const { fetchAdventureScene, setCurrentMetadata } = get();
+        // Get fetchStoryScene before potentially modifying state
+        const { fetchStoryScene, setCurrentMetadata } = get();
 
         // Reset core state but keep settings like voice
         set((/* removed unused state arg */) => ({
@@ -719,10 +719,10 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         setCurrentMetadata(metadata);
 
         // Fetch the initial node using the provided metadata
-        void fetchAdventureScene(undefined, metadata);
+        void fetchStoryScene(undefined, metadata);
       },
       restartAdventure: () => {
-        const { storyHistory, fetchAdventureScene, currentMetadata } = get();
+        const { storyHistory, fetchStoryScene, currentMetadata } = get();
         if (storyHistory.length === 0 || !currentMetadata) {
           console.warn('[Store] Cannot restart, no history or metadata found.');
           return;
@@ -736,7 +736,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           error: null,
           rateLimitError: null,
         });
-        void fetchAdventureScene();
+        void fetchStoryScene();
       },
       resetAdventureState: () => {
         // Assuming this should just call the main reset function

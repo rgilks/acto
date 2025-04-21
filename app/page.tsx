@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import AuthButton from '@/components/AuthButton';
-import AdventureGame from '@/components/AdventureGame';
+import Story from '@/app/components/Story';
 import Image from 'next/image';
 import { useSession, signIn } from 'next-auth/react';
 import React from 'react';
@@ -66,7 +66,7 @@ const Page = () => {
           {isAuthenticated && (
             <>
               <div className="fade-in w-full" style={{ animationDelay: '0.2s' }}>
-                <AdventureGame />
+                <Story />
               </div>
               <footer
                 className="m-8 mb-16 md:m-16 text-center text-sm text-gray-500 fade-in w-full"
@@ -114,7 +114,7 @@ const Page = () => {
                 className="text-3xl font-bold text-amber-100/90 mb-3 font-serif"
                 data-testid="auth-heading"
               >
-                Join the Adventure!
+                Start Your Story
               </h2>
               <p className="text-gray-400 mb-8 text-base" data-testid="auth-waitlist-message">
                 Sign in to create your own unique stories. Please note: Access is currently limited,

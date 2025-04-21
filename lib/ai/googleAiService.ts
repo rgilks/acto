@@ -6,7 +6,7 @@ import { GoogleGenAI, HarmCategory, HarmBlockThreshold, GenerationConfig } from 
 // Define a type for the config overrides
 export type AIConfigOverrides = Partial<GenerationConfig>;
 
-export async function callAIForAdventure(
+export async function callAIForStory(
   prompt: string,
   modelConfig: ModelConfig,
   configOverrides?: AIConfigOverrides

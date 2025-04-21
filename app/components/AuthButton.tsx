@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Session } from 'next-auth';
 import { useState, useEffect, useRef } from 'react';
-import useAdventureStore from '@/store/adventureStore';
+import useStoryStore from '@/store/storyStore';
 
 interface AuthButtonProps {
   variant?: 'full' | 'icon-only' | 'short';
@@ -19,10 +19,10 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
   const [isMounted, setIsMounted] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const triggerReset = useAdventureStore((state) => state.triggerReset);
-  const saveStory = useAdventureStore((state) => state.saveStory);
-  const storyHistory = useAdventureStore((state) => state.storyHistory);
-  const currentNode = useAdventureStore((state) => state.currentNode);
+  const triggerReset = useStoryStore((state) => state.triggerReset);
+  const saveStory = useStoryStore((state) => state.saveStory);
+  const storyHistory = useStoryStore((state) => state.storyHistory);
+  const currentNode = useStoryStore((state) => state.currentNode);
 
   useEffect(() => {
     setIsMounted(true);

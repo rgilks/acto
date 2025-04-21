@@ -1,12 +1,12 @@
-import type { StoryHistoryItem } from '@/store/adventureStore';
+import type { StoryHistoryItem } from '@/store/storyStore';
 
 // Define StoryContext based on StoryHistoryItem
 type StoryContext = {
   history: StoryHistoryItem[];
 };
 
-// Copied from app/actions/adventure.ts
-export function buildAdventurePrompt(
+// Copied from app/actions/story.ts
+export function buildStoryPrompt(
   context: StoryContext | undefined,
   initialScenarioText: string | undefined = undefined,
   genre: string | undefined = undefined,
@@ -33,11 +33,11 @@ export function buildAdventurePrompt(
     ? `Initial Scenario Context/Goal: ${initialContextText}`
     : '';
 
-  let adventureStyleSection = 'Adventure Style Hints:\n';
-  if (genre) adventureStyleSection += `- Genre: ${genre}\n`;
-  if (tone) adventureStyleSection += `- Tone: ${tone}\n`;
-  if (visualStyle) adventureStyleSection += `- Visual Style (for image prompts): ${visualStyle}\n`;
-  if (!genre && !tone && !visualStyle) adventureStyleSection += '(None specified)\n';
+  let storyStyleSection = 'Story Style Hints:\n';
+  if (genre) storyStyleSection += `- Genre: ${genre}\n`;
+  if (tone) storyStyleSection += `- Tone: ${tone}\n`;
+  if (visualStyle) storyStyleSection += `- Visual Style (for image prompts): ${visualStyle}\n`;
+  if (!genre && !tone && !visualStyle) storyStyleSection += '(None specified)\n';
 
   let recentHistoryText = 'Recent Events:\n';
   if (history.length === 0) {
@@ -65,12 +65,12 @@ export function buildAdventurePrompt(
 
   const storySummarySection = latestSummary ? `Previous Summary: ${latestSummary}` : '';
 
-  const basePrompt = `You are a storyteller creating an interactive adventure.
+  const basePrompt = `You are a storyteller creating an interactive story.
 
 **Your Goal:** Write the next part of the story based on the history and summary. Provide 3 distinct choices. Create an image prompt that visually describes the new "passage" reflecting the specified styles. Update the story summary.
 
 **Instructions:**
-1.  **Continue the Story:** Write an engaging and descriptive "passage" that flows logically from the "Previous Summary" (for overall context) and the "Recent Events" (for immediate action). Maintain the specified "Adventure Style Hints" (Genre, Tone) in the writing.
+1.  **Continue the Story:** Write an engaging and descriptive "passage" that flows logically from the "Previous Summary" (for overall context) and the "Recent Events" (for immediate action). Maintain the specified "Story Style Hints" (Genre, Tone) in the writing.
 2.  **Offer Choices:** Provide exactly 3 distinct "choices" for the player.
 3.  **Image Prompt:** Write an "imagePrompt" describing ONLY the scene detailed in the NEW "passage" above. The mood and content of the image prompt should align with the specified Genre and Tone. Do not describe elements from previous steps unless they are explicitly visible in the new passage. Crucially, the prompt must visually match the "passage" and reflect the "Visual Style": ${visualStyle ?? 'any'}.
 4.  **Update Summary:** Write a concise "updatedSummary" covering the whole story so far, including the new "passage".
@@ -81,7 +81,7 @@ ${jsonStructure}
 
   const promptParts = [
     basePrompt,
-    adventureStyleSection,
+    storyStyleSection,
     history.length <= 1 ? initialContextSection : '', // Only include initial context for first step(s)
     storySummarySection,
     recentHistoryText,
@@ -95,5 +95,5 @@ export function buildScenariosPrompt(): string {
   const jsonStructure = `[\n  {\n    "text": "(string) Engaging, highly imaginative starting scenario text (1-2 sentences max).",\n    "genre": "(string) Core genre or unique genre blend.",\n    "tone": "(string) Dominant tone or mood.",\n    "visualStyle": "(string) Evocative description of the visual aesthetic."
   }\n  /* Repeat structure for 4 scenarios */\n]`;
 
-  return `You are an experimental generator of highly diverse and unexpected story scenarios.\n\n**Goal:** Generate a list of 4 radically different and unique starting scenarios for an interactive text adventure.\n\n**Key Requirements:**\n1.  **Extreme Diversity:** The 4 scenarios MUST be maximally different from each other across multiple dimensions: theme, setting, core concepts, mood, and visual aesthetic. Avoid predictable combinations.\n2.  **Imaginative Specificity:** Use vivid, concrete details in the scenario text and visual style description. Aim for unique and evocative descriptions, not just standard labels.\n3.  **Conciseness:** Keep the scenario text brief (1-2 sentences).\n4.  **Novelty:** Prioritize unusual combinations and unexpected juxtapositions in genre, tone, and visual style.\n5.  **Strict JSON Output:** Respond ONLY with a valid JSON array matching this structure:\n${jsonStructure}\n\nGenerate 4 highly diverse, unexpected, and imaginative scenarios now.`;
+  return `You are an experimental generator of highly diverse and unexpected story scenarios.\n\n**Goal:** Generate a list of 4 radically different and unique starting scenarios for an interactive text story.\n\n**Key Requirements:**\n1.  **Extreme Diversity:** The 4 scenarios MUST be maximally different from each other across multiple dimensions: theme, setting, core concepts, mood, and visual aesthetic. Avoid predictable combinations.\n2.  **Imaginative Specificity:** Use vivid, concrete details in the scenario text and visual style description. Aim for unique and evocative descriptions, not just standard labels.\n3.  **Conciseness:** Keep the scenario text brief (1-2 sentences).\n4.  **Novelty:** Prioritize unusual combinations and unexpected juxtapositions in genre, tone, and visual style.\n5.  **Strict JSON Output:** Respond ONLY with a valid JSON array matching this structure:\n${jsonStructure}\n\nGenerate 4 highly diverse, unexpected, and imaginative scenarios now.`;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
-import { callAIForAdventure, AIConfigOverrides } from './googleAiService';
+import { callAIForStory, AIConfigOverrides } from './googleAiService';
 import { getGoogleAIClient, ModelConfig } from '@/lib/modelConfig';
 import { HarmCategory, HarmBlockThreshold } from '@google/genai';
 
@@ -20,7 +20,7 @@ const mockGoogleGenAIInstance = {
 // Mock implementation for getGoogleAIClient using Vitest
 (getGoogleAIClient as Mock).mockReturnValue(mockGoogleGenAIInstance);
 
-describe('callAIForAdventure', () => {
+describe('callAIForStory', () => {
   const mockPrompt = 'Test prompt';
   const mockModelConfig: ModelConfig = {
     provider: 'google',
@@ -71,7 +71,7 @@ describe('callAIForAdventure', () => {
       safetySettings: safetySettings,
     };
 
-    const response = await callAIForAdventure(mockPrompt, mockModelConfig);
+    const response = await callAIForStory(mockPrompt, mockModelConfig);
 
     expect(getGoogleAIClient).toHaveBeenCalledTimes(1);
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
@@ -92,7 +92,7 @@ describe('callAIForAdventure', () => {
       safetySettings: safetySettings,
     };
 
-    await callAIForAdventure(mockPrompt, mockModelConfig, overrides);
+    await callAIForStory(mockPrompt, mockModelConfig, overrides);
 
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
     expect(mockGenerateContent).toHaveBeenCalledWith(expectedRequest);
@@ -101,7 +101,7 @@ describe('callAIForAdventure', () => {
   it('should throw an error if the AI response has no text', async () => {
     mockGenerateContent.mockResolvedValue({}); // Simulate response with no text property
 
-    await expect(callAIForAdventure(mockPrompt, mockModelConfig)).rejects.toThrow(
+    await expect(callAIForStory(mockPrompt, mockModelConfig)).rejects.toThrow(
       'No content received from Google AI or failed to extract text.'
     );
 
@@ -113,7 +113,7 @@ describe('callAIForAdventure', () => {
     const testError = new Error('Google AI API error');
     mockGenerateContent.mockRejectedValue(testError); // Simulate API error
 
-    await expect(callAIForAdventure(mockPrompt, mockModelConfig)).rejects.toThrow(testError);
+    await expect(callAIForStory(mockPrompt, mockModelConfig)).rejects.toThrow(testError);
 
     expect(getGoogleAIClient).toHaveBeenCalledTimes(1);
     expect(mockGenerateContent).toHaveBeenCalledTimes(1);
@@ -125,7 +125,7 @@ describe('callAIForAdventure', () => {
     const overrides: AIConfigOverrides = { temperature: 0.7 };
     const finalConfig = { ...baseConfig, ...overrides };
 
-    await callAIForAdventure(mockPrompt, mockModelConfig, overrides);
+    await callAIForStory(mockPrompt, mockModelConfig, overrides);
 
     expect(consoleSpy).toHaveBeenCalledWith(
       '[AI Service] Using final AI config:',

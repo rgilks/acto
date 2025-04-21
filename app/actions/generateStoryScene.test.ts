@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { generateAdventureSceneAction } from './generateAdventureScene';
+import { generateStorySceneAction } from './generateStoryScene';
 import { getSession } from '@/app/auth';
 import { checkTextRateLimit } from '@/lib/rateLimitSqlite';
-import { callAIForAdventure } from '@/lib/ai/googleAiService';
+import { callAIForStory } from '@/lib/ai/googleAiService';
 import { generateImageWithGemini } from '@/lib/ai/imageGenerationService';
 import { synthesizeSpeechAction } from './tts';
 import { getActiveModel } from '@/lib/modelConfig';
-import { buildAdventurePrompt } from '@/lib/promptUtils';
-import { AdventureSceneSchema } from '@/lib/domain/schemas'; // Import schema for typing mock data
+import { buildStoryPrompt } from '@/lib/promptUtils';
+import { StorySceneSchema } from '@/lib/domain/schemas'; // Import schema for typing mock data
 import type { Session } from 'next-auth'; // Import Session type
 import type { ModelConfig } from '@/lib/modelConfig'; // Import ModelConfig type
 
@@ -55,7 +55,7 @@ const mockModel: ModelConfig = {
 const mockImageUrl = 'data:image/png;base64,mockImageData';
 const mockAudioBase64 = 'mockAudioData';
 
-describe('generateAdventureSceneAction', () => {
+describe('generateStorySceneAction', () => {
   beforeEach(() => {
     // Reset mocks before each test
     vi.clearAllMocks();
@@ -69,8 +69,8 @@ describe('generateAdventureSceneAction', () => {
       remaining: 99,
     }); // Add required fields
     vi.mocked(getActiveModel).mockReturnValue(mockModel);
-    vi.mocked(buildAdventurePrompt).mockReturnValue(mockPrompt);
-    vi.mocked(callAIForAdventure).mockResolvedValue(JSON.stringify(mockValidAiNode));
+    vi.mocked(buildStoryPrompt).mockReturnValue(mockPrompt);
+    vi.mocked(callAIForStory).mockResolvedValue(JSON.stringify(mockValidAiNode));
     vi.mocked(generateImageWithGemini).mockResolvedValue({
       dataUri: mockImageUrl,
       error: undefined,
@@ -81,24 +81,24 @@ describe('generateAdventureSceneAction', () => {
     });
   });
 
-  it('should successfully generate a complete adventure scene', async () => {
-    const result = await generateAdventureSceneAction(mockValidParams, mockVoice);
+  it('should successfully generate a complete story scene', async () => {
+    const result = await generateStorySceneAction(mockValidParams, mockVoice);
 
     expect(result.error).toBeUndefined();
     expect(result.rateLimitError).toBeUndefined();
-    expect(result.adventureScene).toBeDefined();
-    expect(result.adventureScene?.passage).toBe(mockValidAiNode.passage);
-    expect(result.adventureScene?.choices).toEqual(mockValidAiNode.choices);
-    expect(result.adventureScene?.imagePrompt).toBe(mockValidAiNode.imagePrompt);
-    expect(result.adventureScene?.updatedSummary).toBe(mockValidAiNode.updatedSummary);
-    expect(result.adventureScene?.imageUrl).toBe(mockImageUrl);
-    expect(result.adventureScene?.audioBase64).toBe(mockAudioBase64);
+    expect(result.storyScene).toBeDefined();
+    expect(result.storyScene?.passage).toBe(mockValidAiNode.passage);
+    expect(result.storyScene?.choices).toEqual(mockValidAiNode.choices);
+    expect(result.storyScene?.imagePrompt).toBe(mockValidAiNode.imagePrompt);
+    expect(result.storyScene?.updatedSummary).toBe(mockValidAiNode.updatedSummary);
+    expect(result.storyScene?.imageUrl).toBe(mockImageUrl);
+    expect(result.storyScene?.audioBase64).toBe(mockAudioBase64);
     expect(result.prompt).toBe(mockPrompt);
 
     // Check if dependencies were called correctly
     expect(getSession).toHaveBeenCalledTimes(1);
     expect(checkTextRateLimit).toHaveBeenCalledTimes(1);
-    expect(buildAdventurePrompt).toHaveBeenCalledWith(
+    expect(buildStoryPrompt).toHaveBeenCalledWith(
       mockValidParams.storyContext,
       undefined, // initialScenarioText
       mockValidParams.genre,
@@ -106,7 +106,7 @@ describe('generateAdventureSceneAction', () => {
       mockValidParams.visualStyle
     );
     expect(getActiveModel).toHaveBeenCalledTimes(1);
-    expect(callAIForAdventure).toHaveBeenCalledWith(mockPrompt, mockModel, {});
+    expect(callAIForStory).toHaveBeenCalledWith(mockPrompt, mockModel, {});
     expect(generateImageWithGemini).toHaveBeenCalledWith(
       mockValidAiNode.imagePrompt,
       mockValidParams.visualStyle,
@@ -121,10 +121,10 @@ describe('generateAdventureSceneAction', () => {
 
   it('should return unauthorized error if no user session', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
-    const result = await generateAdventureSceneAction(mockValidParams, mockVoice);
+    const result = await generateStorySceneAction(mockValidParams, mockVoice);
 
     expect(result.error).toBe('Unauthorized: User must be logged in.');
-    expect(result.adventureScene).toBeUndefined();
+    expect(result.storyScene).toBeUndefined();
     expect(checkTextRateLimit).not.toHaveBeenCalled();
   });
 
@@ -137,54 +137,54 @@ describe('generateAdventureSceneAction', () => {
       limit: 100, // Add required fields
       remaining: 0, // Add required fields
     });
-    const result = await generateAdventureSceneAction(mockValidParams, mockVoice);
+    const result = await generateStorySceneAction(mockValidParams, mockVoice);
 
     expect(result.error).toBeUndefined();
-    expect(result.adventureScene).toBeUndefined();
+    expect(result.storyScene).toBeUndefined();
     expect(result.rateLimitError).toBeDefined();
     expect(result.rateLimitError?.apiType).toBe('text');
     expect(result.rateLimitError?.message).toBe('Too many text requests.');
     expect(result.rateLimitError?.resetTimestamp).toBe(resetTime);
-    expect(callAIForAdventure).not.toHaveBeenCalled();
+    expect(callAIForStory).not.toHaveBeenCalled();
   });
 
   it('should return invalid input error for invalid parameters', async () => {
     const invalidParams = { ...mockValidParams, genre: 123 }; // Invalid genre type
     // Need to cast as any because TS expects correct type at compile time
-    const result = await generateAdventureSceneAction(invalidParams as any, mockVoice);
+    const result = await generateStorySceneAction(invalidParams as any, mockVoice);
 
     expect(result.error).toContain('Invalid input:');
-    expect(result.adventureScene).toBeUndefined();
-    expect(callAIForAdventure).not.toHaveBeenCalled();
+    expect(result.storyScene).toBeUndefined();
+    expect(callAIForStory).not.toHaveBeenCalled();
   });
 
   it('should return error if AI call fails', async () => {
-    vi.mocked(callAIForAdventure).mockRejectedValue(new Error('AI unavailable'));
-    const result = await generateAdventureSceneAction(mockValidParams, mockVoice);
+    vi.mocked(callAIForStory).mockRejectedValue(new Error('AI unavailable'));
+    const result = await generateStorySceneAction(mockValidParams, mockVoice);
 
     expect(result.error).toBe('AI unavailable');
-    expect(result.adventureScene).toBeUndefined();
+    expect(result.storyScene).toBeUndefined();
     expect(generateImageWithGemini).not.toHaveBeenCalled();
     expect(synthesizeSpeechAction).not.toHaveBeenCalled();
   });
 
   it('should return error if AI response is not valid JSON', async () => {
-    vi.mocked(callAIForAdventure).mockResolvedValue('This is not JSON');
-    const result = await generateAdventureSceneAction(mockValidParams, mockVoice);
+    vi.mocked(callAIForStory).mockResolvedValue('This is not JSON');
+    const result = await generateStorySceneAction(mockValidParams, mockVoice);
 
     expect(result.error).toBe('Failed to parse AI response.');
-    expect(result.adventureScene).toBeUndefined();
+    expect(result.storyScene).toBeUndefined();
     expect(generateImageWithGemini).not.toHaveBeenCalled();
     expect(synthesizeSpeechAction).not.toHaveBeenCalled();
   });
 
   it('should return error if AI response fails schema validation', async () => {
     const invalidAiNode = { ...mockValidAiNode, passage: undefined }; // Missing required field
-    vi.mocked(callAIForAdventure).mockResolvedValue(JSON.stringify(invalidAiNode));
-    const result = await generateAdventureSceneAction(mockValidParams, mockVoice);
+    vi.mocked(callAIForStory).mockResolvedValue(JSON.stringify(invalidAiNode));
+    const result = await generateStorySceneAction(mockValidParams, mockVoice);
 
     expect(result.error).toBe('AI response validation failed.');
-    expect(result.adventureScene).toBeUndefined();
+    expect(result.storyScene).toBeUndefined();
     expect(generateImageWithGemini).not.toHaveBeenCalled();
     expect(synthesizeSpeechAction).not.toHaveBeenCalled();
   });
@@ -195,12 +195,12 @@ describe('generateAdventureSceneAction', () => {
       dataUri: undefined,
       error: imageErrorMsg,
     });
-    const result = await generateAdventureSceneAction(mockValidParams, mockVoice);
+    const result = await generateStorySceneAction(mockValidParams, mockVoice);
 
     expect(result.error).toBeUndefined();
-    expect(result.adventureScene).toBeDefined();
-    expect(result.adventureScene?.imageUrl).toBeUndefined(); // No image URL
-    expect(result.adventureScene?.audioBase64).toBe(mockAudioBase64); // Audio should still be present
+    expect(result.storyScene).toBeDefined();
+    expect(result.storyScene?.imageUrl).toBeUndefined(); // No image URL
+    expect(result.storyScene?.audioBase64).toBe(mockAudioBase64); // Audio should still be present
     // Check that the error was logged (implicitly tested by mock setup if spying on console.error)
   });
 
@@ -210,54 +210,54 @@ describe('generateAdventureSceneAction', () => {
       // Adjusted for exactOptionalPropertyTypes
       error: ttsErrorMsg,
     });
-    const result = await generateAdventureSceneAction(mockValidParams, mockVoice);
+    const result = await generateStorySceneAction(mockValidParams, mockVoice);
 
     expect(result.error).toBeUndefined();
-    expect(result.adventureScene).toBeDefined();
-    expect(result.adventureScene?.imageUrl).toBe(mockImageUrl); // Image should still be present
-    expect(result.adventureScene?.audioBase64).toBeUndefined(); // No audio
+    expect(result.storyScene).toBeDefined();
+    expect(result.storyScene?.imageUrl).toBe(mockImageUrl); // Image should still be present
+    expect(result.storyScene?.audioBase64).toBeUndefined(); // No audio
     // Check that the error was logged
   });
 
   it('should skip image generation if AI response has no imagePrompt', async () => {
     const aiNodeNoImage = { ...mockValidAiNode, imagePrompt: undefined };
-    vi.mocked(callAIForAdventure).mockResolvedValue(JSON.stringify(aiNodeNoImage));
-    const result = await generateAdventureSceneAction(mockValidParams, mockVoice);
+    vi.mocked(callAIForStory).mockResolvedValue(JSON.stringify(aiNodeNoImage));
+    const result = await generateStorySceneAction(mockValidParams, mockVoice);
 
     expect(result.error).toBeUndefined();
-    expect(result.adventureScene).toBeDefined();
-    expect(result.adventureScene?.imagePrompt).toBeUndefined();
-    expect(result.adventureScene?.imageUrl).toBeUndefined(); // No URL generated
+    expect(result.storyScene).toBeDefined();
+    expect(result.storyScene?.imagePrompt).toBeUndefined();
+    expect(result.storyScene?.imageUrl).toBeUndefined(); // No URL generated
     expect(generateImageWithGemini).not.toHaveBeenCalled(); // Ensure it wasn't called
-    expect(result.adventureScene?.audioBase64).toBe(mockAudioBase64); // Audio should still be present
+    expect(result.storyScene?.audioBase64).toBe(mockAudioBase64); // Audio should still be present
   });
 
   it('should skip TTS generation if AI response has no passage', async () => {
     const aiNodeNoPassage = { ...mockValidAiNode, passage: undefined };
     // This would fail schema validation earlier, but let's test the hypothetical path
     // We mock the schema validation part indirectly by mocking the AI response
-    vi.mocked(callAIForAdventure).mockResolvedValue(JSON.stringify(aiNodeNoPassage));
+    vi.mocked(callAIForStory).mockResolvedValue(JSON.stringify(aiNodeNoPassage));
 
     // Temporarily bypass schema validation within the mock for this specific test case
     // This isn't ideal, ideally schema validation failure is tested separately (which it is)
     // But to test the *logic* of skipping TTS, we assume validation passed somehow
-    const validationBypassResult = AdventureSceneSchema.safeParse(aiNodeNoPassage);
+    const validationBypassResult = StorySceneSchema.safeParse(aiNodeNoPassage);
     if (validationBypassResult.success) {
       // This branch won't run, just for illustration
-      vi.mocked(callAIForAdventure).mockResolvedValue(JSON.stringify(validationBypassResult.data));
+      vi.mocked(callAIForStory).mockResolvedValue(JSON.stringify(validationBypassResult.data));
     } else {
       // Force mock a schema-valid response *without* passage to test skipping
       const adjustedMock = { ...mockValidAiNode, passage: '' }; // Use empty string instead of undefined if schema requires string
-      vi.mocked(callAIForAdventure).mockResolvedValue(JSON.stringify(adjustedMock));
+      vi.mocked(callAIForStory).mockResolvedValue(JSON.stringify(adjustedMock));
 
-      const result = await generateAdventureSceneAction(mockValidParams, mockVoice);
+      const result = await generateStorySceneAction(mockValidParams, mockVoice);
 
       expect(result.error).toBeUndefined();
-      expect(result.adventureScene).toBeDefined();
-      expect(result.adventureScene?.passage).toBe('');
-      expect(result.adventureScene?.audioBase64).toBeUndefined(); // No audio generated
+      expect(result.storyScene).toBeDefined();
+      expect(result.storyScene?.passage).toBe('');
+      expect(result.storyScene?.audioBase64).toBeUndefined(); // No audio generated
       expect(synthesizeSpeechAction).not.toHaveBeenCalled(); // Ensure it wasn't called
-      expect(result.adventureScene?.imageUrl).toBe(mockImageUrl); // Image should still be present
+      expect(result.storyScene?.imageUrl).toBe(mockImageUrl); // Image should still be present
     }
   });
 
@@ -267,7 +267,7 @@ describe('generateAdventureSceneAction', () => {
     // Update expected voice based on actual constant value or implementation detail
     const expectedDefaultVoice = 'en-IN-Chirp3-HD-Enceladus'; // Updated based on test failure output
 
-    await generateAdventureSceneAction(mockValidParams, undefined); // Pass undefined voice
+    await generateStorySceneAction(mockValidParams, undefined); // Pass undefined voice
 
     expect(synthesizeSpeechAction).toHaveBeenCalledWith({
       text: mockValidAiNode.passage,
@@ -280,14 +280,14 @@ describe('generateAdventureSceneAction', () => {
     vi.mocked(getSession).mockRejectedValue(expectedError);
 
     // Expect the promise returned by the action to reject with the specific error
-    await expect(generateAdventureSceneAction(mockValidParams, mockVoice)).rejects.toThrow(
+    await expect(generateStorySceneAction(mockValidParams, mockVoice)).rejects.toThrow(
       expectedError.message // Compare message for simplicity, or use .toEqual(expectedError)
     );
 
     // Verify no node or rate limit error is part of a successful return (which shouldn't happen)
     // This part is less critical as the rejection is the main point
     try {
-      const result = await generateAdventureSceneAction(mockValidParams, mockVoice);
+      const result = await generateStorySceneAction(mockValidParams, mockVoice);
       // If it resolves unexpectedly, fail the test
       expect(result).toBeUndefined();
     } catch (e) {

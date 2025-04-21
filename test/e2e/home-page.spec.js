@@ -8,9 +8,12 @@ test.describe('Home Page Checks (Unauthenticated)', () => {
   test('should load essential elements for unauthenticated users', async ({ page }) => {
     await page.goto(TARGET_URL);
 
-    // Check if the "Join the Adventure!" heading is visible
+    // Check if the main heading is visible
+    await expect(page.getByRole('heading', { name: 'acto' })).toBeVisible();
+
+    // Check if the "Start Your Story" heading is visible
     await expect(page.getByTestId('auth-heading')).toBeVisible();
-    await expect(page.getByTestId('auth-heading')).toHaveText('Join the Adventure!');
+    await expect(page.getByTestId('auth-heading')).toHaveText('Start Your Story');
 
     // Check if the waitlist message is visible
     await expect(page.getByTestId('auth-waitlist-message')).toBeVisible();

@@ -1,7 +1,7 @@
 {
-  "name": "acto - Interactive Adventure Game",
+  "name": "acto - Interactive Story Generator",
   "short_name": "acto",
-  "description": "Embark on thrilling interactive adventures powered by AI.",
+  "description": "Embark on thrilling interactive storys powered by AI.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

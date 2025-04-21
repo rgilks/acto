@@ -2,13 +2,13 @@
 
 import { z } from 'zod';
 import { getActiveModel } from '@/lib/modelConfig';
-import { AdventureChoiceSchema } from '@/lib/domain/schemas';
+import { StoryChoiceSchema } from '@/lib/domain/schemas';
 import { getSession } from '@/app/auth';
 import { checkTextRateLimit } from '@/lib/rateLimitSqlite';
-import { callAIForAdventure, AIConfigOverrides } from '@/lib/ai/googleAiService';
+import { callAIForStory, AIConfigOverrides } from '@/lib/ai/googleAiService';
 import { buildScenariosPrompt } from '@/lib/promptUtils';
 
-const ScenariosSchema = z.array(AdventureChoiceSchema);
+const ScenariosSchema = z.array(StoryChoiceSchema);
 
 type GenerateScenariosResult = {
   scenarios?: z.infer<typeof ScenariosSchema>;
@@ -53,11 +53,7 @@ export const generateScenariosAction = async (): Promise<GenerateScenariosResult
       presencePenalty: 0.7, // Slightly increase penalties
     };
 
-    const aiResponseText = await callAIForAdventure(
-      prompt,
-      modelConfig,
-      scenarioGenConfigOverrides
-    );
+    const aiResponseText = await callAIForStory(prompt, modelConfig, scenarioGenConfigOverrides);
 
     let parsedScenarios: unknown;
     try {

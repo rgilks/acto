@@ -27,7 +27,7 @@ An interactive storytelling application powered by Next.js and Google's generati
 - **Data Persistence**: Uses SQLite (`better-sqlite3`) for user data and rate limit tracking.
 - **Responsive Design**: Optimized for both desktop and mobile devices using Tailwind CSS.
 - **Modern UI**: Clean interface built with React and Next.js.
-- **Enhanced & Responsive Game UI**: Image-centric layout adapting to different screen sizes, integrated minimal audio controls, subtle glow effect, and fullscreen option.
+- **Enhanced & Responsive Story UI**: Image-centric layout adapting to different screen sizes, integrated minimal audio controls, subtle glow effect, and fullscreen option.
 - **Improved Landscape/Fullscreen View**: Enhanced CSS for near edge-to-edge image experience on mobile landscape.
 - **Robust Validation**: Uses Zod for validating AI responses.
 - **State Management**: Uses `zustand` with `immer` and `persist` (custom pruning localStorage) for managing client-side application state.
@@ -37,7 +37,7 @@ An interactive storytelling application powered by Next.js and Google's generati
 
 ### Saving Your Story
 
-You can save your current adventure progress at any time using the "Save Story" option in the user menu (available when logged in).
+You can save your current story progress at any time using the "Save Story" option in the user menu (available when logged in).
 
 This will download a `.zip` file containing:
 
@@ -209,7 +209,7 @@ Ensure the following secrets are set on your Fly.io app dashboard (`fly secrets 
 
 ### Static Starting Scenarios (Logged-Out Users)
 
-To improve performance and reduce unnecessary API calls for visitors who are not logged in, the application now displays a static, hardcoded list of starting scenarios (`app/components/AdventureGame.tsx`). These have been updated to offer a more diverse and concise set of unique starting points.
+To improve performance and reduce unnecessary API calls for visitors who are not logged in, the application now displays a static, hardcoded list of starting scenarios (`app/components/StoryStory.tsx`). These have been updated to offer a more diverse and concise set of unique starting points.
 
 ### Progressive Web App (PWA)
 
@@ -261,7 +261,7 @@ npm run nuke
 
 - **Co-location**: Test files (`*.test.ts`, `*.test.tsx`) live alongside the source files they test.
 - **Unit/Integration**: Vitest and React Testing Library (`npm test`) test components and utility functions.
-- **End-to-End**: Playwright (`npm run test:e2e`) checks full user flows through the adventure game.
+- **End-to-End**: Playwright (`npm run test:e2e`) checks full user flows through the story story.
   - See E2E Authentication Setup below if testing authenticated features.
 - **Git Hooks**: Husky and lint-staged automatically run checks:
   - **Pre-commit**: Formats staged files (`prettier`) and runs related Vitest tests (`test:quick`).
@@ -274,11 +274,11 @@ npm run nuke
 - **Security**: Review input handling, especially if user input influences AI prompts. Consider authentication/authorization for saving stories.
 - **Scalability**: Adjust Fly.io machine specs/count in `fly.toml`. Database performance might become a factor if storing large amounts of story history.
 - **Database Backups**: Implement a backup strategy for the SQLite volume on Fly.io.
-- **Prompt Engineering**: Continuously refine prompts in `app/actions/adventure.ts` for better narrative quality, consistency, and JSON adherence.
+- **Prompt Engineering**: Continuously refine prompts in `app/actions/story.ts` for better narrative quality, consistency, and JSON adherence.
 
 ## Customization
 
-- **AI Prompts**: Adjust prompts within `buildAdventurePrompt` and `generateStartingScenariosAction` in `app/actions/adventure.ts` to change the storytelling style, tone, genre focus, etc.
+- **AI Prompts**: Adjust prompts within `buildStoryPrompt` and `generateStartingScenariosAction` in `app/actions/story.ts` to change the storytelling style, tone, genre focus, etc.
 - **Story Structure**: Modify the requested JSON structure in prompts and the corresponding Zod schemas (`lib/domain/schemas.ts`) if different story elements are desired.
 - **UI/UX**: Modify Tailwind classes and component structure in `app/components/`.
 - **Rate Limits**: Adjust limits in the relevant action files.
@@ -290,14 +290,14 @@ npm run nuke
 /
 ├── app/                      # Next.js App Router
 │   ├── [lang]/               # Language-specific routes (if i18n is kept)
-│   │   ├── page.tsx          # Main game page component
-│   │   └── layout.tsx        # Layout for game routes
+│   │   ├── page.tsx          # Main story page component
+│   │   └── layout.tsx        # Layout for story routes
 │   ├── actions/              # Server Actions
-│   │   └── adventure.ts      # Core game logic, AI interaction, state updates
+│   │   └── story.ts      # Core story logic, AI interaction, state updates
 │   │   └── tts.ts            # Text-to-speech action (optional)
 │   ├── api/                  # API routes (e.g., auth callbacks)
 │   ├── components/           # Shared React components (UI elements)
-│   ├── store/                # Zustand state stores (e.g., adventureStore)
+│   ├── store/                # Zustand state stores (e.g., storyStore)
 │   ├── admin/                # Admin panel components/routes (optional)
 │   ├── layout.tsx            # Root layout
 │   ├── page.tsx              # Root page (e.g., landing or redirect)
@@ -306,7 +306,7 @@ npm run nuke
 │   ├── db.ts                 # Database connection & schema setup (verify schema)
 │   ├── authOptions.ts        # NextAuth configuration (if used)
 │   ├── modelConfig.ts        # AI model configuration & selection
-│   ├── domain/               # Domain schemas (Zod, e.g., AdventureSceneSchema)
+│   ├── domain/               # Domain schemas (Zod, e.g., StorySceneSchema)
 │   └── ...
 ├── public/                   # Static assets (images, icons)
 ├── data/                     # SQLite database file (local development)
@@ -329,7 +329,7 @@ Contributions welcome!
 
 1.  Fork the repository.
 2.  Create branch: `git checkout -b feature/your-feature`.
-3.  Commit changes: `git commit -m 'Add cool adventure element'`.
+3.  Commit changes: `git commit -m 'Add cool story element'`.
 4.  Push: `git push origin feature/your-feature`.
 5.  Open Pull Request.
 
@@ -349,7 +349,7 @@ Accessible at `/admin` for users whose email is in `ADMIN_EMAILS`.
 
 ### E2E Test Authentication Setup
 
-_(This section is relevant if testing features requiring login, like the admin panel or user-specific game saves. Review `test/e2e/` tests.)_
+_(This section is relevant if testing features requiring login, like the admin panel or user-specific story saves. Review `test/e2e/` tests.)_
 
 Certain Playwright end-to-end tests (especially those involving `/admin` access or user-specific behavior) require pre-generated authentication state to simulate logged-in users.
 
@@ -452,11 +452,11 @@ _(Note: A `saved_stories` table might exist if that feature is implemented; chec
 - **Database Connection:** Ensure `data/` dir exists locally. On Fly, check volume mount (`fly.toml`) and status (`fly status`). Verify schema in `lib/db.ts` matches code expectations.
 - **Auth Errors:** Verify `.env.local` / Fly secrets (`AUTH_SECRET`, provider IDs/secrets, `NEXTAUTH_URL`). Ensure OAuth callback URLs match.
 - **API Key Errors:** Check AI provider keys in env/secrets. Ensure billing/quotas are sufficient. Check `lib/modelConfig.ts`.
-- **AI Errors:** Check console logs for errors from the AI API. Ensure the AI is returning valid JSON matching the expected Zod schema in `app/actions/adventure.ts`. Refine prompts if needed.
+- **AI Errors:** Check console logs for errors from the AI API. Ensure the AI is returning valid JSON matching the expected Zod schema in `app/actions/story.ts`. Refine prompts if needed.
 - **Rate Limit Errors:** Wait for the daily limit to reset (UTC midnight) or adjust limits in `lib/rateLimitSqlite.ts` if necessary. Check `rate_limits_user` table for current counts.
 - **Admin Access Denied:** Confirm logged-in user's email is EXACTLY in `ADMIN_EMAILS`. Check Fly secrets value.
 - **Deployment Issues:** Examine GitHub Actions logs and `fly logs --app <your-app-name>`.
-- **State Management Issues:** Use React DevTools/Zustand DevTools to inspect game state.
+- **State Management Issues:** Use React DevTools/Zustand DevTools to inspect story state.
 
 ## License
 

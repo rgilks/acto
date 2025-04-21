@@ -2,10 +2,10 @@
 
 import React from 'react';
 import { z } from 'zod';
-import { AdventureChoiceSchema } from '@/lib/domain/schemas';
+import { StoryChoiceSchema } from '@/lib/domain/schemas';
 import { ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 
-type Scenario = z.infer<typeof AdventureChoiceSchema>;
+type Scenario = z.infer<typeof StoryChoiceSchema>;
 
 // Define RateLimitError and ErrorState types locally based on expected structure from the store
 interface RateLimitError {

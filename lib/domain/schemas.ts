@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Add simplified Choice Schema back
-export const AdventureChoiceSchema = z.object({
+export const StoryChoiceSchema = z.object({
   text: z.string().describe('The text of the choice presented to the user'),
   genre: z.string().optional().describe('Suggested genre (e.g., fantasy, sci-fi, mystery)'),
   tone: z.string().optional().describe('Suggested tone (e.g., dark, humorous, adventurous)'),
@@ -9,15 +9,15 @@ export const AdventureChoiceSchema = z.object({
     .string()
     .optional()
     .describe('Suggested visual style (e.g., oil painting, cartoon, photorealistic)'),
-  voice: z.string().optional().describe('The TTS voice to use for this adventure.'),
+  voice: z.string().optional().describe('The TTS voice to use for this story.'),
   updatedSummary: z.string().optional(),
 });
 
-// Represents a single node (passage, choices, image, audio) in the adventure
-export const AdventureSceneSchema = z.object({
+// Represents a single node (passage, choices, image, audio) in the story
+export const StorySceneSchema = z.object({
   passage: z.string().describe('The current passage of the story'),
   choices: z
-    .array(AdventureChoiceSchema)
+    .array(StoryChoiceSchema)
     .min(1)
     .max(5)
     .describe('The choices available to the user for the next step'),
@@ -39,6 +39,6 @@ export const AdventureSceneSchema = z.object({
     .describe('The exact prompt used to generate this node content.'),
 });
 
-export type AdventureScene = z.infer<typeof AdventureSceneSchema>;
+export type StoryScene = z.infer<typeof StorySceneSchema>;
 
-// Represents the state of the entire adventure
+// Represents the state of the entire story

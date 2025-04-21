@@ -2,8 +2,8 @@
 
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import Image from 'next/image';
-import useAdventureStore, { type ErrorState } from '@/store/adventureStore';
-import { AdventureChoiceSchema, AdventureScene } from '@/lib/domain/schemas';
+import useStoryStore, { type ErrorState } from '@/store/storyStore';
+import { StoryChoiceSchema, StoryScene } from '@/lib/domain/schemas';
 import { z } from 'zod';
 import {
   ArrowPathIcon,
@@ -16,8 +16,8 @@ import useTTSPlayer from '@/hooks/useTTSPlayer';
 import { FullScreen, useFullScreenHandle } from 'react-full-screen';
 import { useSession } from 'next-auth/react';
 
-type GamePhase = 'selecting_scenario' | 'loading_first_node' | 'playing' | 'error';
-type Scenario = z.infer<typeof AdventureChoiceSchema>;
+type Phase = 'selecting_scenario' | 'loading_first_node' | 'playing' | 'error';
+type Scenario = z.infer<typeof StoryChoiceSchema>;
 
 // Add the list of voices
 const chirp3Voices = [
@@ -67,8 +67,8 @@ function formatResetTime(timestamp: number): string {
   return `at ${resetDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 }
 
-const AdventureGame = () => {
-  const store = useAdventureStore();
+const StoryStory = () => {
+  const store = useStoryStore();
   const {
     currentNode,
     isLoading: isNodeLoading,
@@ -90,8 +90,8 @@ const AdventureGame = () => {
   const { data: _session, status: sessionStatus } = useSession();
   const isUserLoggedIn = sessionStatus === 'authenticated';
 
-  const [gamePhase, setGamePhase] = useState<GamePhase>('selecting_scenario');
-  const [displayNode, setDisplayNode] = useState<AdventureScene | null>(null);
+  const [phase, setPhase] = useState<Phase>('selecting_scenario');
+  const [displayNode, setDisplayNode] = useState<StoryScene | null>(null);
   const [isCurrentImageLoading, setIsCurrentImageLoading] = useState<boolean>(true);
   const [showChoices, setShowChoices] = useState<boolean>(false);
   const [clickedChoiceIndex, setClickedChoiceIndex] = useState<number | null>(null);
@@ -114,7 +114,7 @@ const AdventureGame = () => {
   const [playbackFinishedOrFailed, setPlaybackFinishedOrFailed] = useState(false);
 
   const fullscreenHandle = useFullScreenHandle();
-  const gameContainerRef = useRef<HTMLDivElement>(null);
+  const storyContainerRef = useRef<HTMLDivElement>(null);
   // ADDED: Ref to track the timeout for showing choices when no audio is detected
   const showChoicesTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -168,7 +168,7 @@ const AdventureGame = () => {
   }, []);
 
   const handleFetchNewScenarios = useCallback(() => {
-    setGamePhase('selecting_scenario');
+    setPhase('selecting_scenario');
     void fetchScenarios();
   }, [fetchScenarios]);
 
@@ -179,7 +179,7 @@ const AdventureGame = () => {
       }
 
       setIsSelectingScenario(true);
-      setGamePhase('loading_first_node');
+      setPhase('loading_first_node');
       if (!hasUserInteracted) {
         setHasUserInteracted(true);
       }
@@ -227,9 +227,9 @@ const AdventureGame = () => {
 
   useEffect(() => {
     const syncHydratedState = () => {
-      const state = useAdventureStore.getState();
+      const state = useStoryStore.getState();
       if (state.currentNode) {
-        setGamePhase((currentPhase) =>
+        setPhase((currentPhase) =>
           currentPhase === 'selecting_scenario' ? 'playing' : currentPhase
         );
         setDisplayNode(state.currentNode);
@@ -245,10 +245,10 @@ const AdventureGame = () => {
       }
     };
 
-    if (useAdventureStore.persist.hasHydrated()) {
+    if (useStoryStore.persist.hasHydrated()) {
       syncHydratedState();
     } else {
-      const unsubscribe = useAdventureStore.persist.onFinishHydration(() => {
+      const unsubscribe = useStoryStore.persist.onFinishHydration(() => {
         syncHydratedState();
         unsubscribe();
       });
@@ -262,7 +262,7 @@ const AdventureGame = () => {
   useEffect(() => {
     const newlyFetchedNode = currentNode;
 
-    if (gamePhase !== 'loading_first_node' && isSelectingScenario) {
+    if (phase !== 'loading_first_node' && isSelectingScenario) {
       setIsSelectingScenario(false);
     }
 
@@ -270,7 +270,7 @@ const AdventureGame = () => {
     const justRetriedSuccessfully =
       previousErrorRef.current === 'AI_RESPONSE_FORMAT_ERROR' && !nodeError;
     if (newlyFetchedNode && (newlyFetchedNode !== displayNode || justRetriedSuccessfully)) {
-      console.log('[AdventureGame Effect] Syncing new node to displayNode.', {
+      console.log('[StoryStory Effect] Syncing new node to displayNode.', {
         newNodeId: newlyFetchedNode.passage.substring(0, 10), // Simple ID check
         displayNodeId: displayNode?.passage.substring(0, 10),
         justRetriedSuccessfully,
@@ -293,7 +293,7 @@ const AdventureGame = () => {
       setDisplayNode(newlyFetchedNode); // Update the displayed node content
 
       // --- Set paused state only for the first node ---
-      const isFirstNodeLoading = gamePhase === 'loading_first_node';
+      const isFirstNodeLoading = phase === 'loading_first_node';
       setUserPaused(isFirstNodeLoading && !!newAudioData); // Pause only if it's the first node and has audio
 
       // Set image URLs for cross-fade
@@ -316,20 +316,20 @@ const AdventureGame = () => {
         // --- ADDED: Autoplay audio if no image on subsequent nodes ---
         if (newAudioData && !isFirstNodeLoading && hasUserInteracted) {
           // If there IS audio, NO image, it's NOT the first node, and user HAS interacted, play audio.
-          console.log('[AdventureGame Effect] Autoplaying audio for node with no image.');
+          console.log('[StoryStory Effect] Autoplaying audio for node with no image.');
           playTTS();
         }
         // --- END ADDED BLOCK ---
       }
 
-      if (gamePhase === 'loading_first_node') {
-        setGamePhase('playing');
+      if (phase === 'loading_first_node') {
+        setPhase('playing');
       }
     } else if (!newlyFetchedNode && displayNode) {
       // Handle case where currentNode becomes null (e.g., after reset)
       // Only reset if displayNode was previously set, to avoid loop on initial load/hydration
-      if (gamePhase !== 'selecting_scenario') {
-        setGamePhase('selecting_scenario');
+      if (phase !== 'selecting_scenario') {
+        setPhase('selecting_scenario');
         setDisplayNode(null);
         setIsCurrentImageLoading(true);
         setCurrentAudioData(null);
@@ -347,10 +347,10 @@ const AdventureGame = () => {
   }, [
     currentNode, // Main trigger
     displayNode, // Compare against current display
-    gamePhase, // Read and set game phase
+    phase, // Read and set story phase
     isSelectingScenario, // Read state
     stopTTS, // Call action
-    setGamePhase, // Update state
+    setPhase, // Update state
     setShowChoices, // Update state
     setClickedChoiceIndex, // Update state
     setFocusedChoiceIndex, // Update state
@@ -375,14 +375,14 @@ const AdventureGame = () => {
 
     if (playbackFinishedOrFailed) {
       // If playback finished or failed, show choices immediately
-      console.log('[AdventureGame Effect] Showing choices (playback finished/failed).');
+      console.log('[StoryStory Effect] Showing choices (playback finished/failed).');
       setShowChoices(true);
     } else if (!currentAudioData && displayNode) {
       // If no audio data, set a short timeout to show choices.
       // This gives a chance for audio to potentially start playing if there's a slight delay.
-      console.log('[AdventureGame Effect] No audio detected, setting timeout to show choices.');
+      console.log('[StoryStory Effect] No audio detected, setting timeout to show choices.');
       showChoicesTimeoutRef.current = setTimeout(() => {
-        console.log('[AdventureGame Effect] Showing choices (timeout after no audio).');
+        console.log('[StoryStory Effect] Showing choices (timeout after no audio).');
         setShowChoices(true);
       }, 150); // Short delay (e.g., 150ms)
     } else {
@@ -402,7 +402,7 @@ const AdventureGame = () => {
   // ADDED: Effect to cancel the 'show choices' timeout if audio starts playing
   useEffect(() => {
     if (isTTSPlaying && showChoicesTimeoutRef.current) {
-      console.log('[AdventureGame Effect] Audio started playing, cancelling show choices timeout.');
+      console.log('[StoryStory Effect] Audio started playing, cancelling show choices timeout.');
       clearTimeout(showChoicesTimeoutRef.current);
       showChoicesTimeoutRef.current = null;
     }
@@ -428,7 +428,7 @@ const AdventureGame = () => {
 
   useEffect(() => {
     if (nodeError !== null) {
-      setGamePhase('error');
+      setPhase('error');
     }
   }, [nodeError]);
 
@@ -462,7 +462,7 @@ const AdventureGame = () => {
     if (isUserLoggedIn) {
       void fetchScenarios();
     }
-    setGamePhase('selecting_scenario');
+    setPhase('selecting_scenario');
     setDisplayNode(null);
     setIsCurrentImageLoading(true);
     setCurrentAudioData(null);
@@ -481,7 +481,7 @@ const AdventureGame = () => {
       return;
     }
 
-    const container = gameContainerRef.current;
+    const container = storyContainerRef.current;
     if (!container || !fullscreenHandle.active) {
       setShowFullscreenControls(false);
       return;
@@ -709,7 +709,7 @@ const AdventureGame = () => {
   // ----- RENDER LOGIC RESTRUCTURED -----
 
   // 1. Loading State for the very first node
-  if (gamePhase === 'loading_first_node') {
+  if (phase === 'loading_first_node') {
     return (
       <div className="flex flex-col items-center justify-center text-center p-8 h-[60vh]">
         <svg
@@ -738,7 +738,7 @@ const AdventureGame = () => {
   }
 
   // 2. Scenario Selection State
-  if (gamePhase === 'selecting_scenario') {
+  if (phase === 'selecting_scenario') {
     return (
       <ScenarioSelector
         onScenarioSelect={handleScenarioSelect}
@@ -752,17 +752,17 @@ const AdventureGame = () => {
     );
   }
 
-  // 3. Playing State (Main Game UI)
-  if (gamePhase === 'playing' && displayNode) {
+  // 3. Playing State (Main Story UI)
+  if (phase === 'playing' && displayNode) {
     const containerClasses = fullscreenHandle.active
       ? 'fixed inset-0 z-50 bg-black flex items-center justify-center'
       : 'bg-slate-800 rounded-lg p-2 sm:p-4 md:p-6 border border-slate-700 shadow-xl text-gray-300 relative mx-4  flex flex-col';
 
     return (
-      <div ref={gameContainerRef} className={`${containerClasses} game-outer-container`}>
+      <div ref={storyContainerRef} className={`${containerClasses} story-outer-container`}>
         <FullScreen
           handle={fullscreenHandle}
-          className="flex-grow flex flex-col game-fullscreen-container"
+          className="flex-grow flex flex-col story-fullscreen-container"
         >
           <>
             <div className={'w-full h-full flex flex-col relative'}>
@@ -773,7 +773,7 @@ const AdventureGame = () => {
                   ${
                     fullscreenHandle.active
                       ? 'bg-black h-full w-full'
-                      : 'min-h-[200px] aspect-[16/10] rounded shadow-md bg-slate-700 flex items-center justify-center shadow-xl shadow-amber-300/20 game-image-wrapper'
+                      : 'min-h-[200px] aspect-[16/10] rounded shadow-md bg-slate-700 flex items-center justify-center shadow-xl shadow-amber-300/20 story-image-wrapper'
                   }
                 `}
               >
@@ -782,7 +782,7 @@ const AdventureGame = () => {
                   <Image
                     key={`prev-${previousImageUrl}`}
                     src={previousImageUrl}
-                    alt="Previous adventure scene"
+                    alt="Previous story scene"
                     fill
                     className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
                       isTransitioningImage ? 'opacity-0' : 'opacity-100'
@@ -801,7 +801,7 @@ const AdventureGame = () => {
                   <Image
                     key={`curr-${currentImageUrl}`}
                     src={currentImageUrl}
-                    alt="Adventure scene"
+                    alt="Story scene"
                     fill
                     className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
                       isTransitioningImage ? 'opacity-100' : 'opacity-0'
@@ -971,8 +971,8 @@ const AdventureGame = () => {
 
   // 4. Fallback or Default State (should ideally not be reached if logic is sound)
   //    Could render a generic error or return null/empty fragment
-  console.warn('[AdventureGame] Reached unexpected render state.', { gamePhase });
+  console.warn('[StoryStory] Reached unexpected render state.', { phase });
   return null; // Or a fallback UI
 };
 
-export default AdventureGame;
+export default StoryStory;
