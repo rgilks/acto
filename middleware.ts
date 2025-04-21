@@ -8,13 +8,17 @@ const middleware = async (req: import('next/server').NextRequest) => {
   const isAdminRoute = pathname.startsWith('/admin');
 
   try {
+    if (pathname.startsWith('/api/auth/')) {
+      console.log(`[Middleware] Skipping auth route: ${pathname}`);
+      return NextResponse.next();
+    }
+
     console.log(`[Middleware] Path: ${pathname}`);
     console.log(`[Middleware] isAdmin check result: ${isAdmin}`);
 
     if (isAdminRoute && !isAdmin) {
       console.log(`[Middleware] Redirecting non-admin from /admin to /`);
-      const redirectUrl = req.nextUrl.clone();
-      redirectUrl.pathname = '/';
+      const redirectUrl = new URL('/', req.url);
       return NextResponse.redirect(redirectUrl);
     }
     console.log(`[Middleware] Allowing access to ${pathname}`);
@@ -28,5 +32,5 @@ const middleware = async (req: import('next/server').NextRequest) => {
 export default middleware;
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|sw.js|manifest.json).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.json).*)'],
 };

@@ -347,9 +347,9 @@ Accessible at `/admin` for users whose email is in `ADMIN_EMAILS`.
 
 ### E2E Test Authentication Setup
 
-_(This section is likely still relevant if testing features requiring login, like the admin panel or potentially user-specific game saves. Review `test/e2e/` tests.)_
+_(This section is relevant if testing features requiring login, like the admin panel or user-specific game saves. Review `test/e2e/` tests.)_
 
-Certain Playwright end-to-end tests (especially those involving `/admin` access or user-specific behavior) may require pre-generated authentication state to simulate logged-in users.
+Certain Playwright end-to-end tests (especially those involving `/admin` access or user-specific behavior) require pre-generated authentication state to simulate logged-in users.
 
 These state files (`test/e2e/auth/*.storageState.json`) contain session information and are **not** committed to Git.
 
@@ -369,32 +369,32 @@ These state files (`test/e2e/auth/*.storageState.json`) contain session informat
     npm run dev
     ```
 3.  **Login as Admin:** Navigate to `http://localhost:3000` and log in as the **admin** user.
-4.  **Get Admin Cookie:** Open browser dev tools, go to Application/Storage > Cookies, copy the **value** of the `next-auth.session-token` cookie (or equivalent session cookie).
-5.  **Update `admin.storageState.json`:** Paste the token value, replacing the placeholder:
+4.  **Get Admin Cookie:** Open browser dev tools, go to Application/Storage > Cookies for `localhost`. Find the session cookie (e.g., `next-auth.session-token` or potentially `authjs.session-token` - **verify the exact name**) and copy its **value**.
+5.  **Update `admin.storageState.json`:** Paste the copied token value, replacing the placeholder `YOUR_ADMIN_TOKEN_VALUE_HERE`. Ensure the `name` property matches the actual cookie name you found.
     ```json
     {
       "cookies": [
         {
-          "name": "next-auth.session-token", // Verify cookie name
+          "name": "next-auth.session-token", // VERIFY THIS COOKIE NAME IN YOUR BROWSER
           "value": "YOUR_ADMIN_TOKEN_VALUE_HERE",
           "domain": "localhost",
           "path": "/",
-          "expires": -1,
+          "expires": -1, // Or the actual expiration timestamp if not -1
           "httpOnly": true,
           "secure": false,
-          "sameSite": "Lax"
+          "sameSite": "Lax" // Verify sameSite if necessary
         }
       ],
       "origins": []
     }
     ```
 6.  **Log Out & Login as Non-Admin:** Log out, then log in as a regular **non-admin** user.
-7.  **Get Non-Admin Cookie:** Repeat step 4 for the non-admin user.
-8.  **Update `nonAdmin.storageState.json`:** Paste the non-admin token value, replacing the placeholder, using the same JSON structure.
+7.  **Get Non-Admin Cookie:** Repeat step 4 for the non-admin user, verifying the cookie name and copying its value.
+8.  **Update `nonAdmin.storageState.json`:** Paste the non-admin token value, replacing the placeholder, using the same JSON structure and verifying the cookie name.
 
 **Verification:** `npm run test:e2e` should now pass tests requiring authentication.
 
-**Troubleshooting:** Check cookie names, values, and JSON structure validity.
+**Troubleshooting:** Double-check cookie names, values, domain (`localhost`), path (`/`), and ensure the JSON structure is valid.
 
 ## Database
 
@@ -411,9 +411,10 @@ Useful commands: `.tables`, `SELECT * FROM users LIMIT 5;`, `.schema`, `.quit`.
 
 ### Database Schema
 
-_(Review `lib/db.ts` for the definitive schema. The example below reflects the core tables.)_
+See `lib/db.ts` for the definitive schema initialization code. The core tables include:
 
 ```sql
+-- Users table
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   provider_id TEXT NOT NULL,
@@ -427,6 +428,7 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE(provider_id, provider)
 );
 
+-- Rate Limiting table per user/api_type
 CREATE TABLE IF NOT EXISTS rate_limits_user (
   user_id INTEGER NOT NULL,
   api_type TEXT NOT NULL, -- e.g., 'text', 'image', 'tts'
@@ -436,26 +438,16 @@ CREATE TABLE IF NOT EXISTS rate_limits_user (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Example: Potential table for saved stories (Needs verification)
-/*
-CREATE TABLE IF NOT EXISTS saved_stories (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  story_history TEXT NOT NULL, -- JSON blob of StoryContext?
-  saved_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  story_title TEXT
-);
-*/
-
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login DESC);
 CREATE INDEX IF NOT EXISTS idx_rate_limits_user_window ON rate_limits_user(user_id, api_type, window_start_time DESC);
--- CREATE INDEX IF NOT EXISTS idx_saved_stories_user_id ON saved_stories(user_id); -- If table exists
 ```
+
+_(Note: A `saved_stories` table might exist if that feature is implemented; check `lib/db.ts`.)_
 
 ## Troubleshooting
 
-- **Database Connection:** Ensure `data/` dir exists locally. On Fly, check volume mount (`fly.toml`) and status (`fly status`). Verify schema matches code.
+- **Database Connection:** Ensure `data/` dir exists locally. On Fly, check volume mount (`fly.toml`) and status (`fly status`). Verify schema in `lib/db.ts` matches code expectations.
 - **Auth Errors:** Verify `.env.local` / Fly secrets (`AUTH_SECRET`, provider IDs/secrets, `NEXTAUTH_URL`). Ensure OAuth callback URLs match.
 - **API Key Errors:** Check AI provider keys in env/secrets. Ensure billing/quotas are sufficient. Check `lib/modelConfig.ts`.
 - **AI Errors:** Check console logs for errors from the AI API. Ensure the AI is returning valid JSON matching the expected Zod schema in `app/actions/adventure.ts`. Refine prompts if needed.
@@ -468,9 +460,6 @@ CREATE INDEX IF NOT EXISTS idx_rate_limits_user_window ON rate_limits_user(user_
 
 MIT License. See [LICENSE](LICENSE) file.
 
-## Recent UI/UX Improvements
-
-- **Image Cross-Fade**: Implemented a smooth cross-fade transition between scene images for a more visually appealing experience.
-- **Refined Pause Icon Logic**: The pause icon now only appears when the user explicitly pauses the audio or on initial load if audio is present but not playing, preventing flashes during loading.
-- **Fullscreen Control Refinements**: Added the fullscreen toggle button back and improved the hide/show behavior of the fullscreen and volume controls (they now fade out when the mouse leaves the top control area).
 - **Accessibility Fix**: Resolved an `aria-hidden` focus issue related to the user menu dropdown.
+
+_(End of File)_
