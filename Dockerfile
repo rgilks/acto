@@ -19,6 +19,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Ensure the data directory exists and is owned by the nextjs user
+RUN mkdir -p /data && chown -R nextjs:nodejs /data
+
 USER nextjs
 
 ENV NODE_ENV=production
