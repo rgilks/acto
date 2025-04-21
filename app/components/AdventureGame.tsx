@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import Image from 'next/image';
 import useAdventureStore, { type ErrorState } from '@/store/adventureStore';
-import { AdventureChoiceSchema, AdventureNode } from '@/lib/domain/schemas';
+import { AdventureChoiceSchema, AdventureScene } from '@/lib/domain/schemas';
 import { z } from 'zod';
 import {
   ArrowPathIcon,
@@ -15,13 +15,6 @@ import ScenarioSelector from './ScenarioSelector';
 import useTTSPlayer from '@/hooks/useTTSPlayer';
 import { FullScreen, useFullScreenHandle } from 'react-full-screen';
 import { useSession } from 'next-auth/react';
-
-// Re-add RateLimitError interface
-interface RateLimitError {
-  message: string;
-  resetTimestamp: number;
-  apiType?: 'text' | 'image' | 'tts';
-}
 
 type GamePhase = 'selecting_scenario' | 'loading_first_node' | 'playing' | 'error';
 type Scenario = z.infer<typeof AdventureChoiceSchema>;
@@ -91,13 +84,14 @@ const AdventureGame = () => {
     retryLastFetch,
     stopSpeaking: stopTTS,
     lastFetchParamsForRetry,
+    rateLimitError,
   } = store;
 
   const { data: _session, status: sessionStatus } = useSession();
   const isUserLoggedIn = sessionStatus === 'authenticated';
 
   const [gamePhase, setGamePhase] = useState<GamePhase>('selecting_scenario');
-  const [displayNode, setDisplayNode] = useState<AdventureNode | null>(null);
+  const [displayNode, setDisplayNode] = useState<AdventureScene | null>(null);
   const [isCurrentImageLoading, setIsCurrentImageLoading] = useState<boolean>(true);
   const [showChoices, setShowChoices] = useState<boolean>(false);
   const [clickedChoiceIndex, setClickedChoiceIndex] = useState<number | null>(null);
@@ -630,7 +624,8 @@ const AdventureGame = () => {
     setTTSVolume,
   ]);
 
-  const effectiveError = nodeError || fetchScenariosError;
+  const effectiveError =
+    nodeError || fetchScenariosError || (rateLimitError ? { rateLimitError } : null);
 
   // --- ADDED: Specific handling for Rate Limit Error ---
   if (
@@ -638,7 +633,7 @@ const AdventureGame = () => {
     effectiveError !== null &&
     'rateLimitError' in effectiveError
   ) {
-    const rateLimitInfo = effectiveError.rateLimitError as RateLimitError;
+    const rateLimitInfo = effectiveError.rateLimitError;
     const resetTime = formatResetTime(rateLimitInfo.resetTimestamp);
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">

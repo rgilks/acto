@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import { getActiveModel } from '@/lib/modelConfig';
-import { AdventureNodeSchema, type AdventureNode } from '@/lib/domain/schemas';
+import { AdventureSceneSchema, type AdventureScene } from '@/lib/domain/schemas';
 import { synthesizeSpeechAction } from './tts'; // Assuming tts.ts is in the same dir
 import { TTS_VOICE_NAME } from '@/lib/constants';
 import { getSession } from '@/app/auth';
@@ -11,7 +11,7 @@ import { buildAdventurePrompt } from '@/lib/promptUtils';
 import { callAIForAdventure, AIConfigOverrides } from '@/lib/ai/googleAiService';
 import { generateImageWithGemini } from '@/lib/ai/imageGenerationService';
 
-const GenerateAdventureNodeParamsSchema = z.object({
+const GenerateAdventureSceneParamsSchema = z.object({
   storyContext: z.object({
     history: z.array(
       z.object({
@@ -27,10 +27,10 @@ const GenerateAdventureNodeParamsSchema = z.object({
   visualStyle: z.string().optional(),
 });
 
-type GenerateAdventureNodeParams = z.infer<typeof GenerateAdventureNodeParamsSchema>;
+type GenerateAdventureSceneParams = z.infer<typeof GenerateAdventureSceneParamsSchema>;
 
-type GenerateAdventureNodeResult = {
-  adventureNode?: AdventureNode;
+type GenerateAdventureSceneResult = {
+  adventureScene?: AdventureScene;
   error?: string;
   rateLimitError?: {
     message: string;
@@ -44,8 +44,8 @@ type GenerateAdventureNodeResult = {
 
 const validateInput = (
   params: unknown
-): { success: true; data: GenerateAdventureNodeParams } | { success: false; error: string } => {
-  const validation = GenerateAdventureNodeParamsSchema.safeParse(params);
+): { success: true; data: GenerateAdventureSceneParams } | { success: false; error: string } => {
+  const validation = GenerateAdventureSceneParamsSchema.safeParse(params);
   if (!validation.success) {
     console.error('[Adventure Action] Invalid parameters:', validation.error.format());
     return {
@@ -57,12 +57,12 @@ const validateInput = (
 };
 
 type ValidatedAdventureContent = {
-  validatedNode: AdventureNode;
+  validatedScene: AdventureScene;
   prompt: string;
 };
 
 const generateAndValidateAdventureContent = async (
-  params: GenerateAdventureNodeParams
+  params: GenerateAdventureSceneParams
 ): Promise<{ data?: ValidatedAdventureContent; error?: string }> => {
   const { storyContext, initialScenarioText, genre, tone, visualStyle } = params;
   const prompt = buildAdventurePrompt(storyContext, initialScenarioText, genre, tone, visualStyle);
@@ -91,7 +91,7 @@ const generateAndValidateAdventureContent = async (
       return { error: 'Failed to parse AI response.' };
     }
 
-    const validationResult = AdventureNodeSchema.safeParse(parsedAiContent);
+    const validationResult = AdventureSceneSchema.safeParse(parsedAiContent);
     if (!validationResult.success) {
       const validationErrors = validationResult.error.format();
       console.error('[Adventure Action] Schema validation failed:', validationErrors);
@@ -99,7 +99,7 @@ const generateAndValidateAdventureContent = async (
       return { error: 'AI response validation failed.' };
     }
 
-    return { data: { validatedNode: validationResult.data, prompt } };
+    return { data: { validatedScene: validationResult.data, prompt } };
   } catch (error) {
     console.error('[Adventure Action] Error during AI call or processing:', error);
     return { error: error instanceof Error ? error.message : 'AI interaction failed.' };
@@ -177,10 +177,10 @@ const synthesizeAdventureAudio = async (
 
 // --- Main Action --- //
 
-export const generateAdventureNodeAction = async (
-  params: GenerateAdventureNodeParams,
+export const generateAdventureSceneAction = async (
+  params: GenerateAdventureSceneParams,
   voice?: string | null
-): Promise<GenerateAdventureNodeResult> => {
+): Promise<GenerateAdventureSceneResult> => {
   const session = await getSession();
   if (!session?.user) {
     console.warn('[Adventure Action] Unauthorized attempt.');
@@ -214,8 +214,8 @@ export const generateAdventureNodeAction = async (
     if (contentResult.error || !contentResult.data) {
       return { error: contentResult.error ?? 'Failed to generate adventure content.' };
     }
-    const { validatedNode, prompt } = contentResult.data;
-    const { passage, choices, imagePrompt, updatedSummary } = validatedNode;
+    const { validatedScene, prompt } = contentResult.data;
+    const { passage, choices, imagePrompt, updatedSummary } = validatedScene;
 
     // 3. Initiate Image and Audio Generation (Parallel)
     const imagePromise = generateAdventureImage(
@@ -228,12 +228,12 @@ export const generateAdventureNodeAction = async (
 
     const [imageResult, audioResult] = await Promise.all([imagePromise, audioPromise]);
 
-    // 4. Construct Final Node
-    const finalNode: AdventureNode = {
+    // 4. Construct Final Scene
+    const finalScene: AdventureScene = {
       passage: passage,
       choices: choices,
       imagePrompt: imagePrompt,
-      imageUrl: imageResult.imageUrl ?? validatedNode.imageUrl, // Fallback logic preserved
+      imageUrl: imageResult.imageUrl ?? validatedScene.imageUrl,
       audioBase64: audioResult.audioBase64,
       updatedSummary: updatedSummary,
       generationPrompt: prompt,
@@ -242,14 +242,14 @@ export const generateAdventureNodeAction = async (
       // ttsError: audioResult.error,
     };
 
-    console.log('[Adventure Action] Successfully generated node.');
+    console.log('[Adventure Action] Successfully generated scene.');
 
     // Note: Currently, only the *text* rate limit error is returned explicitly in the rateLimitError field.
     // Image/TTS errors are logged but not returned in that specific field.
     // If an image rate limit occurred, imageResult.error might contain info, but needs handling.
-    return { adventureNode: finalNode, prompt: prompt };
+    return { adventureScene: finalScene, prompt: prompt };
   } catch (error) {
-    console.error('[Adventure Action] Unexpected error in generateAdventureNodeAction:', error);
+    console.error('[Adventure Action] Unexpected error in generateAdventureSceneAction:', error);
     return { error: error instanceof Error ? error.message : 'An unexpected error occurred.' };
   }
 };

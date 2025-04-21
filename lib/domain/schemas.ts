@@ -10,9 +10,11 @@ export const AdventureChoiceSchema = z.object({
     .optional()
     .describe('Suggested visual style (e.g., oil painting, cartoon, photorealistic)'),
   voice: z.string().optional().describe('The TTS voice to use for this adventure.'),
+  updatedSummary: z.string().optional(),
 });
 
-export const AdventureNodeSchema = z.object({
+// Represents a single node (passage, choices, image, audio) in the adventure
+export const AdventureSceneSchema = z.object({
   passage: z.string().describe('The current passage of the story'),
   choices: z
     .array(AdventureChoiceSchema)
@@ -26,13 +28,17 @@ export const AdventureNodeSchema = z.object({
   updatedSummary: z
     .string()
     .optional()
-    .describe('A brief summary of the entire story up to and including this passage.'),
-  imageUrl: z.string().url().optional().describe('URL of the AI-generated image for this node'),
-  audioBase64: z.string().optional().describe('Base64 encoded MP3 audio data for the passage'),
+    .describe(
+      'An optional updated summary of the story so far, reflecting the events of this node.'
+    ),
+  imageUrl: z.string().url().optional().describe('URL of the generated image, if any.'),
+  audioBase64: z.string().optional().describe('Base64 encoded audio data for the passage text.'),
   generationPrompt: z
     .string()
     .optional()
-    .describe('The exact text prompt sent to the LLM to generate this node.'),
+    .describe('The exact prompt used to generate this node content.'),
 });
 
-export type AdventureNode = z.infer<typeof AdventureNodeSchema>;
+export type AdventureScene = z.infer<typeof AdventureSceneSchema>;
+
+// Represents the state of the entire adventure

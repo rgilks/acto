@@ -306,7 +306,7 @@ npm run nuke
 │   ├── db.ts                 # Database connection & schema setup (verify schema)
 │   ├── authOptions.ts        # NextAuth configuration (if used)
 │   ├── modelConfig.ts        # AI model configuration & selection
-│   ├── domain/               # Domain schemas (Zod, e.g., AdventureNodeSchema)
+│   ├── domain/               # Domain schemas (Zod, e.g., AdventureSceneSchema)
 │   └── ...
 ├── public/                   # Static assets (images, icons)
 ├── data/                     # SQLite database file (local development)
