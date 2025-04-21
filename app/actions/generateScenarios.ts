@@ -44,21 +44,26 @@ export const generateScenariosAction = async (): Promise<GenerateScenariosResult
     const modelConfig = getActiveModel();
     const prompt = buildScenariosPrompt();
 
-    // Define specific overrides for scenario generation - aim for maximum creativity/diversity
     const scenarioGenConfigOverrides: AIConfigOverrides = {
-      temperature: 1.0, // Maximize temperature
-      topP: 0.9, // Slightly lower topP for less probable tokens
-      topK: 60, // Increase topK to consider more options
-      frequencyPenalty: 0.5, // Slightly increase penalties
-      presencePenalty: 0.7, // Slightly increase penalties
+      temperature: 1.0,
+      topP: 0.9,
+      topK: 60,
+      frequencyPenalty: 0.5,
+      presencePenalty: 0.7,
     };
 
     const aiResponseText = await callAIForStory(prompt, modelConfig, scenarioGenConfigOverrides);
 
     let parsedScenarios: unknown;
     try {
-      const cleanedText = aiResponseText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-      parsedScenarios = JSON.parse(cleanedText);
+      const responseString = String(aiResponseText);
+      const jsonStart = responseString.indexOf('[');
+      const jsonEnd = responseString.lastIndexOf(']');
+      if (jsonStart === -1 || jsonEnd === -1 || jsonEnd < jsonStart) {
+        throw new Error('Could not find valid JSON array delimiters in the AI response.');
+      }
+      const jsonString = responseString.substring(jsonStart, jsonEnd + 1);
+      parsedScenarios = JSON.parse(jsonString);
     } catch (parseError) {
       console.error(
         '[Scenarios Action] Failed to parse scenarios JSON:',
@@ -66,7 +71,11 @@ export const generateScenariosAction = async (): Promise<GenerateScenariosResult
         'Raw response:',
         aiResponseText
       );
-      return { error: 'Failed to parse scenarios from AI response.' };
+      const errorMessage =
+        parseError instanceof Error && parseError.message.includes('JSON array delimiters')
+          ? parseError.message
+          : 'Failed to parse scenarios from AI response.';
+      return { error: errorMessage };
     }
 
     const validationResult = ScenariosSchema.safeParse(parsedScenarios);
