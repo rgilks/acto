@@ -8,26 +8,54 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: string }>;
 }
 
+const PWA_INSTALL_DISMISSED_KEY = 'pwaInstallDismissed';
+
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
 
 const PWAInstall = () => {
   const [showInstallButton, setShowInstallButton] = useState(false);
 
   useEffect(() => {
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      return;
-    }
+    const handleBeforeInstallPrompt = (e: Event) => {
+      // Check if user previously dismissed
+      if (localStorage.getItem(PWA_INSTALL_DISMISSED_KEY)) {
+        return;
+      }
+      if (window.matchMedia('(display-mode: standalone)').matches) {
+        return;
+      }
 
-    window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e as BeforeInstallPromptEvent;
       setShowInstallButton(true);
-    });
+    };
 
-    window.addEventListener('appinstalled', () => {
+    const handleAppInstalled = () => {
       setShowInstallButton(false);
       deferredPrompt = null;
-    });
+      // Clear dismissal flag if app gets installed
+      localStorage.removeItem(PWA_INSTALL_DISMISSED_KEY);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    // Check immediately in case the event fired before the listener was added
+    // or if the user previously dismissed it.
+    const dismissed = localStorage.getItem(PWA_INSTALL_DISMISSED_KEY);
+    if (
+      !dismissed &&
+      !window.matchMedia('(display-mode: standalone)').matches &&
+      deferredPrompt // Ensure deferredPrompt was captured if event already fired
+    ) {
+      setShowInstallButton(true);
+    }
+
+    // Cleanup function
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
   }, []);
 
   const handleInstallClick = async () => {
@@ -46,14 +74,17 @@ const PWAInstall = () => {
     }
   };
 
+  const handleDismissClick = () => {
+    setShowInstallButton(false);
+    localStorage.setItem(PWA_INSTALL_DISMISSED_KEY, 'true');
+  };
+
   if (!showInstallButton) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 bg-slate-800/95 border border-slate-700 text-gray-300 p-4 rounded-lg shadow-xl max-w-xs backdrop-blur-sm fade-in">
       <button
-        onClick={() => {
-          setShowInstallButton(false);
-        }}
+        onClick={handleDismissClick}
         className="absolute top-2 right-2 p-1 text-gray-500 hover:text-gray-300 transition-colors"
         aria-label="Dismiss install prompt"
       >

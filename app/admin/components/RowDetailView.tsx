@@ -68,7 +68,7 @@ const RowDetailView = ({
             </pre>
           );
         }
-      } catch (_e) {
+      } catch /* ignore if not JSON */ {
         /* ignore if not JSON */
       }
 
