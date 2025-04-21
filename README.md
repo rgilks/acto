@@ -121,9 +121,22 @@ The quality of the generated story heavily relies on the prompts sent to the AI.
     npm install
     ```
 
-    Installs dependencies and Git hooks.
+    Installs dependencies.
 
-3.  **Configure Environment Variables:**
+3.  **Initialize Development Environment (First Time):**
+
+    After installing dependencies for the first time, run:
+
+    ```bash
+    npm run init:dev
+    ```
+
+    This script performs essential one-time setup for local development:
+
+    - Installs Git hooks using Husky (for pre-commit/pre-push checks).
+    - Downloads the necessary browser binaries for Playwright end-to-end tests.
+
+4.  **Configure Environment Variables:**
 
     - Copy `.env.example` to `.env.local`: `cp .env.example .env.local`
     - Edit `.env.local` and fill in the required values. **See `.env.example` for comments.**
@@ -144,28 +157,42 @@ The quality of the generated story heavily relies on the prompts sent to the AI.
     - `ADMIN_EMAILS` / `ALLOWED_EMAILS`: For admin/waiting list access.
     - See `.env.example` for others like `DATABASE_URL`, `COMMIT_SHA`.
 
-4.  **Run Dev Server:**
+5.  **Run Dev Server:**
 
     ```bash
     npm run dev
     ```
 
-5.  **Open App:** [http://localhost:3000](http://localhost:3000)
+6.  **Open App:** [http://localhost:3000](http://localhost:3000)
 
 ### Deploying to Fly.io
 
-(Instructions remain largely the same - review the detailed steps in the previous README version if needed, ensuring all required secrets mentioned above are set on Fly.io, especially `GOOGLE_AI_API_KEY` and the single-line `GOOGLE_APP_CREDS_JSON`).
+This application is configured for **automatic deployment** to Fly.io via a GitHub Actions workflow (`.github/workflows/fly.yml`).
 
-**Key Secrets to Set on Fly.io:**
+**Deployment Process:**
 
-- `GOOGLE_AI_API_KEY`
-- `GOOGLE_APP_CREDS_JSON` (as a single line)
-- `AUTH_SECRET` (if using Auth)
-- `NEXTAUTH_URL=https://<your-fly-app-name>.fly.dev` (if using Auth)
-- OAuth Provider Secrets (if using Auth)
-- `ADMIN_EMAILS` / `ALLOWED_EMAILS` (if using restricted access)
+1.  **Trigger:** Deployments are automatically triggered on every push to the `main` branch. You can also trigger a deploy manually via the "Actions" tab in GitHub ("Fly Deploy" workflow -> "Run workflow").
+2.  **Workflow Steps:** The GitHub Action will:
+    - Check out the code.
+    - Set up Node.js and install dependencies using `npm ci`.
+    - Run code quality checks (`npm run verify`) and tests (`npm test`).
+    - Set up the `flyctl` CLI.
+    - Deploy the application using `flyctl deploy --remote-only`, building the Docker image on Fly.io's infrastructure.
+3.  **Secrets:** The deployment requires the `FLY_API_TOKEN` secret to be configured in your GitHub repository settings (`Settings` > `Secrets and variables` > `Actions`).
 
-Deploy manually with `fly deploy` or set up CI/CD using the `FLY_API_TOKEN` secret in GitHub Actions.
+**Required Application Secrets on Fly.io:**
+
+Ensure the following secrets are set on your Fly.io app dashboard (`fly secrets set <KEY>=<VALUE>`). These are needed by the running application, not the build process itself:
+
+- `GOOGLE_AI_API_KEY`: For Google AI SDK.
+- `GOOGLE_APP_CREDS_JSON`: Single-line JSON service account key for Cloud TTS.
+- `AUTH_SECRET`: Required if using NextAuth (`openssl rand -base64 32`).
+- `NEXTAUTH_URL=https://<your-fly-app-name>.fly.dev`: Required if using NextAuth.
+- OAuth Provider Secrets (`GITHUB_ID`, `GITHUB_SECRET`, etc.): Required for specific NextAuth providers.
+- `ADMIN_EMAILS` / `ALLOWED_EMAILS`: Optional, for restricted access modes.
+- `DATABASE_URL=/data/sqlite.db`: (Or your chosen path on the persistent volume).
+
+**(Manual Deployment):** While automated deployment is recommended, you can still deploy manually from your local machine using `fly deploy` after logging in with `fly auth login` and ensuring your local `.fly/launch.toml` is configured. Remember to set the required secrets locally as well if building locally.
 
 ## Key Features Explained
 
@@ -233,7 +260,8 @@ npm run nuke
 
 - **Co-location**: Test files (`*.test.ts`, `*.test.tsx`) live alongside the source files they test.
 - **Unit/Integration**: Jest and React Testing Library (`npm test`) test components and utility functions.
-- **End-to-End**: Playwright (`npm run test:e2e`) checks full user flows through the adventure game. See E2E Authentication Setup below if testing authenticated features.
+- **End-to-End**: Playwright (`npm run test:e2e`) checks full user flows through the adventure game.
+  - See E2E Authentication Setup below if testing authenticated features.
 - **Git Hooks**: Husky and lint-staged automatically run checks:
   - **Pre-commit**: Formats staged files (`prettier`) and runs related Jest tests (`test:quick`).
   - **Pre-push**: Runs `npm run preview-build` to ensure a preview build succeeds before pushing. _(See `.husky/pre-push`)_

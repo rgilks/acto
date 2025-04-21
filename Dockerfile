@@ -25,7 +25,6 @@ RUN if [ -n "${NEXT_CACHE_DIR}" ] && [ -d "${NEXT_CACHE_DIR}" ]; then \
 # === End Additions ===
 
 COPY . .
-RUN npm install --omit=dev --no-audit --no-fund --no-update-notifier
 RUN npm run build
 
 FROM base AS runner

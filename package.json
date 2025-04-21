@@ -7,7 +7,7 @@
     "build": "next build",
     "preview-build": "NEXT_PREVIEW_BUILD=true next build",
     "start": "next start",
-    "verify": "prettier --check . && next lint --no-cache",
+    "verify": "prettier --check . && next lint --no-cache && npx tsc --noEmit",
     "check": "prettier --write . && next lint --fix --no-cache && npx tsc --noEmit && jest && npx playwright test --reporter=list",
     "deps": "npx npm-check-updates",
     "deps:update": "npx npm-check-updates -u && npm install",
@@ -16,8 +16,8 @@
     "test:coverage": "jest --coverage",
     "test:quick": "jest --bail --findRelatedTests --passWithNoTests",
     "nuke": "rm -rf node_modules package-lock.json .next .next-validation",
-    "prepare": "husky && husky install && [ \"$CI\" != \"true\" ] && npx playwright install || true",
-    "test:e2e": "npx playwright test --reporter=list"
+    "test:e2e": "npx playwright test --reporter=list",
+    "init:dev": "npx husky install && npx playwright install"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",
@@ -34,7 +34,9 @@
     "react-full-screen": "^1.1.1",
     "tailwindcss": "^3.4.1",
     "zod": "^3.24.2",
-    "zustand": "^5.0.3"
+    "zustand": "^5.0.3",
+    "autoprefixer": "^10.4.18",
+    "postcss": "^8.4.38"
   },
   "devDependencies": {
     "@flydotio/dockerfile": "^0.7.10",
@@ -49,7 +51,6 @@
     "@types/react-dom": "19.0.4",
     "@typescript-eslint/eslint-plugin": "^8.28.0",
     "@typescript-eslint/parser": "^8.28.0",
-    "autoprefixer": "^10.4.18",
     "eslint": "^9.23.0",
     "eslint-config-next": "15.2.4",
     "eslint-config-prettier": "^10.1.1",
@@ -61,7 +62,6 @@
     "node-mocks-http": "^1.16.2",
     "npm-check-updates": "^17.1.16",
     "playwright": "^1.51.1",
-    "postcss": "^8.4.38",
     "prettier": "^3.5.3",
     "supertest": "^7.1.0",
     "ts-jest": "^29.3.0",
