@@ -1,29 +1,19 @@
-// Import Vitest APIs
 import { describe, it, expect, beforeEach, vi, Mock } from 'vitest';
 import { NextRequest, NextResponse } from 'next/server';
 import type { GetTokenParams, JWT } from 'next-auth/jwt';
 import middleware from './middleware';
 
-// Mock the entire next-auth/jwt module using Vitest API
 vi.mock('next-auth/jwt');
 
-// Import the mocked function AFTER the mock is defined
 import { getToken } from 'next-auth/jwt';
-// Cast getToken to Vitest's Mock type using function signature
 const mockGetToken = getToken as Mock<(params: GetTokenParams) => Promise<JWT | null>>;
-
-// Note: Vitest doesn't typically require manual spies for class methods
-// like NextResponse if you just check the return value. We removed these already.
 
 describe('Middleware', () => {
   beforeEach(() => {
-    // Reset mocks before each test using Vitest API
     vi.clearAllMocks();
 
-    // Default to no token/non-admin for each test
     mockGetToken.mockResolvedValue(null);
 
-    // Restore any potentially mocked globals/methods
     vi.restoreAllMocks();
   });
 
@@ -32,7 +22,6 @@ describe('Middleware', () => {
     return new NextRequest(url);
   };
 
-  // Use 'it' instead of 'test' for test cases
   it('should allow admin user to access admin routes', async () => {
     mockGetToken.mockResolvedValue({ isAdmin: true } as JWT);
     const req = createMockRequest('/admin/dashboard');
@@ -117,7 +106,6 @@ describe('Middleware', () => {
     const req = createMockRequest('/somepath');
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    // Mock NextResponse.next specifically for this test to throw an error
     const nextError = new Error('Forced error after token check');
     const nextSpy = vi.spyOn(NextResponse, 'next').mockImplementation(() => {
       throw nextError;
@@ -129,7 +117,7 @@ describe('Middleware', () => {
     expect(response.status).toBe(500);
 
     consoleErrorSpy.mockRestore();
-    nextSpy.mockRestore(); // Restore NextResponse.next
+    nextSpy.mockRestore();
     expect(mockGetToken).toHaveBeenCalledTimes(1);
   });
 });
