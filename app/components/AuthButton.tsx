@@ -22,7 +22,14 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
   }, []);
 
   if (!isMounted || status === 'loading') {
-    return <div className="animate-pulse bg-gray-700 h-10 w-32 rounded-lg"></div>;
+    return (
+      <div
+        className="animate-pulse bg-gray-700 h-10 w-32 rounded-lg"
+        role="progressbar"
+        aria-busy="true"
+        aria-label="Loading authentication status"
+      ></div>
+    );
   }
 
   if (session) {
