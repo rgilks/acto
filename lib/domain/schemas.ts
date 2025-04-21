@@ -41,4 +41,11 @@ export const StorySceneSchema = z.object({
 
 export type StoryScene = z.infer<typeof StorySceneSchema>;
 
+export const StoryChoice = z.object({
+  text: z.string().describe('The text of the choice presented to the user'),
+  voice: z.string().optional().describe('The TTS voice to use for this story.'),
+});
+
+export type StoryChoice = z.infer<typeof StoryChoice>;
+
 // Represents the state of the entire story
