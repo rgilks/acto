@@ -26,37 +26,6 @@ interface RateLimitError {
 type GamePhase = 'selecting_scenario' | 'loading_first_node' | 'playing' | 'error';
 type Scenario = z.infer<typeof AdventureChoiceSchema>;
 
-const hardcodedScenarios: Scenario[] = [
-  {
-    text: "The aroma of stale ozone and regret hangs heavy in the abandoned orbital laundromat; before you, a sentient tumble dryer with a penchant for existential dread displays a cryptic message: 'CLEANSE THE VOID.'",
-    genre: 'Surrealist Science Fiction Comedy',
-    tone: 'Absurdist and melancholic',
-    visualStyle:
-      'Low-poly 3D rendering with highly stylized, pastel-colored lighting and exaggerated machine details.',
-  },
-  {
-    text: 'Sun-baked scrolls whisper secrets of the Whispering Dunes, where a colossal, sand-serpent goddess demands a sacrifice of pure starlight; the only way to procure it is through a riddle-laced ritual beneath the crimson moon.',
-    genre: 'Mythic Desert Fantasy',
-    tone: 'Epic and awe-inspiring, tinged with dread',
-    visualStyle:
-      'Painterly, reminiscent of Art Nouveau illustration, emphasizing flowing sand textures and vibrant, celestial lighting.',
-  },
-  {
-    text: 'Dimly lit, the air in a hidden Venetian canal is thick with the scent of jasmine and decay; you find yourself cornered, facing a group of spectral gondoliers who demand the return of a stolen memory: the taste of lemon.',
-    genre: 'Gothic Mystery Romance',
-    tone: 'Romantic, suspenseful, and subtly heartbreaking',
-    visualStyle:
-      'Photorealistic, with a strong emphasis on chiaroscuro lighting, emphasizing the play of light and shadow on crumbling architecture and flowing water; a palette of deep blues, greens, and golds.',
-  },
-  {
-    text: 'Lost in the neon-drenched labyrinth of a glitching, virtual reality arcade, you stumble upon a digital samurai, wielding a katana made of binary code; he offers you a quest to defeat a virus that manifests as a giant, pixelated, karaoke machine.',
-    genre: "Cyberpunk Beat 'em Up",
-    tone: 'Fast-paced, energetic, and slightly chaotic with a touch of ironic humor',
-    visualStyle:
-      'Pixel art influenced by 1980s arcade aesthetics and Japanese ukiyo-e prints, featuring vibrant neon colors and dynamic action poses.',
-  },
-];
-
 // Add the list of voices
 const chirp3Voices = [
   'en-GB-Chirp3-HD-Aoede',
@@ -779,7 +748,7 @@ const AdventureGame = () => {
       <ScenarioSelector
         onScenarioSelect={handleScenarioSelect}
         isLoadingSelection={isSelectingScenario}
-        scenariosToDisplay={isUserLoggedIn ? dynamicScenarios : hardcodedScenarios}
+        scenariosToDisplay={dynamicScenarios}
         isLoadingScenarios={isFetchingScenarios}
         fetchError={fetchScenariosError}
         onFetchNewScenarios={handleFetchNewScenarios}
