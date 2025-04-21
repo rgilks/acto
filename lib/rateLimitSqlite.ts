@@ -20,7 +20,7 @@ const LIMITS: Record<ApiType, RateLimitConfig> = {
 type RateLimitErrorType = 'RateLimitExceeded' | 'AuthenticationRequired' | 'InternalError';
 
 // Updated result type to potentially include structured error info
-type RateLimitResult = {
+export type RateLimitResult = {
   success: boolean;
   limit: number;
   remaining: number;
