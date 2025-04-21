@@ -121,9 +121,22 @@ The quality of the generated story heavily relies on the prompts sent to the AI.
     npm install
     ```
 
-    Installs dependencies and Git hooks.
+    Installs dependencies.
 
-3.  **Configure Environment Variables:**
+3.  **Initialize Development Environment (First Time):**
+
+    After installing dependencies for the first time, run:
+
+    ```bash
+    npm run init:dev
+    ```
+
+    This script performs essential one-time setup for local development:
+
+    - Installs Git hooks using Husky (for pre-commit/pre-push checks).
+    - Downloads the necessary browser binaries for Playwright end-to-end tests.
+
+4.  **Configure Environment Variables:**
 
     - Copy `.env.example` to `.env.local`: `cp .env.example .env.local`
     - Edit `.env.local` and fill in the required values. **See `.env.example` for comments.**
@@ -144,13 +157,13 @@ The quality of the generated story heavily relies on the prompts sent to the AI.
     - `ADMIN_EMAILS` / `ALLOWED_EMAILS`: For admin/waiting list access.
     - See `.env.example` for others like `DATABASE_URL`, `COMMIT_SHA`.
 
-4.  **Run Dev Server:**
+5.  **Run Dev Server:**
 
     ```bash
     npm run dev
     ```
 
-5.  **Open App:** [http://localhost:3000](http://localhost:3000)
+6.  **Open App:** [http://localhost:3000](http://localhost:3000)
 
 ### Deploying to Fly.io
 
@@ -247,7 +260,8 @@ npm run nuke
 
 - **Co-location**: Test files (`*.test.ts`, `*.test.tsx`) live alongside the source files they test.
 - **Unit/Integration**: Jest and React Testing Library (`npm test`) test components and utility functions.
-- **End-to-End**: Playwright (`npm run test:e2e`) checks full user flows through the adventure game. See E2E Authentication Setup below if testing authenticated features.
+- **End-to-End**: Playwright (`npm run test:e2e`) checks full user flows through the adventure game.
+  - See E2E Authentication Setup below if testing authenticated features.
 - **Git Hooks**: Husky and lint-staged automatically run checks:
   - **Pre-commit**: Formats staged files (`prettier`) and runs related Jest tests (`test:quick`).
   - **Pre-push**: Runs `npm run preview-build` to ensure a preview build succeeds before pushing. _(See `.husky/pre-push`)_
