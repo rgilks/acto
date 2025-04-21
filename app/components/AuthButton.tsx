@@ -71,19 +71,21 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
       <div className="flex flex-wrap items-center gap-2 md:gap-4 relative" ref={userMenuRef}>
         <button
           className="flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-900 focus-visible:ring-blue-500 rounded-full p-1"
-          onClick={() => setShowUserMenu(!showUserMenu)}
+          onClick={() => {
+            setShowUserMenu(!showUserMenu);
+          }}
         >
           <div className="flex items-center gap-2">
-            {session.user?.image && (
+            {session.user.image && (
               <Image
                 src={session.user.image}
-                alt={session.user?.name || 'User'}
+                alt={session.user.name || 'User'}
                 width={32}
                 height={32}
                 className="rounded-full animate-scale-up"
               />
             )}
-            {variant === 'full' && <span className="text-white">{session.user?.name}</span>}
+            {variant === 'full' && <span className="text-white">{session.user.name}</span>}
           </div>
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -106,15 +108,17 @@ const AuthButton = ({ variant = 'full' }: AuthButtonProps) => {
             role="menu"
           >
             <div className="px-4 py-3 border-b border-gray-700">
-              <p className="text-sm text-white">{session.user?.name}</p>
-              <p className="text-xs text-gray-400 truncate">{session.user?.email}</p>
+              <p className="text-sm text-white">{session.user.name}</p>
+              <p className="text-xs text-gray-400 truncate">{session.user.email}</p>
             </div>
             <div className="py-1">
-              {session.user?.isAdmin && (
+              {session.user.isAdmin && (
                 <Link
                   href="/admin"
                   className="block px-4 py-2 text-sm text-white hover:bg-gray-700 transition-colors w-full text-left focus:outline-none focus-visible:bg-gray-700 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-blue-600"
-                  onClick={() => setShowUserMenu(false)}
+                  onClick={() => {
+                    setShowUserMenu(false);
+                  }}
                 >
                   Admin
                 </Link>

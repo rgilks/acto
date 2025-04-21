@@ -153,10 +153,6 @@ async function generateImageWithGemini(
 
   try {
     const genAI: GoogleGenAI = getGoogleAIClient();
-    if (!genAI) {
-      console.error('[Adventure Image] Google AI Client (@google/genai) failed to initialize.');
-      throw new Error('Google AI Client (@google/genai) is not configured properly.');
-    }
 
     const modelName = 'imagen-3.0-generate-002';
     const result = await genAI.models.generateImages({
@@ -322,7 +318,7 @@ export const generateAdventureNodeAction = async (
             imageError = imageResult.value.error;
           }
         }
-      } else if (imageResult.status === 'rejected') {
+      } else {
         imageError =
           imageResult.reason instanceof Error
             ? imageResult.reason.message
@@ -338,9 +334,10 @@ export const generateAdventureNodeAction = async (
           ttsError = audioData.error;
           console.error('[Adventure Action] TTS synthesis failed:', ttsError);
           if (audioData.rateLimitError) {
+            console.error('[Adventure Action] TTS rate limit error:', audioData.rateLimitError);
           }
         }
-      } else if (audioResultAction.status === 'rejected') {
+      } else {
         ttsError =
           audioResultAction.reason instanceof Error
             ? audioResultAction.reason.message
@@ -394,7 +391,7 @@ function buildScenariosPrompt(): string {
 export const generateScenariosAction = async (): Promise<GenerateScenariosResult> => {
   console.log('[Adventure] Generating scenarios...');
   const session = await getSession();
-  if (!session?.user?.id) {
+  if (!session?.user.id) {
     return { error: 'User not authenticated.' };
   }
 

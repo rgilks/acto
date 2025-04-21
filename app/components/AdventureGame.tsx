@@ -301,7 +301,6 @@ const AdventureGame = () => {
         unsubscribe();
       };
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Effect to sync subsequent store changes
@@ -317,7 +316,7 @@ const AdventureGame = () => {
       previousErrorRef.current === 'AI_RESPONSE_FORMAT_ERROR' && !nodeError;
     if (newlyFetchedNode && (newlyFetchedNode !== displayNode || justRetriedSuccessfully)) {
       console.log('[AdventureGame Effect] Syncing new node to displayNode.', {
-        newNodeId: newlyFetchedNode?.passage.substring(0, 10), // Simple ID check
+        newNodeId: newlyFetchedNode.passage.substring(0, 10), // Simple ID check
         displayNodeId: displayNode?.passage.substring(0, 10),
         justRetriedSuccessfully,
       });
@@ -543,7 +542,9 @@ const AdventureGame = () => {
       if (mouseY <= threshold) {
         setShowFullscreenControls(true);
         if (hideTimeout) clearTimeout(hideTimeout);
-        hideTimeout = setTimeout(() => setShowFullscreenControls(false), 2000);
+        hideTimeout = setTimeout(() => {
+          setShowFullscreenControls(false);
+        }, 2000);
       } else {
         if (hideTimeout) clearTimeout(hideTimeout); // Clear timeout if mouse moves below threshold
         setShowFullscreenControls(false); // Hide controls immediately when mouse moves below threshold
@@ -559,7 +560,7 @@ const AdventureGame = () => {
     container.addEventListener('mouseleave', handleMouseLeave);
 
     const initialCheckTimeout = setTimeout(() => {
-      if (container && fullscreenHandle.active) {
+      if (fullscreenHandle.active) {
         const event = new MouseEvent('mousemove', {
           bubbles: true,
           cancelable: true,
@@ -571,12 +572,10 @@ const AdventureGame = () => {
     }, 100);
 
     return () => {
-      if (container) {
-        container.removeEventListener('mousemove', handleMouseMove);
-        container.removeEventListener('mouseleave', handleMouseLeave);
-      }
+      container.removeEventListener('mousemove', handleMouseMove);
+      container.removeEventListener('mouseleave', handleMouseLeave);
       if (hideTimeout) clearTimeout(hideTimeout);
-      if (initialCheckTimeout) clearTimeout(initialCheckTimeout);
+      clearTimeout(initialCheckTimeout);
     };
   }, [fullscreenHandle.active, isTouchDevice, setShowFullscreenControls]);
 
@@ -625,18 +624,14 @@ const AdventureGame = () => {
           if (focusedChoiceIndex !== null) {
             event.preventDefault();
             const choice = displayNode.choices[focusedChoiceIndex];
-            if (choice) {
-              handleChoiceClick(choice, focusedChoiceIndex);
-            }
+            handleChoiceClick(choice, focusedChoiceIndex);
           }
         } else if (['1', '2', '3'].includes(key)) {
           const index = parseInt(key) - 1;
           if (index >= 0 && index < numChoices) {
             event.preventDefault();
             const choice = displayNode.choices[index];
-            if (choice) {
-              handleChoiceClick(choice, index);
-            }
+            handleChoiceClick(choice, index);
           }
         }
 
@@ -872,7 +867,9 @@ const AdventureGame = () => {
                         ? '100vw'
                         : '(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 40vw'
                     }
-                    onLoad={() => handleImageLoad(currentImageUrl)}
+                    onLoad={() => {
+                      handleImageLoad(currentImageUrl);
+                    }}
                     onError={() => {
                       console.error('Image failed to load:', currentImageUrl);
                       setIsCurrentImageLoading(false);
@@ -901,30 +898,29 @@ const AdventureGame = () => {
                 )}
 
                 {/* Fullscreen Toggle Button */}
-                {fullscreenHandle.active !== undefined &&
-                  !isTouchDevice && ( // Don't show on touch or if API unavailable
-                    <button
-                      onClick={
-                        fullscreenHandle.active ? fullscreenHandle.exit : fullscreenHandle.enter
-                      }
-                      className={`absolute top-2 left-2 z-20 p-1.5 bg-black/40 rounded-full text-white/80 hover:text-white transition-all
-                      ${
-                        fullscreenHandle.active
-                          ? showFullscreenControls
-                            ? 'opacity-100 pointer-events-auto duration-200' // Show on hover in fullscreen
-                            : 'opacity-0 pointer-events-none duration-300' // Hide when not hovered in fullscreen
-                          : 'opacity-50 hover:opacity-100' // Default visibility outside fullscreen
-                      }
-                    `}
-                      aria-label={fullscreenHandle.active ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-                    >
-                      {fullscreenHandle.active ? (
-                        <ArrowsPointingInIcon className="h-5 w-5" />
-                      ) : (
-                        <ArrowsPointingOutIcon className="h-5 w-5" />
-                      )}
-                    </button>
-                  )}
+                {!isTouchDevice && ( // Don't show on touch or if API unavailable
+                  <button
+                    onClick={
+                      fullscreenHandle.active ? fullscreenHandle.exit : fullscreenHandle.enter
+                    }
+                    className={`absolute top-2 left-2 z-20 p-1.5 bg-black/40 rounded-full text-white/80 hover:text-white transition-all
+                    ${
+                      fullscreenHandle.active
+                        ? showFullscreenControls
+                          ? 'opacity-100 pointer-events-auto duration-200' // Show on hover in fullscreen
+                          : 'opacity-0 pointer-events-none duration-300' // Hide when not hovered in fullscreen
+                        : 'opacity-50 hover:opacity-100' // Default visibility outside fullscreen
+                    }
+                  `}
+                    aria-label={fullscreenHandle.active ? 'Exit Fullscreen' : 'Enter Fullscreen'}
+                  >
+                    {fullscreenHandle.active ? (
+                      <ArrowsPointingInIcon className="h-5 w-5" />
+                    ) : (
+                      <ArrowsPointingOutIcon className="h-5 w-5" />
+                    )}
+                  </button>
+                )}
 
                 {/* Click handler overlay */}
                 <div
@@ -1000,7 +996,9 @@ const AdventureGame = () => {
                       return (
                         <button
                           key={index}
-                          onClick={() => handleChoiceClick(choice, index)}
+                          onClick={() => {
+                            handleChoiceClick(choice, index);
+                          }}
                           className={currentChoiceClasses}
                           disabled={isDisabled}
                           data-testid={`choice-button-${index}`}
@@ -1013,7 +1011,7 @@ const AdventureGame = () => {
                 </div>
               </div>
               {/* Subtle intermediate loading spinner for next node */}
-              {isNodeLoading && gamePhase === 'playing' && (
+              {isNodeLoading && (
                 <div className="absolute bottom-4 right-4 z-30 p-2 bg-black/30 rounded-full">
                   <ArrowPathIcon className="h-6 w-6 text-amber-300 animate-spin animate-pulse" />
                 </div>

@@ -1,10 +1,10 @@
 // @ts-check
-const { defineConfig, devices } = require('@playwright/test');
+import { defineConfig, devices } from '@playwright/test';
 
 /**
  * @see https://playwright.dev/docs/test-configuration
  */
-module.exports = defineConfig({
+const config = defineConfig({
   testDir: './test/e2e' /* Directory containing the test files */,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -40,3 +40,5 @@ module.exports = defineConfig({
         reuseExistingServer: true,
       },
 });
+
+export default config;

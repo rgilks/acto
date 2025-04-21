@@ -10,7 +10,7 @@ const ALLOWED_ADMIN_TABLES = ['users', 'rate_limits_user']; // Add other known/s
 const isAdmin = async (): Promise<boolean> => {
   const session = await getServerSession(authOptions);
 
-  if (!session?.user?.email) {
+  if (!session?.user.email) {
     return false;
   }
 

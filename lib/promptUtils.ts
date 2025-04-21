@@ -25,8 +25,8 @@ export function buildAdventurePrompt(
         ? history[0]?.passage // Use passage from the very first history item
         : null;
 
-  const jsonStructure = `{\n  "passage": "(string) The next part of the story, describing the current situation and outcome of the last choice.",\n  "choices": [ { "text": string }, ... ], /* Array of 3 distinct player choices */\n  "imagePrompt": "(string) A visual description for an image based *only* on the \"passage\". Describe the scene, reflecting the specified Visual Style: ${visualStyle ?? 'any'}.",
-  "updatedSummary": "(string) A brief (1-2 sentence) summary of the entire story up to and including this new \"passage\"."
+  const jsonStructure = `{\n  "passage": "(string) The next part of the story, describing the current situation and outcome of the last choice.",\n  "choices": [ { "text": string }, ... ], /* Array of 3 distinct player choices */\n  "imagePrompt": "(string) A visual description for an image based *only* on the "passage". Describe the scene, reflecting the specified Visual Style: ${visualStyle ?? 'any'}.",
+  "updatedSummary": "(string) A brief (1-2 sentence) summary of the entire story up to and including this new "passage"."
 }`;
 
   const initialContextSection = initialContextText
@@ -50,10 +50,10 @@ export function buildAdventurePrompt(
         recentHistoryText += `(...earlier events summarized below...)\n`;
       }
       // Ensure item and item.passage exist before accessing
-      recentHistoryText += `Previously: ${item?.passage ?? '(Passage missing)'}\n`;
-      if (item?.choiceText) {
+      recentHistoryText += `Previously: ${item.passage}\n`;
+      if (item.choiceText) {
         recentHistoryText += `Choice Made: ${item.choiceText}\n`;
-      } else if (index === 0 && history.length === 1 && !item?.choiceText) {
+      } else if (index === 0 && history.length === 1 && !item.choiceText) {
         // This condition might need review based on how step 0 is handled
         // If step 0 *always* has '(Scenario Selection)' as choiceText, this might not be needed
         // Or, adjust based on actual data structure for step 0/1 transition

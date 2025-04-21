@@ -78,9 +78,10 @@ if (!authEnvVars.success) {
     '❌ Invalid Auth environment variables:',
     JSON.stringify(authEnvVars.error.format(), null, 4)
   );
+  throw new Error('Invalid Authentication environment variables. See logs.');
 }
 
-const validatedAuthEnv = authEnvVars.success ? authEnvVars.data : undefined;
+const validatedAuthEnv = authEnvVars.data;
 
 interface UserWithEmail extends User {
   email?: string | null;
@@ -88,7 +89,7 @@ interface UserWithEmail extends User {
 
 const providers = [];
 
-if (validatedAuthEnv?.GITHUB_ID && validatedAuthEnv?.GITHUB_SECRET) {
+if (validatedAuthEnv.GITHUB_ID && validatedAuthEnv.GITHUB_SECRET) {
   console.log('[NextAuth] GitHub OAuth credentials found, adding provider');
   providers.push(
     GitHub({
@@ -96,11 +97,11 @@ if (validatedAuthEnv?.GITHUB_ID && validatedAuthEnv?.GITHUB_SECRET) {
       clientSecret: validatedAuthEnv.GITHUB_SECRET,
     })
   );
-} else if (!validatedAuthEnv?.GITHUB_ID && !validatedAuthEnv?.GITHUB_SECRET) {
+} else if (!validatedAuthEnv.GITHUB_ID && !validatedAuthEnv.GITHUB_SECRET) {
   console.warn('[NextAuth] GitHub OAuth credentials missing (GITHUB_ID and GITHUB_SECRET)');
 }
 
-if (validatedAuthEnv?.GOOGLE_CLIENT_ID && validatedAuthEnv?.GOOGLE_CLIENT_SECRET) {
+if (validatedAuthEnv.GOOGLE_CLIENT_ID && validatedAuthEnv.GOOGLE_CLIENT_SECRET) {
   console.log('[NextAuth] Google OAuth credentials found, adding provider');
   providers.push(
     Google({
@@ -108,13 +109,13 @@ if (validatedAuthEnv?.GOOGLE_CLIENT_ID && validatedAuthEnv?.GOOGLE_CLIENT_SECRET
       clientSecret: validatedAuthEnv.GOOGLE_CLIENT_SECRET,
     })
   );
-} else if (!validatedAuthEnv?.GOOGLE_CLIENT_ID && !validatedAuthEnv?.GOOGLE_CLIENT_SECRET) {
+} else if (!validatedAuthEnv.GOOGLE_CLIENT_ID && !validatedAuthEnv.GOOGLE_CLIENT_SECRET) {
   console.warn(
     '[NextAuth] Google OAuth credentials missing (GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)'
   );
 }
 
-if (validatedAuthEnv?.DISCORD_CLIENT_ID && validatedAuthEnv?.DISCORD_CLIENT_SECRET) {
+if (validatedAuthEnv.DISCORD_CLIENT_ID && validatedAuthEnv.DISCORD_CLIENT_SECRET) {
   console.log('[NextAuth] Discord OAuth credentials found, adding provider');
   providers.push(
     Discord({
@@ -122,7 +123,7 @@ if (validatedAuthEnv?.DISCORD_CLIENT_ID && validatedAuthEnv?.DISCORD_CLIENT_SECR
       clientSecret: validatedAuthEnv.DISCORD_CLIENT_SECRET,
     })
   );
-} else if (!validatedAuthEnv?.DISCORD_CLIENT_ID && !validatedAuthEnv?.DISCORD_CLIENT_SECRET) {
+} else if (!validatedAuthEnv.DISCORD_CLIENT_ID && !validatedAuthEnv.DISCORD_CLIENT_SECRET) {
   console.warn(
     '[NextAuth] Discord OAuth credentials missing (DISCORD_CLIENT_ID and DISCORD_CLIENT_SECRET)'
   );
@@ -132,8 +133,8 @@ console.log(`[NextAuth] Configured ${providers.length} authentication providers`
 
 export const authOptions: NextAuthOptions = {
   providers,
-  secret: validatedAuthEnv!.AUTH_SECRET,
-  debug: (validatedAuthEnv?.NODE_ENV || process.env.NODE_ENV) !== 'production',
+  secret: validatedAuthEnv.AUTH_SECRET,
+  debug: (validatedAuthEnv.NODE_ENV || process.env.NODE_ENV) !== 'production',
   session: {
     strategy: 'jwt' as const,
   },
@@ -142,26 +143,24 @@ export const authOptions: NextAuthOptions = {
     signIn: ({ user, account }: { user: User | AdapterUser; account: Account | null }) => {
       // --- Store/Update user data in DB ---
       try {
-        if (user && account) {
-          db.prepare(
-            `
+        db.prepare(
+          `
             INSERT INTO users (provider_id, provider, name, email, image, last_login, language)
             VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
             ON CONFLICT(provider_id, provider)
             DO UPDATE SET name = ?, email = ?, image = ?, last_login = CURRENT_TIMESTAMP
           `
-          ).run(
-            user.id,
-            account.provider,
-            user.name || null,
-            user.email || null,
-            user.image || null,
-            'en',
-            user.name || null,
-            user.email || null,
-            user.image || null
-          );
-        }
+        ).run(
+          user.id,
+          account?.provider,
+          user.name || null,
+          user.email || null,
+          user.image || null,
+          'en',
+          user.name || null,
+          user.email || null,
+          user.image || null
+        );
       } catch (error) {
         console.error('[AUTH] Error storing user data:', error);
         // Optionally, decide if the sign-in should fail if the DB operation fails
@@ -170,8 +169,8 @@ export const authOptions: NextAuthOptions = {
       // --- End Store/Update user data in DB ---
 
       // --- Waiting List / Admin Check ---
-      const rawAllowedEmails = validatedAuthEnv?.ALLOWED_EMAILS;
-      const rawAdminEmails = validatedAuthEnv?.ADMIN_EMAILS;
+      const rawAllowedEmails = validatedAuthEnv.ALLOWED_EMAILS;
+      const rawAdminEmails = validatedAuthEnv.ADMIN_EMAILS;
       const waitingListEnabled =
         typeof rawAllowedEmails === 'string' && rawAllowedEmails.length > 0;
       const adminListExists = typeof rawAdminEmails === 'string' && rawAdminEmails.length > 0;
@@ -195,7 +194,7 @@ export const authOptions: NextAuthOptions = {
 
       // Only enforce the check if waiting list is enabled or admin list exists
       if (waitingListEnabled || adminListExists) {
-        const userEmail = user?.email?.toLowerCase();
+        const userEmail = user.email?.toLowerCase();
         if (!userEmail || !combinedAllowedEmails.has(userEmail)) {
           console.warn(
             `[AUTH SignIn] Denied access for email: ${user.email || 'N/A'} (not in ALLOWED_EMAILS or ADMIN_EMAILS) - Redirecting to pending.`
@@ -223,7 +222,7 @@ export const authOptions: NextAuthOptions = {
       user?: UserWithEmail;
       account?: Account | null;
     }) => {
-      if (account && user?.id && user?.email) {
+      if (account && user?.id && user.email) {
         token.provider = account.provider;
         token.email = user.email;
 
@@ -251,7 +250,7 @@ export const authOptions: NextAuthOptions = {
           );
         }
 
-        const rawAdminEmails = validatedAuthEnv?.ADMIN_EMAILS;
+        const rawAdminEmails = validatedAuthEnv.ADMIN_EMAILS;
         let adminEmails: string[] = [];
         if (typeof rawAdminEmails === 'string' && rawAdminEmails.length > 0) {
           adminEmails = rawAdminEmails
@@ -265,25 +264,19 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     session: ({ session, token }: { session: Session; token: JWT }) => {
-      if (session.user) {
-        if (token.sub) {
-          session.user.id = token.sub;
-        }
-        if (typeof token.dbId === 'number') {
-          session.user.dbId = token.dbId;
-        } else {
-          console.warn(
-            '[AUTH Session Callback] dbId missing from token. Cannot assign to session.'
-          );
-        }
-        if (typeof token.isAdmin === 'boolean') {
-          session.user.isAdmin = token.isAdmin;
-        }
-        if (token.provider) {
-          session.user.provider = token.provider;
-        }
+      if (token.sub) {
+        session.user.id = token.sub;
+      }
+      if (typeof token.dbId === 'number') {
+        session.user.dbId = token.dbId;
       } else {
-        console.warn('[AUTH Session Callback] session.user object is missing!');
+        console.warn('[AUTH Session Callback] dbId missing from token. Cannot assign to session.');
+      }
+      if (typeof token.isAdmin === 'boolean') {
+        session.user.isAdmin = token.isAdmin;
+      }
+      if (token.provider) {
+        session.user.provider = token.provider;
       }
       return session;
     },
@@ -291,14 +284,14 @@ export const authOptions: NextAuthOptions = {
   cookies: {
     sessionToken: {
       name:
-        (validatedAuthEnv?.NODE_ENV || process.env.NODE_ENV) === 'production'
+        (validatedAuthEnv.NODE_ENV || process.env.NODE_ENV) === 'production'
           ? `__Secure-next-auth.session-token`
           : `next-auth.session-token`,
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: (validatedAuthEnv?.NODE_ENV || process.env.NODE_ENV) === 'production',
+        secure: (validatedAuthEnv.NODE_ENV || process.env.NODE_ENV) === 'production',
       },
     },
   },

@@ -66,6 +66,7 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
 
     if (fetchError) {
       const rateLimitInfo =
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         typeof fetchError === 'object' && fetchError !== null && 'rateLimitError' in fetchError
           ? fetchError.rateLimitError
           : null;
@@ -112,7 +113,9 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
           {scenariosToDisplay.map((scenario, index) => (
             <button
               key={index}
-              onClick={() => onScenarioSelect(scenario)}
+              onClick={() => {
+                onScenarioSelect(scenario);
+              }}
               className={`${buttonBaseClasses} ${choiceButtonClasses} ${isLoadingSelection ? 'opacity-60 cursor-wait' : ''}`}
               disabled={isLoadingSelection}
             >
@@ -133,7 +136,9 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
             className={`${buttonBaseClasses} flex items-center justify-center border-sky-500 text-sky-300 hover:bg-sky-500/10 hover:border-sky-400 hover:text-sky-200 mt-6 px-5 py-2.5 text-base shadow-md hover:shadow-lg`}
             disabled={isLoadingScenarios}
           >
+            {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Type inference seems wrong here */}
             <ArrowPathIcon className={`h-5 w-5 mr-2 ${isLoadingScenarios ? 'animate-spin' : ''}`} />
+            {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Type inference seems wrong here */}
             {isLoadingScenarios ? 'Generating...' : 'Generate New Scenarios'}
           </button>
         )}

@@ -1,4 +1,6 @@
-const withPWA = require('@ducanh2912/next-pwa').default({
+import nextPwa from '@ducanh2912/next-pwa';
+
+const withPWA = nextPwa({
   dest: 'public',
   register: true,
   skipWaiting: true,
@@ -87,4 +89,4 @@ const nextConfig = withPWA({
   },
 });
 
-module.exports = nextConfig;
+export default nextConfig;

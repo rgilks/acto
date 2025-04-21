@@ -139,9 +139,6 @@ export const synthesizeSpeechAction = async ({
 
     // Ensure client is initialized
     const ttsClient = initializeTTSClient();
-    if (!ttsClient) {
-      return { error: 'TTS client failed to initialize.' };
-    }
 
     // Performs the text-to-speech request
     const [response] = await ttsClient.synthesizeSpeech(request);

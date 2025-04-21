@@ -59,7 +59,7 @@ const createPruningStorage = (storage = localStorage, maxAttempts = MAX_PRUNE_AT
             const stateWithValue = JSON.parse(currentValue) as StorageValue<AdventureState>;
             const state = stateWithValue.state;
 
-            if (state?.storyHistory && state.storyHistory.length > 0) {
+            if (state.storyHistory.length > 0) {
               state.storyHistory.shift();
 
               currentValue = JSON.stringify(stateWithValue);
@@ -239,8 +239,9 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
 
           if (result.rateLimitError) {
             console.warn('Rate limit hit fetching scenarios:', result.rateLimitError);
+            const definiteRateLimitError = result.rateLimitError;
             set((state) => {
-              state.fetchScenariosError = { rateLimitError: result.rateLimitError! };
+              state.fetchScenariosError = { rateLimitError: definiteRateLimitError };
               state.isFetchingScenarios = false;
             });
             return;
@@ -323,8 +324,9 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           // Handle rate limit errors first
           if (result.rateLimitError) {
             console.warn('[Adventure Store] Rate limit hit:', result.rateLimitError);
+            const definiteRateLimitError = result.rateLimitError;
             set((state) => {
-              state.error = { rateLimitError: result.rateLimitError! };
+              state.error = { rateLimitError: definiteRateLimitError };
               state.isLoading = false;
             });
             return;
@@ -508,7 +510,7 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             prompt: item.prompt ?? 'Prompt not recorded',
             passage: item.passage,
             imagePrompt: item.imagePrompt ?? 'Image prompt not generated',
-            choices: item.choices?.map((c) => c.text ?? '') ?? [],
+            choices: item.choices?.map((c) => c.text) ?? [],
             summary: item.summary ?? 'Summary not recorded',
             choiceMade: choiceMadeText,
           };

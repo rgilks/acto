@@ -51,7 +51,9 @@ const PWAInstall = () => {
   return (
     <div className="fixed bottom-4 right-4 z-50 bg-slate-800/95 border border-slate-700 text-gray-300 p-4 rounded-lg shadow-xl max-w-xs backdrop-blur-sm fade-in">
       <button
-        onClick={() => setShowInstallButton(false)}
+        onClick={() => {
+          setShowInstallButton(false);
+        }}
         className="absolute top-2 right-2 p-1 text-gray-500 hover:text-gray-300 transition-colors"
         aria-label="Dismiss install prompt"
       >

@@ -51,7 +51,7 @@ const checkRateLimit = async (
   config: RateLimitConfig
 ): Promise<RateLimitResult> => {
   const session = await getSession();
-  const userId = session?.user?.dbId;
+  const userId = session?.user.dbId;
 
   if (!userId) {
     console.warn(`[RateLimitSQLite] Blocked unauthenticated request to ${apiType}`);
