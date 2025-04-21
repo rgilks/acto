@@ -2,7 +2,6 @@ import React from 'react';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import type { ErrorState } from '@/app/store/storyStore';
 
-// Helper function to format reset time (moved from ScenarioSelector)
 function formatResetTime(timestamp: number): string {
   if (!timestamp) return 'an unknown time';
   const now = Date.now();
