@@ -3,6 +3,8 @@
 import db from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
+import { z } from 'zod';
+import { TableNamesSchema, PaginatedTableDataSchema } from './schemas';
 
 const ALLOWED_ADMIN_TABLES = ['users', 'rate_limits_user'];
 
@@ -37,13 +39,6 @@ const getAllTableNames = (): string[] => {
   }
 };
 
-interface PaginatedTableData {
-  data: Record<string, unknown>[];
-  totalRows: number;
-  page: number;
-  limit: number;
-}
-
 interface CountResult {
   totalRows: number;
 }
@@ -52,15 +47,25 @@ export const getTableNames = async (): Promise<{ error?: string; data?: string[]
   if (!(await isAdmin())) {
     return { error: 'Unauthorized' };
   }
-  const tableNames = getAllTableNames();
-  return { data: tableNames };
+  try {
+    const tableNames = getAllTableNames();
+    const parsed = TableNamesSchema.safeParse(tableNames);
+    if (!parsed.success) {
+      console.error('[Admin Actions] Failed to parse table names:', parsed.error);
+      return { error: 'Failed to validate table names structure.' };
+    }
+    return { data: parsed.data };
+  } catch (error) {
+    console.error('[Admin Actions] Unexpected error fetching table names:', error);
+    return { error: 'Unexpected error fetching table names.' };
+  }
 };
 
 export const getTableData = async (
   tableName: string,
   page: number = 1,
   limit: number = 10
-): Promise<{ error?: string; data?: PaginatedTableData }> => {
+): Promise<{ error?: string; data?: z.infer<typeof PaginatedTableDataSchema> }> => {
   if (!(await isAdmin())) {
     return { error: 'Unauthorized' };
   }
@@ -97,7 +102,13 @@ export const getTableData = async (
       };
     })();
 
-    return { data: result };
+    const parsed = PaginatedTableDataSchema.safeParse(result);
+    if (!parsed.success) {
+      console.error(`[Admin Actions] Failed to parse data for table ${tableName}:`, parsed.error);
+      return { error: 'Failed to validate table data structure.' };
+    }
+
+    return { data: parsed.data };
   } catch (error) {
     console.error(`[Admin Actions] Error fetching paginated data for table ${tableName}:`, error);
     return { error: 'Failed to fetch table data' };
