@@ -3,7 +3,7 @@
 import { z } from 'zod';
 import { getActiveModel } from '@/lib/modelConfig';
 import { AdventureNodeSchema, type AdventureNode } from '@/lib/domain/schemas';
-import { synthesizeSpeechAction, type SynthesizeSpeechResult } from './tts'; // Assuming tts.ts is in the same dir
+import { synthesizeSpeechAction } from './tts'; // Assuming tts.ts is in the same dir
 import { TTS_VOICE_NAME } from '@/lib/constants';
 import { getSession } from '@/app/auth';
 import { checkTextRateLimit } from '@/lib/rateLimitSqlite';
@@ -40,6 +40,143 @@ type GenerateAdventureNodeResult = {
   prompt?: string;
 };
 
+// --- Helper Functions ---
+
+const validateInput = (
+  params: unknown
+): { success: true; data: GenerateAdventureNodeParams } | { success: false; error: string } => {
+  const validation = GenerateAdventureNodeParamsSchema.safeParse(params);
+  if (!validation.success) {
+    console.error('[Adventure Action] Invalid parameters:', validation.error.format());
+    return {
+      success: false,
+      error: `Invalid input: ${validation.error.errors[0]?.message ?? 'Invalid parameters.'}`,
+    };
+  }
+  return { success: true, data: validation.data };
+};
+
+type ValidatedAdventureContent = {
+  validatedNode: AdventureNode;
+  prompt: string;
+};
+
+const generateAndValidateAdventureContent = async (
+  params: GenerateAdventureNodeParams
+): Promise<{ data?: ValidatedAdventureContent; error?: string }> => {
+  const { storyContext, initialScenarioText, genre, tone, visualStyle } = params;
+  const prompt = buildAdventurePrompt(storyContext, initialScenarioText, genre, tone, visualStyle);
+  const activeModel = getActiveModel();
+
+  // Define specific overrides for node generation if needed, or leave empty for defaults
+  const nodeGenConfigOverrides: AIConfigOverrides = {};
+
+  try {
+    const aiResponseContent = await callAIForAdventure(prompt, activeModel, nodeGenConfigOverrides);
+
+    let parsedAiContent: unknown;
+    try {
+      const cleanedResponse = aiResponseContent
+        .replace(/^```json\s*/, '')
+        .replace(/```\s*$/, '')
+        .trim();
+      parsedAiContent = JSON.parse(cleanedResponse);
+    } catch (parseError) {
+      console.error(
+        '[Adventure Action] Failed to parse AI response JSON:',
+        parseError,
+        '\nRaw Response:\n',
+        aiResponseContent
+      );
+      return { error: 'Failed to parse AI response.' };
+    }
+
+    const validationResult = AdventureNodeSchema.safeParse(parsedAiContent);
+    if (!validationResult.success) {
+      const validationErrors = validationResult.error.format();
+      console.error('[Adventure Action] Schema validation failed:', validationErrors);
+      // Consider returning validationErrors string for more specific feedback
+      return { error: 'AI response validation failed.' };
+    }
+
+    return { data: { validatedNode: validationResult.data, prompt } };
+  } catch (error) {
+    console.error('[Adventure Action] Error during AI call or processing:', error);
+    return { error: error instanceof Error ? error.message : 'AI interaction failed.' };
+  }
+};
+
+type ImageGenerationResult = {
+  imageUrl?: string | undefined;
+  error?: string;
+  rateLimitResetTimestamp?: number;
+};
+
+const generateAdventureImage = async (
+  imagePrompt: string | undefined,
+  visualStyle?: string,
+  genre?: string,
+  tone?: string
+): Promise<ImageGenerationResult> => {
+  if (!imagePrompt) {
+    console.warn('[Adventure Action] Skipping image generation: no prompt.');
+    return {};
+  }
+
+  try {
+    const result = await generateImageWithGemini(imagePrompt, visualStyle, genre, tone);
+    if (result.error) {
+      console.error('[Adventure Action] Image generation failed:', result.error);
+      return {
+        error: result.error,
+        ...(result.rateLimitResetTimestamp !== undefined
+          ? { rateLimitResetTimestamp: result.rateLimitResetTimestamp }
+          : {}),
+      };
+    }
+    return { imageUrl: result.dataUri };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown image generation error';
+    console.error('[Adventure Action] Image generation promise rejected:', error);
+    return { error: errorMessage };
+  }
+};
+
+type TtsSynthesisResult = {
+  audioBase64?: string | undefined;
+  error?: string;
+  // Consider adding rate limit info if tts action provides it
+};
+
+const synthesizeAdventureAudio = async (
+  passage: string | undefined,
+  voice: string | null | undefined
+): Promise<TtsSynthesisResult> => {
+  if (!passage) {
+    console.warn('[Adventure Action] Skipping TTS generation: no passage.');
+    return { error: 'No passage text' };
+  }
+
+  const voiceToUse = voice || TTS_VOICE_NAME;
+  console.log('[Adventure Action] Starting TTS synthesis...');
+
+  try {
+    const result = await synthesizeSpeechAction({ text: passage, voiceName: voiceToUse });
+    if (result.error) {
+      console.error('[Adventure Action] TTS synthesis failed:', result.error);
+      // Check if result.error provides specific rate limit info to pass along
+      return { error: result.error };
+    }
+    return { audioBase64: result.audioBase64 };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown TTS error';
+    console.error('[Adventure Action] TTS synthesis promise rejected:', error);
+    return { error: errorMessage };
+  }
+};
+
+// --- Main Action --- //
+
 export const generateAdventureNodeAction = async (
   params: GenerateAdventureNodeParams,
   voice?: string | null
@@ -65,151 +202,54 @@ export const generateAdventureNodeAction = async (
   }
 
   try {
-    const validation = GenerateAdventureNodeParamsSchema.safeParse(params);
+    // 1. Validate Input
+    const validation = validateInput(params);
     if (!validation.success) {
-      console.error('[Adventure Action] Invalid parameters:', validation.error.format());
-      return {
-        error: `Invalid input: ${validation.error.errors[0]?.message ?? 'Invalid parameters.'}`,
-      };
+      return { error: validation.error };
     }
+    const validatedParams = validation.data;
 
-    const { storyContext, initialScenarioText, genre, tone, visualStyle } = validation.data;
-    const prompt = buildAdventurePrompt(
-      storyContext,
-      initialScenarioText,
-      genre,
-      tone,
-      visualStyle
+    // 2. Generate AI Content
+    const contentResult = await generateAndValidateAdventureContent(validatedParams);
+    if (contentResult.error || !contentResult.data) {
+      return { error: contentResult.error ?? 'Failed to generate adventure content.' };
+    }
+    const { validatedNode, prompt } = contentResult.data;
+    const { passage, choices, imagePrompt, updatedSummary } = validatedNode;
+
+    // 3. Initiate Image and Audio Generation (Parallel)
+    const imagePromise = generateAdventureImage(
+      imagePrompt,
+      validatedParams.visualStyle,
+      validatedParams.genre,
+      validatedParams.tone
     );
-    const activeModel = getActiveModel();
+    const audioPromise = synthesizeAdventureAudio(passage, voice);
 
-    // Define specific overrides for node generation if needed, or leave empty for defaults
-    const nodeGenConfigOverrides: AIConfigOverrides = {};
+    const [imageResult, audioResult] = await Promise.all([imagePromise, audioPromise]);
 
-    const aiResponseContent = await callAIForAdventure(prompt, activeModel, nodeGenConfigOverrides);
-
-    let parsedAiContent: unknown;
-    try {
-      const cleanedResponse = aiResponseContent
-        .replace(/^```json\s*/, '')
-        .replace(/```\s*$/, '')
-        .trim();
-      parsedAiContent = JSON.parse(cleanedResponse);
-    } catch (parseError) {
-      console.error(
-        '[Adventure Action] Failed to parse AI response JSON:',
-        parseError,
-        '\nRaw Response:\n',
-        aiResponseContent
-      );
-      return { error: 'Failed to parse AI response.' };
-    }
-
-    const validationResult = AdventureNodeSchema.safeParse(parsedAiContent);
-    if (!validationResult.success) {
-      const validationErrors = validationResult.error.format();
-      console.error('[Adventure Action] Schema validation failed:', validationErrors);
-      return { error: 'AI response validation failed.' };
-    }
-
-    const validatedNode = validationResult.data;
-    const imagePromptFromAI = validatedNode.imagePrompt;
-    const passage = validatedNode.passage;
-    const updatedSummary = validatedNode.updatedSummary;
-
-    let imageUrl: string | undefined = undefined;
-    let audioBase64: string | undefined = undefined;
-    let imageError: string | undefined = undefined;
-    let ttsError: string | undefined = undefined;
-
-    const promisesToSettle = [];
-
-    if (imagePromptFromAI) {
-      promisesToSettle.push(generateImageWithGemini(imagePromptFromAI, visualStyle, genre, tone));
-    } else {
-      console.warn('[Adventure Action] Skipping image generation: no prompt.');
-      promisesToSettle.push(Promise.resolve({ dataUri: undefined, error: undefined }));
-    }
-
-    if (passage) {
-      console.log('[Adventure Action] Adding TTS promise...');
-      const voiceToUse = voice || TTS_VOICE_NAME;
-      promisesToSettle.push(synthesizeSpeechAction({ text: passage, voiceName: voiceToUse }));
-    } else {
-      console.warn('[Adventure Action] Skipping TTS generation: no passage.');
-      promisesToSettle.push(Promise.resolve({ error: 'No passage text' }));
-    }
-
-    try {
-      const results = (await Promise.allSettled(promisesToSettle)) as [
-        PromiseSettledResult<
-          | { dataUri: string; error: undefined }
-          | { dataUri: undefined; error: string; rateLimitResetTimestamp?: number }
-        >,
-        PromiseSettledResult<SynthesizeSpeechResult>,
-      ];
-
-      const imageResult = results[0];
-      const audioResultAction = results[1];
-
-      if (imageResult.status === 'fulfilled') {
-        if (imageResult.value.dataUri) {
-          imageUrl = imageResult.value.dataUri;
-        } else if (imageResult.value.error) {
-          imageError = imageResult.value.error;
-          console.error('[Adventure Action] Image generation failed:', imageError);
-          // Note: We are logging the image error but not returning it in the rateLimitError field specifically
-          // unless it *was* a rate limit error from generateImageWithGemini. Consider if the UI needs
-          // separate image-specific errors.
-        }
-      } else {
-        imageError =
-          imageResult.reason instanceof Error
-            ? imageResult.reason.message
-            : 'Unknown image generation error';
-        console.error('[Adventure Action] Image generation promise rejected:', imageResult.reason);
-      }
-
-      if (audioResultAction.status === 'fulfilled') {
-        const audioData = audioResultAction.value;
-        if (audioData.audioBase64) {
-          audioBase64 = audioData.audioBase64;
-        } else if (audioData.error) {
-          ttsError = audioData.error;
-          console.error('[Adventure Action] TTS synthesis failed:', ttsError);
-          // Similar to image errors, consider how TTS errors (including potential rate limits) should be surfaced.
-        }
-      } else {
-        ttsError =
-          audioResultAction.reason instanceof Error
-            ? audioResultAction.reason.message
-            : 'Unknown TTS error';
-        console.error(
-          '[Adventure Action] TTS synthesis promise rejected:',
-          audioResultAction.reason
-        );
-      }
-    } catch (settleError) {
-      console.error('[Adventure Action] Error settling promises:', settleError);
-      // Decide if this specific error needs to be surfaced or just logged
-    }
-
+    // 4. Construct Final Node
     const finalNode: AdventureNode = {
-      passage: validatedNode.passage,
-      choices: validatedNode.choices,
-      imagePrompt: imagePromptFromAI,
-      imageUrl: imageUrl ?? validatedNode.imageUrl, // Keep original AI image URL if new one failed?
-      audioBase64: audioBase64,
+      passage: passage,
+      choices: choices,
+      imagePrompt: imagePrompt,
+      imageUrl: imageResult.imageUrl ?? validatedNode.imageUrl, // Fallback logic preserved
+      audioBase64: audioResult.audioBase64,
       updatedSummary: updatedSummary,
       generationPrompt: prompt,
-      // Potentially include imageError/ttsError here if the UI needs to display them
+      // TODO: Consider adding specific imageError/ttsError fields if UI needs detailed feedback
+      // imageError: imageResult.error,
+      // ttsError: audioResult.error,
     };
 
     console.log('[Adventure Action] Successfully generated node.');
-    // TODO: Consider returning imageError/ttsError if they occurred, alongside the node
+
+    // Note: Currently, only the *text* rate limit error is returned explicitly in the rateLimitError field.
+    // Image/TTS errors are logged but not returned in that specific field.
+    // If an image rate limit occurred, imageResult.error might contain info, but needs handling.
     return { adventureNode: finalNode, prompt: prompt };
   } catch (error) {
-    console.error('[Adventure Action] Error generating adventure node:', error);
+    console.error('[Adventure Action] Unexpected error in generateAdventureNodeAction:', error);
     return { error: error instanceof Error ? error.message : 'An unexpected error occurred.' };
   }
 };
