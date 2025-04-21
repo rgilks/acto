@@ -25,8 +25,8 @@ type RateLimitResult = {
   limit: number;
   remaining: number;
   reset: number; // Timestamp in milliseconds when the limit *would* reset (start of next day UTC)
-  errorType?: RateLimitErrorType;
-  errorMessage?: string;
+  errorType?: RateLimitErrorType | undefined;
+  errorMessage?: string | undefined;
 };
 
 // Helper to get the start of the current day in UTC milliseconds

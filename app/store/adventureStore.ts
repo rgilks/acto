@@ -95,19 +95,19 @@ const createPruningStorage = (storage = localStorage, maxAttempts = MAX_PRUNE_AT
 // Simplified History Item
 export interface StoryHistoryItem {
   passage: string;
-  choiceText?: string;
-  summary?: string;
-  imageUrl?: string | null;
-  prompt?: string;
-  imagePrompt?: string;
-  choices?: z.infer<typeof AdventureChoiceSchema>[];
+  choiceText?: string | undefined;
+  summary?: string | undefined;
+  imageUrl?: string | null | undefined;
+  prompt?: string | undefined;
+  imagePrompt?: string | undefined;
+  choices?: z.infer<typeof AdventureChoiceSchema>[] | undefined;
 }
 
 // Parameters needed to retry fetchAdventureNode
 interface FetchParams {
-  choiceText?: string;
-  metadata?: AdventureMetadata;
-  voice?: string | null;
+  choiceText?: string | undefined;
+  metadata?: AdventureMetadata | undefined;
+  voice?: string | null | undefined;
 }
 
 // Type for structured rate limit errors passed from the server
@@ -124,9 +124,9 @@ type Scenario = z.infer<typeof AdventureChoiceSchema>;
 
 // Type for the metadata to be stored and passed
 interface AdventureMetadata {
-  genre?: string;
-  tone?: string;
-  visualStyle?: string;
+  genre?: string | undefined;
+  tone?: string | undefined;
+  visualStyle?: string | undefined;
 }
 
 // Interface for prompt log entries
