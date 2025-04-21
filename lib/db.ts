@@ -1,7 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import * as Sentry from '@sentry/nextjs';
 
 const DB_DIR = process.env.NODE_ENV === 'production' ? '/data' : path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DB_DIR, 'acto.sqlite');
@@ -76,7 +75,6 @@ function initializeDatabase(): Database.Database {
     return dbProxyInstance;
   } catch (error) {
     console.error('[DB] Database initialization error:', error);
-    Sentry.captureException(error);
     if (process.env.NODE_ENV === 'production' && !isBuildPhase) {
       console.warn('[DB] CRITICAL: Falling back to in-memory database due to error!');
       db = new Database(':memory:');

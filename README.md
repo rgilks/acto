@@ -34,7 +34,6 @@ An interactive storytelling application powered by Next.js and Google's generati
 - **Continuous Deployment**: Automatic deployment to Fly.io via GitHub Actions.
 - **Admin Panel**: (Optional) Secure area for administrators to view application data.
 - **Testing**: Includes unit/integration tests (Jest) and end-to-end tests (Playwright).
-- **Error Tracking**: Sentry integration for monitoring.
 
 ### Saving Your Story
 
@@ -59,7 +58,6 @@ This will download a `.zip` file containing:
 - **Zod**: Schema validation (especially for AI responses)
 - **zustand / immer / zustand/middleware**: Client-side state management with persistence
 - **@ducanh2912/next-pwa**: Progressive Web App features
-- **@sentry/nextjs**: Error tracking
 - **Playwright**: End-to-end testing
 - **Jest / React Testing Library**: Unit/Integration testing
 - **ESLint / Prettier**: Linting & Formatting
@@ -141,12 +139,6 @@ The quality of the generated story heavily relies on the prompts sent to the AI.
     - `NEXTAUTH_URL=http://localhost:3000`
     - OAuth credentials (`GITHUB_ID`/`SECRET`, etc.) for enabled providers.
 
-    **Required for Deployment/Build Features:**
-
-    - `NEXT_PUBLIC_SENTRY_DSN`: Sentry DSN for client-side errors.
-    - `SENTRY_AUTH_TOKEN`: Sentry token for build-time source map upload.
-    - `SENTRY_ORG` / `SENTRY_PROJECT`: Your Sentry slugs.
-
     **Optional (Remove if not used):**
 
     - `ADMIN_EMAILS` / `ALLOWED_EMAILS`: For admin/waiting list access.
@@ -168,7 +160,6 @@ The quality of the generated story heavily relies on the prompts sent to the AI.
 
 - `GOOGLE_AI_API_KEY`
 - `GOOGLE_APP_CREDS_JSON` (as a single line)
-- `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `NEXT_PUBLIC_SENTRY_DSN`
 - `AUTH_SECRET` (if using Auth)
 - `NEXTAUTH_URL=https://<your-fly-app-name>.fly.dev` (if using Auth)
 - OAuth Provider Secrets (if using Auth)
@@ -254,7 +245,6 @@ npm run nuke
 - **Security**: Review input handling, especially if user input influences AI prompts. Consider authentication/authorization for saving stories.
 - **Scalability**: Adjust Fly.io machine specs/count in `fly.toml`. Database performance might become a factor if storing large amounts of story history.
 - **Database Backups**: Implement a backup strategy for the SQLite volume on Fly.io.
-- **Sentry**: Ensure DSN and other variables are configured for production error tracking.
 - **Prompt Engineering**: Continuously refine prompts in `app/actions/adventure.ts` for better narrative quality, consistency, and JSON adherence.
 
 ## Customization
@@ -442,7 +432,7 @@ CREATE INDEX IF NOT EXISTS idx_rate_limits_user_window ON rate_limits_user(user_
 - **Database Connection:** Ensure `data/` dir exists locally. On Fly, check volume mount (`fly.toml`) and status (`fly status`). Verify schema matches code.
 - **Auth Errors:** Verify `.env.local` / Fly secrets (`AUTH_SECRET`, provider IDs/secrets, `NEXTAUTH_URL`). Ensure OAuth callback URLs match.
 - **API Key Errors:** Check AI provider keys in env/secrets. Ensure billing/quotas are sufficient. Check `lib/modelConfig.ts`.
-- **AI Errors:** Check Sentry/console logs for errors from the AI API. Ensure the AI is returning valid JSON matching the expected Zod schema in `app/actions/adventure.ts`. Refine prompts if needed.
+- **AI Errors:** Check console logs for errors from the AI API. Ensure the AI is returning valid JSON matching the expected Zod schema in `app/actions/adventure.ts`. Refine prompts if needed.
 - **Rate Limit Errors:** Wait for the daily limit to reset (UTC midnight) or adjust limits in `lib/rateLimitSqlite.ts` if necessary. Check `rate_limits_user` table for current counts.
 - **Admin Access Denied:** Confirm logged-in user's email is EXACTLY in `ADMIN_EMAILS`. Check Fly secrets value.
 - **Deployment Issues:** Examine GitHub Actions logs and `fly logs --app <your-app-name>`.

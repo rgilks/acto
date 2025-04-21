@@ -172,7 +172,4 @@ test/e2e/auth/*.storageState.json
 .pnp.*
 .yarn/
 
-# Sentry Config File
-.env.sentry-build-plugin
-
 keys/

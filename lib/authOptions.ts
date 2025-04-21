@@ -8,7 +8,6 @@ import db from './db';
 import { AdapterUser } from 'next-auth/adapters';
 import { z } from 'zod';
 import type { NextAuthOptions } from 'next-auth';
-import * as Sentry from '@sentry/nextjs';
 
 export const authEnvSchema = z
   .object({
@@ -165,7 +164,6 @@ export const authOptions: NextAuthOptions = {
         }
       } catch (error) {
         console.error('[AUTH] Error storing user data:', error);
-        Sentry.captureException(error);
         // Optionally, decide if the sign-in should fail if the DB operation fails
         // return false;
       }
@@ -251,7 +249,6 @@ export const authOptions: NextAuthOptions = {
             '[AUTH JWT Callback] CRITICAL: DB error fetching user ID for token:',
             error
           );
-          Sentry.captureException(error);
         }
 
         const rawAdminEmails = validatedAuthEnv?.ADMIN_EMAILS;

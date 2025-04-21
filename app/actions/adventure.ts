@@ -7,7 +7,6 @@ import {
   AdventureChoiceSchema,
   type AdventureNode,
 } from '@/lib/domain/schemas';
-import * as Sentry from '@sentry/nextjs';
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold, GenerationConfig } from '@google/genai';
 import { synthesizeSpeechAction, type SynthesizeSpeechResult } from './tts';
 import { TTS_VOICE_NAME } from '@/lib/constants';
@@ -115,7 +114,6 @@ async function callAIForAdventure(
     return text;
   } catch (error) {
     console.error('[Adventure] Google AI error:', error);
-    Sentry.captureException(error);
     throw error;
   }
 }
@@ -195,7 +193,6 @@ async function generateImageWithGemini(
     }
   } catch (error) {
     console.error('[Adventure Image] Failed to generate image via @google/genai SDK:', error);
-    Sentry.captureException(error, { extra: { imagePrompt: imagePrompt } });
     return {
       dataUri: undefined,
       error: error instanceof Error ? error.message : 'Failed to generate image.',
@@ -265,7 +262,6 @@ export const generateAdventureNodeAction = async (
         '\nRaw Response:\n',
         aiResponseContent
       );
-      Sentry.captureException(parseError, { extra: { aiResponseContent } });
       return { error: 'Failed to parse AI response.' };
     }
 
@@ -273,11 +269,6 @@ export const generateAdventureNodeAction = async (
     if (!validationResult.success) {
       const validationErrors = validationResult.error.format();
       console.error('[Adventure] Schema validation failed:', validationErrors);
-      Sentry.captureException(new Error('Adventure AI Response Validation Failed'), {
-        extra: {
-          validationErrors: validationErrors,
-        },
-      });
       return { error: 'AI response validation failed.' };
     }
 
@@ -358,11 +349,9 @@ export const generateAdventureNodeAction = async (
           '[Adventure Action] TTS synthesis promise rejected:',
           audioResultAction.reason
         );
-        Sentry.captureException(audioResultAction.reason);
       }
     } catch (settleError) {
       console.error('[Adventure Action] Error settling promises:', settleError);
-      Sentry.captureException(settleError);
     }
 
     const finalNode: AdventureNode = {
@@ -379,7 +368,6 @@ export const generateAdventureNodeAction = async (
     return { adventureNode: finalNode, prompt: prompt };
   } catch (error) {
     console.error('[Adventure] Error generating adventure node:', error);
-    Sentry.captureException(error);
     return { error: error instanceof Error ? error.message : 'An unexpected error occurred.' };
   }
 };
@@ -453,9 +441,6 @@ export const generateScenariosAction = async (): Promise<GenerateScenariosResult
         'Raw response:',
         aiResponseText
       );
-      Sentry.captureException(parseError, {
-        extra: { aiResponse: aiResponseText, prompt: prompt },
-      });
       return { error: 'Failed to parse scenarios from AI response.' };
     }
 
@@ -468,13 +453,6 @@ export const generateScenariosAction = async (): Promise<GenerateScenariosResult
         'Parsed Data:',
         parsedScenarios
       );
-      Sentry.captureException(new Error('AI response validation failed for scenarios'), {
-        extra: {
-          errors: validationResult.error.errors,
-          aiResponse: parsedScenarios,
-          prompt: prompt,
-        },
-      });
       return { error: 'Received invalid scenario data structure from AI.' };
     }
 
@@ -482,7 +460,6 @@ export const generateScenariosAction = async (): Promise<GenerateScenariosResult
     return { scenarios: validationResult.data };
   } catch (error) {
     console.error('[Adventure] Error generating scenarios:', error);
-    Sentry.captureException(error);
     return {
       error:
         error instanceof Error

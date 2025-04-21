@@ -1,6 +1,5 @@
 import db from './db';
 import { getSession } from '@/app/auth'; // Assuming this returns { user: { id: string, dbId?: number } } | null
-import * as Sentry from '@sentry/nextjs';
 
 // --- Define Rate Limit Configurations ---
 type ApiType = 'text' | 'image' | 'tts';
@@ -165,7 +164,6 @@ const checkRateLimit = async (
       `[RateLimitSQLite] Error checking DAILY ${apiType} limit for user ${userId}:`,
       error
     );
-    Sentry.captureException(error, { tags: { rateLimitApiType: apiType, rateLimitUser: userId } });
     // Fail CLOSED: Deny request if rate limiter fails unexpectedly
     return {
       success: false,

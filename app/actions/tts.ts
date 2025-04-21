@@ -1,7 +1,6 @@
 'use server';
 
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
-import * as Sentry from '@sentry/nextjs';
 // Import constant from lib
 import { TTS_VOICE_NAME } from '@/lib/constants';
 import { getSession } from '@/app/auth';
@@ -72,7 +71,6 @@ const initializeTTSClient = () => {
   } catch (error) {
     // Catch errors from initialization or the type guard check
     console.error('[TTS Client] Failed to initialize TextToSpeechClient:', error);
-    Sentry.captureException(error); // Capture initialization errors
     // Re-throw or handle appropriately - for now, let it bubble up
     throw error;
   }
@@ -161,7 +159,6 @@ export const synthesizeSpeechAction = async ({
     return { audioBase64: audioBase64 };
   } catch (error) {
     console.error('[TTS Action] Google Cloud TTS Error:', error);
-    Sentry.captureException(error); // Log error to Sentry
     return { error: error instanceof Error ? error.message : 'TTS synthesis failed.' };
   }
 };
