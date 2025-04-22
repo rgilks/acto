@@ -71,75 +71,50 @@ body {
   animation: fadeIn 0.5s ease-out forwards;
 }
 
-/* Add styles at the end of the file */
+/* Landscape Fullscreen styles applied via JS */
 
-@media (orientation: landscape) and (hover: none) and (pointer: coarse) {
-  /* Target iOS/touch devices in landscape */
-
-  /* Reset body/html margins */
-  html,
-  body {
-    padding: 0 !important;
-    margin: 0 !important;
-    overflow: hidden !important; /* Prevent scrollbars */
-    /* Add flex centering for landscape */
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 100vh; /* Ensure body takes full height */
-  }
-
-  .story-fullscreen-container {
-    /* Revert to just filling parent */
-    /* width: 100%; */
-    /* height: 100%; */
-    /* display: flex; */
-    /* flex-direction: column; */
-    /* flex: 1; */
-    /* Keep default classes: flex-grow flex flex-col */
-  }
-
-  /* Reset styles on the direct image wrapper */
-  .story-image-wrapper {
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    background-color: black !important; /* Match fullscreen container bg */
-    /* Ensure it fills its container fully */
-    min-height: 100%;
-    aspect-ratio: auto !important; /* Override aspect ratio if needed */
-  }
-
-  /* Size the outer container, let body center it */
-  .story-outer-container {
-    padding: 0 !important;
-    border: none !important;
-    border-radius: 0 !important;
-    /* position: fixed !important; */ /* Removed */
-    /* top: 50%; */ /* Removed */
-    /* left: 50%; */ /* Removed */
-    /* transform: translate(-50%, -50%); */ /* Removed */
-    width: 100vw !important;
-    height: 100vh !important;
-    background-color: black !important;
-    /* z-index: 9998; */ /* No longer needed? */
-    display: flex !important; /* Keep flex */
-    flex-direction: column !important; /* Keep flex */
-    overflow: hidden !important;
-  }
-
-  /* Hide header/footer elements */
-  main > div.z-10 > div.text-center,
-  main > div.z-10 > footer,
-  main > div[class*="absolute top-"][class*="right-"] /* Target the top-right AuthButton */ {
-    display: none !important;
-  }
-
-  /* Optional: Hide other elements like headers/footers if necessary */
-  /* Example: */
-  /* body > header, body > footer { */
-  /*   display: none !important; */
-  /* } */
+/* Reset body/html for touch landscape fullscreen */
+body.touch-landscape-fullscreen html,
+body.touch-landscape-fullscreen {
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important; /* Prevent scrollbars */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 100vh !important; /* Ensure body takes full height */
 }
+
+/* Make story container fill viewport */
+body.touch-landscape-fullscreen .story-outer-container {
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: black !important;
+  display: flex !important; /* Keep flex */
+  flex-direction: column !important; /* Keep flex */
+  overflow: hidden !important;
+}
+
+/* Reset image wrapper styles */
+body.touch-landscape-fullscreen .story-image-wrapper {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background-color: black !important; /* Match container bg */
+  min-height: 100% !important; /* Ensure it fills its container fully */
+  aspect-ratio: auto !important; /* Override aspect ratio */
+}
+
+/* Hide header/footer elements */
+body.touch-landscape-fullscreen main > div.z-10 > div.text-center,
+body.touch-landscape-fullscreen main > div.z-10 > footer,
+body.touch-landscape-fullscreen main > div[class*="absolute top-"][class*="right-"] {
+  display: none !important;
+}
+
+/* End Landscape Fullscreen styles */
 
 @keyframes pulse-glow {
   0%,

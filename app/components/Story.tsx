@@ -624,6 +624,35 @@ const StoryStory = () => {
     setTTSVolume,
   ]);
 
+  // Effect to manage body class for touch landscape fullscreen
+  useEffect(() => {
+    const updateFullscreenClass = () => {
+      const isTouch = navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+      const isLandscape = window.matchMedia('(orientation: landscape)').matches;
+
+      if (isTouch && isLandscape) {
+        document.body.classList.add('touch-landscape-fullscreen');
+      } else {
+        document.body.classList.remove('touch-landscape-fullscreen');
+      }
+    };
+
+    // Initial check
+    updateFullscreenClass();
+
+    // Listen for orientation changes and resize (which might trigger orientation change)
+    window.addEventListener('resize', updateFullscreenClass);
+    // Use deprecated orientationchange as fallback for some devices if needed, resize is generally better
+    // window.addEventListener('orientationchange', updateFullscreenClass);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', updateFullscreenClass);
+      // window.removeEventListener('orientationchange', updateFullscreenClass);
+      document.body.classList.remove('touch-landscape-fullscreen'); // Ensure class is removed on unmount
+    };
+  }, []); // Run only once on mount
+
   const effectiveError =
     nodeError || fetchScenariosError || (rateLimitError ? { rateLimitError } : null);
 
