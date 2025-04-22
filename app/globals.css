@@ -110,7 +110,7 @@ body.touch-landscape-fullscreen .story-image-wrapper {
 /* Hide header/footer elements */
 body.touch-landscape-fullscreen main > div.z-10 > div.text-center,
 body.touch-landscape-fullscreen main > div.z-10 > footer,
-body.touch-landscape-fullscreen main > div[class*="absolute top-"][class*="right-"] {
+body.touch-landscape-fullscreen main > div[class*='absolute top-'][class*='right-'] {
   display: none !important;
 }
 
@@ -130,4 +130,24 @@ body.touch-landscape-fullscreen main > div[class*="absolute top-"][class*="right
 
 .animate-pulse-glow {
   animation: pulse-glow 2s infinite ease-in-out;
+}
+
+/* New animation for landing page */
+@keyframes landingGradientAnimation {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-landing-gradient {
+  /* Define a darker, steeper gradient for the landing page */
+  background: linear-gradient(-45deg, #0d1117 0%, #1c1d3a 25%, #312e6a 50%, #111827 75%); /* Darker colors, steeper transitions with % stops */
+  background-size: 400% 400%;
+  animation: landingGradientAnimation 25s ease infinite; /* Faster animation */
 }
