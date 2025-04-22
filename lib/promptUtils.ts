@@ -78,7 +78,7 @@ export function buildStoryPrompt(
 **Your Goal:** Write the next part of the story based on the history and summary. Provide 3 distinct choices. Create an image prompt that visually describes the new "passage" reflecting the specified styles. Update the story summary.
 
 **Instructions:**
-1.  **Continue the Story:** Write an engaging and descriptive "passage" that flows logically from the "Previous Summary" (for overall context) and the "Recent Events" (for immediate action). Maintain the specified "Story Style Hints" (Genre, Tone) in the writing.
+1.  **Continue the Story:** Write an engaging and descriptive "passage" that flows logically from the "Previous Summary" (for overall context) and the "Recent Events" (for immediate action). Maintain the specified "Story Style Hints" (Genre, Tone) in the writing. **Keep the passage concise, ideally 2-3 sentences.**
 2.  **Offer Choices:** Provide exactly 3 distinct "choices" for the player.
 3.  **Image Prompt:** Write an "imagePrompt" describing ONLY the scene detailed in the NEW "passage" above. The mood and content of the image prompt should align with the specified Genre and Tone. Do not describe elements from previous steps unless they are explicitly visible in the new passage. Crucially, the prompt must visually match the "passage" and strongly reflect the distinct characteristics of the "Visual Style": ${visualStyle ?? 'any'}.
 4.  **Update Summary:** Write a concise "updatedSummary" covering the whole story so far, including the new "passage".

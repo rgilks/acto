@@ -311,13 +311,8 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             state.lastFetchParamsForRetry = null;
           });
 
-          console.log(
-            '[Store] Reached point to save separate image. newScene.imageUrl:',
-            newScene.imageUrl
-          );
           // --- Store current image separately ---
           if (newScene.imageUrl) {
-            console.log('[Store] Saving image URL to localStorage:', newScene.imageUrl);
             localStorage.setItem('current-story-image', newScene.imageUrl);
           } else {
             console.log('[Store] No image URL found, removing item from localStorage.');
