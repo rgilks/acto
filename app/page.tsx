@@ -24,16 +24,18 @@ const Page = () => {
   const discordClasses = 'bg-[#5865F2] text-white hover:bg-[#4a56d1] focus:ring-[#5865F2]';
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 text-gray-300">
+    <main className="relative flex min-h-screen flex-col items-center text-gray-300">
       <div className="absolute top-4 right-4 md:top-6 md:right-8 z-20">
         {(isAuthenticated || isLoadingSession) && <AuthButton variant="icon-only" />}
       </div>
 
       <div className="z-10 w-full max-w-7xl flex flex-col items-center">
         <div className="text-center py-3 md:py-5 fade-in">
-          <h1 className="text-4xl md:text-5xl font-bold text-amber-100/90 mb-4">acto</h1>
+          <h1 className="text-4xl md:text-6xl font-bold mb-4 bg-gradient-to-r from-yellow-300 via-amber-400 to-orange-500 bg-clip-text text-transparent">
+            acto
+          </h1>
           <p className="text-lg p-3 text-gray-400 max-w-2xl mx-auto">
-            An AI-powered interactive storytelling experience.
+            An interactive storytelling experience.
           </p>
         </div>
 

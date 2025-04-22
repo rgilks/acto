@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { z } from 'zod';
 import { StoryChoiceSchema } from '@/lib/domain/schemas';
+import { InformationCircleIcon } from '@heroicons/react/24/outline';
 
 type Scenario = z.infer<typeof StoryChoiceSchema>;
 
@@ -19,22 +20,60 @@ const ScenarioChoiceButton: React.FC<ScenarioChoiceButtonProps> = ({
   baseClasses,
   choiceClasses,
 }) => {
+  const [showDetails, setShowDetails] = useState(false);
+
+  const handleSelectClick = () => {
+    if (!isLoading) {
+      onClick(scenario);
+    }
+  };
+
+  const handleInfoClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDetails(!showDetails);
+  };
+
   return (
-    <button
-      data-testid="scenario-choice-button"
-      onClick={() => {
-        onClick(scenario);
-      }}
-      className={`${baseClasses} ${choiceClasses} ${isLoading ? 'opacity-60 cursor-wait' : ''}`}
-      disabled={isLoading}
+    <div
+      data-testid="scenario-card"
+      onClick={handleSelectClick}
+      className={`${baseClasses} ${choiceClasses} ${isLoading ? 'opacity-60 cursor-wait' : 'cursor-pointer hover:border-cyan-400/80 hover:shadow-cyan-500/20 hover:shadow-md hover:scale-[1.01]'} relative flex flex-col p-6 rounded-xl transition-all duration-200 ease-in-out`}
     >
-      <span>{scenario.text}</span>
-      <div className="text-xs mt-1 text-amber-200/50">
-        {scenario.genre && <span>Genre: {scenario.genre}</span>}
-        {scenario.tone && <span className="ml-2">Tone: {scenario.tone}</span>}
-        {scenario.visualStyle && <span className="ml-2">Style: {scenario.visualStyle}</span>}
+      <button
+        onClick={handleInfoClick}
+        className="absolute top-3 right-3 p-1 text-gray-400 hover:text-cyan-300 transition-colors duration-150 z-10"
+        aria-label="Show details"
+        data-testid="scenario-info-button"
+      >
+        <InformationCircleIcon className="h-6 w-6" />
+      </button>
+
+      <div className="flex-grow">
+        {showDetails ? (
+          <div className="transition-all duration-300 ease-in-out animate-fade-in">
+            <div className="text-sm mt-2 text-left text-amber-200/70 pt-2">
+              {scenario.genre && (
+                <p>
+                  <strong>Genre:</strong> {scenario.genre}
+                </p>
+              )}
+              {scenario.tone && (
+                <p className="mt-1">
+                  <strong>Tone:</strong> {scenario.tone}
+                </p>
+              )}
+              {scenario.visualStyle && (
+                <p className="mt-1">
+                  <strong>Style:</strong> {scenario.visualStyle}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="text-lg text-left mr-6">{scenario.text}</p>
+        )}
       </div>
-    </button>
+    </div>
   );
 };
 

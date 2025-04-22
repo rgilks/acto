@@ -57,7 +57,7 @@ const ScenarioSelector: React.FC<ScenarioSelectorProps> = ({
     );
   };
 
-  return <div className="flex-grow flex flex-col w-full items-center">{renderContent()}</div>;
+  return <div className="flex-grow flex flex-col w-full items-center p-4">{renderContent()}</div>;
 };
 
 export default ScenarioSelector;

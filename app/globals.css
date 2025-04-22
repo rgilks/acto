@@ -4,18 +4,25 @@
 
 :root {
   --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 10, 15, 30;
-  --background-end-rgb: 20, 30, 60;
+  --color1: #0d1117; /* Very Dark Gray/Blue */
+  --color2: #171b25; /* Slightly Lighter Dark Blue/Gray */
+  --color3: #111827; /* Dark Gray */
+  --color4: #1a1f2c; /* Another Dark Blue/Gray */
+}
+
+@keyframes gradientAnimation {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-    to bottom right,
-    rgba(var(--background-start-rgb), 1),
-    rgba(var(--background-end-rgb), 1)
-  );
+  background: linear-gradient(-45deg, var(--color1), var(--color2), var(--color3), var(--color4));
+  background-size: 400% 400%;
+  animation: gradientAnimation 40s ease infinite; /* Slower animation */
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 /* Custom scrollbar */
