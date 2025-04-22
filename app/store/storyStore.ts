@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { persist, createJSONStorage, type StorageValue } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { type StoryScene, StoryChoiceSchema } from '@/lib/domain/schemas';
 import { generateStorySceneAction } from '@/app/actions/generateStoryScene';
 import { generateScenariosAction } from '@/app/actions/generateScenarios';
@@ -9,97 +9,11 @@ import { z } from 'zod';
 import JSZip from 'jszip';
 import { type RateLimitError } from '@/lib/types';
 
-// --- Custom Storage with Pruning ---
-
-const MAX_PRUNE_ATTEMPTS = 10;
-
-const createPruningStorage = (storage = localStorage, maxAttempts = MAX_PRUNE_ATTEMPTS) => ({
-  getItem: (name: string): string | null => {
-    return storage.getItem(name);
-  },
-  setItem: (name: string, value: string): void => {
-    let attempts = 0;
-    let currentValue = value;
-
-    while (attempts < maxAttempts) {
-      try {
-        storage.setItem(name, currentValue);
-        // console.log('[LocalStorage] Successfully saved state.'); // Optional: uncomment for success logging
-        return;
-      } catch (e: unknown) {
-        if (
-          e instanceof DOMException &&
-          (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') // Firefox
-        ) {
-          attempts++;
-          console.warn(
-            `[LocalStorage] Quota exceeded (attempt ${attempts}). Pruning oldest history item.`
-          );
-
-          // --- Log Storage Usage ---
-          try {
-            const itemToSaveSize = new Blob([currentValue]).size;
-            let currentTotalUsage = 0;
-            for (let i = 0; i < storage.length; i++) {
-              const key = storage.key(i);
-              if (key) {
-                const item = storage.getItem(key);
-                if (item) {
-                  currentTotalUsage += new Blob([item]).size;
-                }
-              }
-            }
-            console.log(
-              `[LocalStorage] Item size trying to save (${name}): ~${(itemToSaveSize / 1024 / 1024).toFixed(2)} MB. Estimated total usage: ~${(currentTotalUsage / 1024 / 1024).toFixed(2)} MB. Typical quota is 5-10MB.`
-            );
-          } catch (logError) {
-            console.error('[LocalStorage] Error estimating storage usage:', logError);
-          }
-          // --- End Log Storage Usage ---
-
-          try {
-            const stateWithValue = JSON.parse(currentValue) as StorageValue<AdventureState>;
-            const state = stateWithValue.state;
-
-            if (state.storyHistory.length > 0) {
-              state.storyHistory.shift();
-
-              currentValue = JSON.stringify(stateWithValue);
-              console.log(
-                `Pruned state. New history length: ${state.storyHistory.length}. Retrying save.`
-              );
-            } else {
-              console.error(
-                'Quota exceeded, but no story history found or history is empty. Cannot prune further. Giving up.'
-              );
-
-              return;
-            }
-          } catch (parseError) {
-            console.error('Error parsing state during pruning:', parseError);
-
-            return;
-          }
-        } else {
-          console.error('Error saving to localStorage (not quota related):', e);
-        }
-      }
-    }
-    console.error(`Failed to save state to localStorage after ${maxAttempts} pruning attempts.`);
-  },
-  removeItem: (name: string): void => {
-    storage.removeItem(name);
-  },
-});
-
-// --- End Custom Storage ---
-
 // Simplified History Item
 export interface StoryHistoryItem {
   passage: string;
   choiceText?: string | undefined;
   summary?: string | undefined;
-  imageUrl?: string | null | undefined;
   prompt?: string | undefined;
   imagePrompt?: string | undefined;
   choices?: z.infer<typeof StoryChoiceSchema>[] | undefined;
@@ -134,8 +48,6 @@ interface PromptLogEntry {
   choices: string[];
   summary: string;
   choiceMade: string;
-  imageFile?: string | undefined; // Explicitly allow undefined
-  audioFile?: string | undefined; // Explicitly allow undefined
 }
 
 // Simplified State
@@ -383,7 +295,6 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             {
               passage: newScene.passage,
               summary: newScene.updatedSummary,
-              imageUrl: newScene.imageUrl,
               prompt: fullPromptForLog,
               imagePrompt: newScene.imagePrompt,
               choices: newScene.choices,
@@ -399,6 +310,34 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             state.loginRequired = false;
             state.lastFetchParamsForRetry = null;
           });
+
+          console.log(
+            '[Store] Reached point to save separate image. newScene.imageUrl:',
+            newScene.imageUrl
+          );
+          // --- Store current image separately ---
+          if (newScene.imageUrl) {
+            console.log('[Store] Saving image URL to localStorage:', newScene.imageUrl);
+            localStorage.setItem('current-story-image', newScene.imageUrl);
+          } else {
+            console.log('[Store] No image URL found, removing item from localStorage.');
+            localStorage.removeItem('current-story-image');
+          }
+          // --- End store current image ---
+
+          // --- Store current audio separately ---
+          console.log(
+            '[Store] Reached point to save separate audio. newScene.audioBase64 exists:',
+            !!newScene.audioBase64
+          );
+          if (newScene.audioBase64) {
+            console.log('[Store] Saving audio Base64 to localStorage.');
+            localStorage.setItem('current-story-audio', newScene.audioBase64);
+          } else {
+            console.log('[Store] No audio Base64 found, removing item from localStorage.');
+            localStorage.removeItem('current-story-audio');
+          }
+          // --- End store current audio ---
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : 'Failed to fetch adventure scene.';
@@ -526,10 +465,6 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             choiceMadeText = storyHistory[i - 1].choiceText ?? '(Choice text missing)';
           }
 
-          // Determine media file references
-          const imageFileRef = item.imageUrl ? `media/image_${i}.png` : undefined; // Assuming png for simplicity
-          // const audioFileRef = item.audioBase64 ? `media/audio_${i}.mp3` : undefined; // Removed audio ref
-
           // Use the specific interface directly now
           const logEntry: PromptLogEntry = {
             step: i,
@@ -541,23 +476,12 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
             choiceMade: choiceMadeText,
           };
 
-          // Conditionally add media file references
-          if (imageFileRef) {
-            logEntry.imageFile = imageFileRef;
-          }
-          // if (audioFileRef) { // Removed audio ref logic
-          //   logEntry.audioFile = audioFileRef;
-          // }
-
           // Push the typed object
           promptLog.push(logEntry);
 
           fullHistoryForJson.push({
             ...item,
             // Prepare item for story.json (removing unnecessary fields for this file)
-            imageFile: item.imageUrl ? `media/image_${i}.png` : undefined,
-            // audioFile: item.audioBase64 ? `media/audio_${i}.mp3` : undefined, // Removed audio ref
-            // audioBase64: undefined, // No longer exists
             prompt: undefined,
             imagePrompt: undefined,
             choices: undefined,
@@ -569,7 +493,6 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           fullHistoryForJson.push({
             passage: currentNode.passage,
             summary: currentNode.updatedSummary,
-            imageUrl: currentNode.imageUrl,
             // Omit prompt, choiceText, audio etc. for the final node state in story.json
           });
         }
@@ -597,43 +520,60 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
           return;
         }
 
-        // 2. Fetch images and add them to the zip (Use original storyHistory for image URLs)
-        const imagePromises = storyHistory.map(async (item, index) => {
-          if (item.imageUrl) {
+        // --- Modified: Save only the CURRENT image ---
+        let currentImagePromise: Promise<void> | null = null;
+        if (currentNode?.imageUrl) {
+          console.log('[Save Story] Attempting to save current image...');
+          currentImagePromise = (async () => {
             try {
-              const response = await fetch(item.imageUrl);
+              // Current node is guaranteed by outer check, imageUrl check needed for fetch
+              if (!currentNode.imageUrl) {
+                throw new Error('Image URL became undefined unexpectedly.');
+              }
+              const response = await fetch(currentNode.imageUrl);
               if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
               const blob = await response.blob();
-              // Basic file extension check (can be improved)
               const extension = blob.type.split('/')[1] || 'png';
-              mediaFolder.file(`image_${index}.${extension}`, blob);
-              console.log(`[Save Story] Added image_${index}.${extension} to zip.`);
+              mediaFolder.file(`current_image.${extension}`, blob);
+              console.log(`[Save Story] Added current_image.${extension} to zip.`);
             } catch (error) {
               console.error(
-                `[Save Story] Failed to fetch or add image ${index} (${item.imageUrl}):`,
+                `[Save Story] Failed to fetch or add current image (${currentNode.imageUrl}):`,
                 error
               );
             }
-          }
-        });
+          })();
+        } else {
+          console.log('[Save Story] No current node or image URL to save.');
+        }
+        // --- End Modified Section ---
 
-        // 3. Decode base64 audio and add it to the zip (Use original storyHistory for audio data) // REMOVED
-        // const audioPromises = storyHistory.map(async (item, index) => { // REMOVED
-        //   if (item.audioBase64) { // REMOVED
-        //     try { // REMOVED
-        //       // Assuming audio is MP3 format as stored // REMOVED
-        //       const fetchResponse = await fetch(`data:audio/mpeg;base64,${item.audioBase64}`); // REMOVED
-        //       const blob = await fetchResponse.blob(); // REMOVED
-        //       mediaFolder.file(`audio_${index}.mp3`, blob); // REMOVED
-        //       console.log(`[Save Story] Added audio_${index}.mp3 to zip.`); // REMOVED
-        //     } catch (error) { // REMOVED
-        //       console.error(`[Save Story] Failed to decode or add audio ${index}:`, error); // REMOVED
-        //     } // REMOVED
-        //   } // REMOVED
-        // }); // REMOVED
+        // --- Save only the CURRENT audio ---
+        let currentAudioPromise: Promise<void> | null = null;
+        if (currentNode?.audioBase64) {
+          console.log('[Save Story] Attempting to save current audio...');
+          currentAudioPromise = (async () => {
+            try {
+              // Decode Base64 and add as MP3
+              const fetchResponse = await fetch(
+                `data:audio/mpeg;base64,${currentNode.audioBase64}`
+              );
+              const blob = await fetchResponse.blob();
+              mediaFolder.file(`current_audio.mp3`, blob);
+              console.log(`[Save Story] Added current_audio.mp3 to zip.`);
+            } catch (error) {
+              console.error(`[Save Story] Failed to decode or add current audio:`, error);
+            }
+          })();
+        } else {
+          console.log('[Save Story] No current node or audio data to save.');
+        }
 
-        // Wait for all images and audio files to be processed
-        await Promise.all([...imagePromises]); // Removed audioPromises
+        // Wait for current image and audio (if any) to be processed
+        const mediaPromises = [currentImagePromise, currentAudioPromise].filter(Boolean);
+        if (mediaPromises.length > 0) {
+          await Promise.all(mediaPromises);
+        }
 
         // 4. Generate the zip file and trigger download
         try {
@@ -739,13 +679,84 @@ export const useAdventureStore = create<AdventureState & AdventureActions>()(
         void fetchStoryScene();
       },
       resetAdventureState: () => {
-        // Assuming this should just call the main reset function
         get().resetAdventure();
       },
     })),
     {
       name: 'adventure-storage',
-      storage: createJSONStorage(() => createPruningStorage(localStorage)),
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => {
+        return {
+          ...state,
+          currentNode: state.currentNode
+            ? { ...state.currentNode, imageUrl: undefined, audioBase64: undefined }
+            : null,
+          storyHistory: state.storyHistory.map((item) => ({
+            ...item,
+          })),
+        };
+      },
+      onRehydrateStorage: (_state) => {
+        console.log('[Store] Hydration starts');
+        return (hydratedState, error) => {
+          if (error) {
+            console.error('[Store] Hydration failed:', error);
+            return;
+          }
+          if (!hydratedState) {
+            console.warn('[Store] Hydration finished but resulted in null state.');
+            return;
+          }
+          try {
+            const storedImageUrl = localStorage.getItem('current-story-image');
+            const storedAudioBase64 = localStorage.getItem('current-story-audio');
+
+            let updated = false;
+            const tempCurrentNode = hydratedState.currentNode
+              ? { ...hydratedState.currentNode }
+              : null;
+
+            if (storedImageUrl) {
+              if (tempCurrentNode) {
+                console.log('[Store] Restoring current image URL from separate storage.');
+                tempCurrentNode.imageUrl = storedImageUrl;
+                updated = true;
+              } else if (hydratedState.storyHistory.length > 0) {
+                // Attempt to restore to last history item if currentNode is somehow missing
+                const lastItemIndex = hydratedState.storyHistory.length - 1;
+                const lastItem = hydratedState.storyHistory[lastItemIndex];
+
+                console.warn(
+                  '[Store] currentNode missing on hydration, attempting to restore image to last history item.'
+                );
+                // Create a new object for the last history item
+                hydratedState.storyHistory[lastItemIndex] = {
+                  ...lastItem,
+                };
+              }
+            }
+
+            if (storedAudioBase64) {
+              if (tempCurrentNode) {
+                console.log('[Store] Restoring current audio Base64 from separate storage.');
+                tempCurrentNode.audioBase64 = storedAudioBase64;
+                updated = true;
+              } else if (hydratedState.storyHistory.length > 0) {
+                // Fallback for audio? Unlikely needed if image is the primary visual element
+                console.warn('[Store] currentNode missing on hydration, cannot restore audio.');
+              }
+            }
+
+            // If any updates were made, assign the new object to trigger change detection
+            if (updated && tempCurrentNode) {
+              hydratedState.currentNode = tempCurrentNode;
+            }
+          } catch (e) {
+            console.error('[Store] Error restoring separate image/audio:', e);
+          }
+          console.log('[Store] Hydration finished');
+        };
+      },
     }
   )
 );

@@ -237,9 +237,6 @@ export const generateStorySceneAction = async (
       audioBase64: audioResult.audioBase64,
       updatedSummary: updatedSummary,
       generationPrompt: prompt,
-      // TODO: Consider adding specific imageError/ttsError fields if UI needs detailed feedback
-      // imageError: imageResult.error,
-      // ttsError: audioResult.error,
     };
 
     console.log('[Story Action] Successfully generated scene.');
