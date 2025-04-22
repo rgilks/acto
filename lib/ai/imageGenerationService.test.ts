@@ -70,27 +70,49 @@ describe('generateImageWithGemini', () => {
   });
 
   it('should construct the prompt correctly with style details', async () => {
-    const visualStyle = 'photorealistic';
+    const visualStyle = 'photorealistic'; // Non-illustrative example
     const genre = 'sci-fi';
     const tone = 'epic';
+    const expectedPrompt = `${visualStyle}: Scene Description: ${imagePrompt}. Genre: ${genre}. Tone: ${tone}.`;
 
     await generateImageWithGemini(imagePrompt, visualStyle, genre, tone);
 
     expect(mockGenerateImages).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: `Scene Description: ${imagePrompt}. Style: ${visualStyle}. Genre: ${genre}. Tone: ${tone}.`,
+        prompt: expectedPrompt,
+      })
+    );
+
+    // Test illustrative style
+    const illustrativeStyle = 'watercolor';
+    const expectedIllustrativePrompt = `${illustrativeStyle}: ${imagePrompt}. Genre: ${genre}. Tone: ${tone}. illustration, artwork. avoid photorealism, photograph, photo, real life.`;
+    await generateImageWithGemini(imagePrompt, illustrativeStyle, genre, tone);
+    expect(mockGenerateImages).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expectedIllustrativePrompt,
       })
     );
   });
 
   it('should construct the prompt correctly with only some style details', async () => {
-    const visualStyle = 'watercolor';
+    const visualStyle = 'low poly'; // Illustrative example
+    const expectedPrompt = `${visualStyle}: ${imagePrompt}.   illustration, artwork. avoid photorealism, photograph, photo, real life.`;
 
     await generateImageWithGemini(imagePrompt, visualStyle, null, null);
 
     expect(mockGenerateImages).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: `Scene Description: ${imagePrompt}. Style: ${visualStyle}.`,
+        prompt: expectedPrompt,
+      })
+    );
+
+    // Test non-illustrative
+    const nonIllustrativeStyle = 'cinematic';
+    const expectedNonIllustrativePrompt = `${nonIllustrativeStyle}: Scene Description: ${imagePrompt}. .`; // Note double dot
+    await generateImageWithGemini(imagePrompt, nonIllustrativeStyle, null, null);
+    expect(mockGenerateImages).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expectedNonIllustrativePrompt,
       })
     );
   });

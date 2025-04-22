@@ -25,15 +25,47 @@ export async function generateImageWithGemini(
     };
   }
 
-  const styleDetails = [
-    visualStyle ? `Style: ${visualStyle}` : null,
-    genre ? `Genre: ${genre}` : null,
-    tone ? `Tone: ${tone}` : null,
-  ]
-    .filter(Boolean)
-    .join('. ');
+  const illustrativeKeywords = [
+    'painting',
+    'sketch',
+    'anime',
+    'cartoon',
+    'illustration',
+    'pixel art',
+    'watercolor',
+    'comic',
+    'drawing',
+    'graphic',
+    'line art',
+    'cel shaded',
+    'vector',
+    'art nouveau',
+    'art deco',
+    'impressionist',
+    'cubist',
+    'surrealist',
+    'abstract',
+    'charcoal',
+    'ink',
+    'low poly',
+    'claymation',
+    'manga',
+  ];
 
-  const finalImagePrompt = `Scene Description: ${imagePrompt}. ${styleDetails}.`;
+  const lowerVisualStyle = visualStyle?.toLowerCase() || '';
+  const isIllustrative = illustrativeKeywords.some((keyword) => lowerVisualStyle.includes(keyword));
+
+  let finalImagePrompt = '';
+
+  if (isIllustrative && visualStyle) {
+    finalImagePrompt = `${visualStyle}: ${imagePrompt}. ${genre ? `Genre: ${genre}.` : ''} ${tone ? `Tone: ${tone}.` : ''} illustration, artwork. avoid photorealism, photograph, photo, real life.`;
+  } else {
+    const stylePrefix = visualStyle ? `${visualStyle}: ` : '';
+    const details = [genre ? `Genre: ${genre}` : null, tone ? `Tone: ${tone}` : null]
+      .filter(Boolean)
+      .join('. ');
+    finalImagePrompt = `${stylePrefix}Scene Description: ${imagePrompt}. ${details}.`;
+  }
 
   console.log('[Image Service] Sending final prompt to Imagen API:', finalImagePrompt);
 
