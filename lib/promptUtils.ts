@@ -14,7 +14,7 @@ export function buildStoryPrompt(
   visualStyle: string | undefined = undefined
 ): string {
   const history = context?.history ?? [];
-  const maxHistoryItems = 5;
+  const maxHistoryItems = 20;
 
   const latestSummary = history.length > 0 ? history[history.length - 1]?.summary : null;
 

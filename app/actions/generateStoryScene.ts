@@ -66,6 +66,7 @@ const generateAndValidateStoryContent = async (
 ): Promise<{ data?: ValidatedStoryContent; error?: string }> => {
   const { storyContext, initialScenarioText, genre, tone, visualStyle } = params;
   const prompt = buildStoryPrompt(storyContext, initialScenarioText, genre, tone, visualStyle);
+  console.log('[Story Action] Generated Prompt:', prompt);
   const activeModel = getActiveModel();
 
   // Define specific overrides for node generation if needed, or leave empty for defaults
