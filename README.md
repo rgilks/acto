@@ -261,7 +261,7 @@ npm run nuke
 
 - **Co-location**: Test files (`*.test.ts`, `*.test.tsx`) live alongside the source files they test.
 - **Unit/Integration**: Vitest and React Testing Library (`npm test`) test components and utility functions.
-- **End-to-End**: Playwright (`npm run test:e2e`) checks full user flows through the story story.
+- **End-to-End**: Playwright (`npm run test:e2e`) checks full user flows through the story.
   - See E2E Authentication Setup below if testing authenticated features.
 - **Git Hooks**: Husky and lint-staged automatically run checks:
   - **Pre-commit**: Formats staged files (`prettier`) and runs related Vitest tests (`test:quick`).
