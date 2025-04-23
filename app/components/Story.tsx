@@ -81,7 +81,6 @@ const StoryStory = () => {
     fetchScenariosError,
     fetchScenarios,
     triggerReset,
-    retryLastFetch,
     stopSpeaking: stopTTS,
     lastFetchParamsForRetry,
     rateLimitError,
@@ -693,8 +692,10 @@ const StoryStory = () => {
           again?
         </p>
         <button
-          onClick={retryLastFetch}
-          disabled={!lastFetchParamsForRetry} // Disable if params somehow got cleared
+          onClick={() => {
+            window.location.reload();
+          }}
+          disabled={!lastFetchParamsForRetry}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ArrowPathIcon className="h-5 w-5 mr-2" />
