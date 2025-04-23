@@ -940,7 +940,7 @@ const StoryStory = () => {
                 <div
                   className={`
                     absolute bottom-0 left-0 right-0 p-2 pt-10 sm:p-3 sm:pt-12 md:p-4 md:pt-16 z-10
-                    bg-gradient-to-t from-black/80 via-black/60 to-transparent backdrop-blur-sm
+                    bg-gradient-to-t from-black/80 via-black/60 to-transparent
                     transition-opacity ease-in-out [transition-duration:2000ms]
                     ${showChoices ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
                   `}
@@ -952,7 +952,7 @@ const StoryStory = () => {
                       const isLoadingChoice = isNodeLoading && isClicked;
                       const isFocused = index === focusedChoiceIndex;
 
-                      let currentChoiceClasses = `${buttonBaseClasses} ${choiceButtonClasses}`;
+                      let currentChoiceClasses = `${buttonBaseClasses} ${choiceButtonClasses} backdrop-blur-sm`;
                       if (isDisabled && !isLoadingChoice) {
                         currentChoiceClasses += ' opacity-50 cursor-not-allowed';
                       }
