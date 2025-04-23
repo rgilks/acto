@@ -2,7 +2,10 @@ import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 
 export type ModelProvider = 'google';
-export type ModelName = 'gemini-2.0-flash' | 'gemini-2.0-flash-lite' | 'gemini-2.5-flash-preview-04-17';
+export type ModelName =
+  | 'gemini-2.0-flash'
+  | 'gemini-2.0-flash-lite'
+  | 'gemini-2.5-flash-preview-04-17';
 
 export interface ModelConfig {
   provider: ModelProvider;
