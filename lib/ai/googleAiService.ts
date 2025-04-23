@@ -12,6 +12,7 @@ export async function callAIForStory(
   configOverrides?: AIConfigOverrides
 ): Promise<string> {
   console.log('[AI Service] Calling AI...');
+  console.log(`[AI Service] Using AI model: ${modelConfig.name} (${modelConfig.displayName})`);
 
   try {
     const genAI: GoogleGenAI = getGoogleAIClient();
