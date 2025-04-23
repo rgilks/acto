@@ -2,7 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 
 export type ModelProvider = 'google';
-export type ModelName = 'gemini-2.0-flash' | 'gemini-2.0-flash-lite';
+export type ModelName = 'gemini-2.0-flash' | 'gemini-2.0-flash-lite' | 'gemini-2.5-flash-preview-04-17';
 
 export interface ModelConfig {
   provider: ModelProvider;
@@ -22,6 +22,12 @@ export const MODELS: Record<ModelName, ModelConfig> = {
     provider: 'google',
     name: 'gemini-2.0-flash',
     displayName: 'Gemini 2.0 Flash',
+    maxTokens: 500,
+  },
+  'gemini-2.5-flash-preview-04-17': {
+    provider: 'google',
+    name: 'gemini-2.5-flash-preview-04-17',
+    displayName: 'Gemini 2.5 Flash',
     maxTokens: 500,
   },
 };
@@ -79,5 +85,5 @@ export const getGoogleAIClient = (): GoogleGenAI => {
 };
 
 export const getActiveModel = (): ModelConfig => {
-  return MODELS['gemini-2.0-flash'];
+  return MODELS['gemini-2.5-flash-preview-04-17'];
 };
