@@ -1,11 +1,12 @@
 {
   "metadata": {
     "title": "Crypt of the Ember King",
-    "description": "400-passage science-fantasy dungeon crawl built with the Branch-and-Select Adventure Playbook.",
+    "description": "A science-fantasy dungeon crawl.",
     "totalPassages": 244,
     "winPathTarget": 400,
-    "styleGuideRef": "Branch‑and‑Select Adventure Design Playbook.md#21"
+    "styleGuideRef": "Branch-and-Select Adventure Design Playbook.md#21"
   },
+  "introductionText": "They call you the Torchbearer. The last ember of a dying order, carrying the weight of a forgotten oath. Deep beneath the scarred plains, where forgotten stars gleam in obsidian vaults, lies the Crypt of the Ember King. Not a tomb, but a prison, forged in an age where science and sorcery intertwined. Within its depths, the King - a being of star-fire and ancient malice - slumbers fitfully, his prison weakening. Strange energies now leak into the upper world, twisting the very fabric of reality. The Molten Crown sigil branded onto your torch is both key and burden. You must descend alone into the labyrinth of humming conduits and crumbling catacombs, overcome the crypt's automated defenses and spectral guardians, and reach the King's final chamber. Reinforce the seals, contain the inferno. The flickering light of your torch is the only hope against the encroaching dark. Fail, and the age of ash begins.",
   "flags": {
     "MAP_FRAGMENT": {
       "description": "A fragment of a map showing the Outer Halls.",

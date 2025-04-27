@@ -67,6 +67,7 @@ const EndingBucketsSchema = z.record(z.string(), z.array(z.string()));
 // The main schema for the entire adventure JSON file
 const AdventureSchema = z.object({
   metadata: MetadataSchema,
+  introductionText: z.string(),
   flags: FlagsSchema,
   nodes: NodesSchema,
   endingBuckets: EndingBucketsSchema,
