@@ -18,7 +18,8 @@
     "test:quick": "vitest related --run --passWithNoTests",
     "nuke": "rm -rf node_modules package-lock.json .next .next-validation",
     "test:e2e": "npx playwright test --reporter=list",
-    "init:dev": "npx husky install && npx playwright install"
+    "init:dev": "npx husky install && npx playwright install",
+    "validate:adventure": "npx tsc -p tsconfig.validate.json && node dist_validate/validate_adventure.js"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

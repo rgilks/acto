@@ -39,6 +39,10 @@
     "sourceRoot": "/",
     "jsx": "preserve"
   },
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  },
   "include": [
     "next-env.d.ts",
     "**/*.ts",

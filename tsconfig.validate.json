@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "./dist_validate"
+  },
+  "include": ["docs/cotek_schema.ts", "docs/validate_adventure.ts"],
+  "exclude": ["node_modules", "app", ".next", ".next-validation"]
+}

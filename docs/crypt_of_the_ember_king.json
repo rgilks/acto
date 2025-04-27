@@ -1,0 +1,2902 @@
+{
+  "metadata": {
+    "title": "Crypt of the Ember King",
+    "description": "400-passage science-fantasy dungeon crawl built with the Branch-and-Select Adventure Playbook.",
+    "totalPassages": 244,
+    "winPathTarget": 400,
+    "styleGuideRef": "Branch‑and‑Select Adventure Design Playbook.md#21"
+  },
+  "flags": {
+    "MAP_FRAGMENT": {
+      "description": "A fragment of a map showing the Outer Halls.",
+      "obtained": "§36 mural",
+      "used": "unlock Hub A (§82)"
+    },
+    "FIRE_RUNE": {
+      "description": "A rune pulsing with intense heat.",
+      "obtained": "§128 brazier puzzle",
+      "used": "prerequisite Hub B (§203)"
+    },
+    "CHAIN_KEY": {
+      "description": "A heavy key bound in spectral chains.",
+      "obtained": "§154 chained spirit",
+      "used": "prerequisite Hub B (§203)"
+    },
+    "BLAZING_SWORD": {
+      "description": "An optional sword humming with fire.",
+      "optional": true,
+      "obtained": "§225 forge alcove",
+      "used": "reduces peril text in §§235-240"
+    },
+    "COIN_OATH": {
+      "description": "A tarnished sigil-coin bearing the Torchbearer oath.",
+      "optional": true,
+      "type": "lore collectible",
+      "obtained": "§3 rubble search",
+      "used": "May buy favour with spirits (flavor)"
+    },
+    "MINOR_ITEM_1": {
+      "description": "A small, dense, featureless metal cylinder found in a dusty side room in Act 1.",
+      "obtained": "§44 Small room",
+      "used": "Can be offered to small automaton (§170)",
+      "optional": true,
+      "type": "lore"
+    },
+    "LORE_HINT_1": {
+      "description": "A cryptic marking found in a dead end.",
+      "obtained": "§48 Side passage",
+      "used": "Potential clue for later puzzle/interaction",
+      "optional": true,
+      "type": "lore"
+    },
+    "SAW_BRIDGE": {
+      "description": "Player saw the bridge in the lava cavern from the observation room.",
+      "obtained": "§69 Observation Room",
+      "used": "Possible awareness/dialogue trigger later",
+      "optional": true,
+      "type": "lore"
+    },
+    "MINOR_ITEM_2": {
+      "description": "A heavy, intricately machined, untarnished metal gear found in the Act 1 barracks.",
+      "obtained": "§70 Barracks",
+      "used": "Can be offered to the large smith automaton (§178B)",
+      "optional": true,
+      "type": "utility"
+    },
+    "LORE_HINT_2": {
+      "description": "A spiral-flame symbol scratched near a collapse.",
+      "obtained": "§131 Dead end corridor",
+      "used": "Possible clue or flavor.",
+      "optional": true,
+      "type": "lore"
+    },
+    "OBSIDIAN_SHARD": {
+      "description": "A small, smooth obsidian shard, strangely warm to the touch.",
+      "obtained": "§151 Pool in damp tunnel",
+      "used": "TBD - Possible puzzle component?",
+      "optional": true,
+      "type": "utility"
+    },
+    "TARNISHED_GEAR": {
+      "description": "A small, tarnished gear found in debris.",
+      "obtained": "§182 Debris pile",
+      "used": "TBD - Possible puzzle piece?",
+      "optional": true,
+      "type": "utility"
+    },
+    "CRYSTAL_LENS": {
+      "description": "A crystalline lens that reveals faint energy patterns.",
+      "obtained": "§186 Workshop bench",
+      "used": "TBD - Potential puzzle/vision use?",
+      "optional": true,
+      "type": "utility"
+    }
+  },
+  "nodes": {
+    "1": {
+      "zone": "Intro Antechamber",
+      "image": "IMG_001",
+      "audio": "AUD_001",
+      "altText": "Low stone vault, flicker of a dying torch at your feet.",
+      "prose": "You jolt awake on blistered flagstones. The torch at your side spits sparks, its stem branded with a molten crown. Dawnlight won't reach these depths; you must seal the Ember King alone.",
+      "choices": [
+        { "text": "Snatch the torch and head north", "target": "2" },
+        { "text": "Search the chamber's rubble", "target": "3" },
+        { "text": "Steady yourself, listening", "target": "4" }
+      ]
+    },
+    "2": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_002",
+      "audio": "AUD_002",
+      "altText": "A hallway forks left and right, obsidian bricks veined with copper conduits. Lava glows from the left.",
+      "prose": "Heat rolls from the left fork; faint wind whistles from the right. Both passages are lined with obsidian bricks veined by copper conduits.",
+      "choices": [
+        { "text": "Take the heat-lit corridor", "target": "5" },
+        { "text": "Follow the faint wind", "target": "6" },
+        { "text": "Retreat and inspect the vault", "target": "1" }
+      ]
+    },
+    "3": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_003",
+      "audio": "AUD_003",
+      "altText": "A close up of charred debris, revealing a tarnished sigil-coin.",
+      "prose": "You sift charred debris and find a tarnished sigil-coin—the Torchbearer oath inscribed. It might buy favour with spirits.",
+      "flagsGained": ["COIN_OATH"],
+      "choices": [{ "text": "Pocket it and press north", "target": "2" }]
+    },
+    "4": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_004",
+      "audio": "AUD_004",
+      "altText": "Looking down the dark hallway from the starting vault.",
+      "prose": "A distant clang echoes—a gate slamming far below. Time slips away.",
+      "choices": [{ "text": "Hurry north", "target": "2" }]
+    },
+    "5": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_005",
+      "audio": "AUD_005",
+      "altText": "A corridor shimmering with heat haze, scorched metal plates line the walls.",
+      "prose": "The air thickens, heavy with heat. Ahead, the corridor glows orange. Molten metal weeps from cracks in the obsidian bricks. The copper conduits pulse dimly.",
+      "choices": [
+        { "text": "Press onward into the heat", "target": "7" },
+        { "text": "Examine the pulsing conduits", "target": "8" },
+        { "text": "Return to the fork", "target": "2" }
+      ]
+    },
+    "6": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_006",
+      "audio": "AUD_006",
+      "altText": "A dusty corridor with a faint breeze stirring loose debris. A side passage is blocked by rubble.",
+      "prose": "Cooler air whispers here. Dust motes dance in your torchlight. A side passage to the east is choked with rubble, but the main corridor continues north.",
+      "choices": [
+        { "text": "Continue north down the main corridor", "target": "9" },
+        { "text": "Check the rubble-choked passage", "target": "10" },
+        { "text": "Return to the fork", "target": "2" }
+      ]
+    },
+    "7": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_007",
+      "audio": "AUD_007",
+      "altText": "Floor plates buckle upwards from intense heat. Steam vents hiss nearby.",
+      "prose": "The floor plates buckle underfoot, radiating intense heat. Hissing steam vents erupt periodically from wall grates. Progress is slow and treacherous.",
+      "choices": [
+        { "text": "Carefully advance past the vents", "target": "11" },
+        { "text": "Try prying open a wall grate", "target": "12" },
+        { "text": "Retreat from the heated passage", "target": "5" }
+      ]
+    },
+    "8": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_008",
+      "audio": "AUD_008",
+      "altText": "Close up on a copper conduit embedded in obsidian, faint light pulses within.",
+      "prose": "You touch the conduit. It's surprisingly cool, humming with faint energy. The copper seems to absorb the ambient heat. A section looks loose.",
+      "choices": [
+        { "text": "Pry at the loose conduit section", "target": "13" },
+        { "text": "Leave it and press onward", "target": "7" }
+      ]
+    },
+    "9": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_009",
+      "audio": "AUD_009",
+      "altText": "A four-way intersection. Passages lead north, south, east (hot), and west (scratching). Another passage leads southeast.",
+      "prose": "You reach a crossroads. The passage continues north, deeper into the gloom. To the west, a faint scratching echoes. East leads back towards the heat. Another passage branches off to the southeast.",
+      "choices": [
+        { "text": "Head north, deeper in", "target": "14" },
+        { "text": "Investigate the western scratching", "target": "15" },
+        { "text": "Explore the southeast passage", "target": "63" },
+        { "text": "Go east towards the heat", "target": "5" },
+        { "text": "Retreat south", "target": "6" }
+      ]
+    },
+    "10": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_010",
+      "audio": "AUD_010",
+      "altText": "A pile of collapsed obsidian bricks blocking a narrow passage. A small gap shows darkness beyond.",
+      "prose": "The rubble consists of heavy obsidian bricks, fused together by intense heat long ago. Shifting them seems impossible, but a tiny gap remains near the floor.",
+      "choices": [
+        { "text": "Peer through the small gap", "target": "16" },
+        { "text": "Give up and return to the corridor", "target": "6" }
+      ]
+    },
+    "11": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_011",
+      "audio": "AUD_011",
+      "altText": "A narrow section of corridor past hissing steam vents. The floor is slick with condensation.",
+      "prose": "Timing your moves between bursts of scalding steam, you slip past the vents. The corridor ahead seems slightly cooler, turning sharply right.",
+      "choices": [{ "text": "Follow the corridor right", "target": "17" }]
+    },
+    "12": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_012",
+      "audio": "AUD_012",
+      "altText": "A corroded metal grate, partially pried open, revealing darkness within. Steam escapes.",
+      "prose": "The metal grate groans as you pry at it. It hinges open slightly, revealing utter darkness and a rush of superheated steam. It's too hot to proceed.",
+      "choices": [
+        { "text": "Let the grate fall shut and advance", "target": "11" },
+        { "text": "Retreat", "target": "5" }
+      ]
+    },
+    "13": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_013",
+      "audio": "AUD_013",
+      "altText": "A hand pulls a loose copper conduit, revealing sparking wires beneath.",
+      "prose": "The conduit comes loose with a shower of blue sparks! Wires sizzle beneath. You snatched your hand back just in time. Probably best not to do that again.",
+      "choices": [{ "text": "Continue onward past the conduits", "target": "7" }]
+    },
+    "14": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_014",
+      "audio": "AUD_014",
+      "altText": "A long, straight corridor with faint wall patterns stretches north. A narrow passage branches right.",
+      "prose": "This passage runs straight and true northward, deeper into the complex. Faint geometric patterns, almost invisible under layers of soot, adorn the obsidian walls. Two narrow passages branch off to the right (east).",
+      "choices": [
+        { "text": "Proceed north towards the door", "target": "18" },
+        { "text": "Enter the first narrow eastern passage (to mural chamber)", "target": "36" },
+        { "text": "Enter the second narrow eastern passage", "target": "39" },
+        { "text": "Examine the wall patterns", "target": "19" },
+        { "text": "Return to the crossroads", "target": "9" }
+      ]
+    },
+    "15": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_015",
+      "audio": "AUD_015_scratching",
+      "altText": "A narrow, twisting passage. The scratching sound is louder here.",
+      "prose": "You edge down the western passage. It twists tightly, and the scratching sound grew louder, echoing from around the next bend. It sounds like metal on stone.",
+      "choices": [
+        { "text": "Call out", "target": "20" },
+        { "text": "Proceed silently around the bend", "target": "21" },
+        { "text": "Retreat to the crossroads", "target": "9" }
+      ]
+    },
+    "16": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_016",
+      "audio": "AUD_016_whisper",
+      "altText": "View through a narrow gap in rubble, showing only oppressive darkness.",
+      "prose": "You press your eye to the gap. Stale air and utter darkness greet you. A faint, dry whisper seems to slither from the blackness, chilling you instantly.",
+      "choices": [
+        { "text": "Quickly pull back", "target": "6" },
+        { "text": "Listen closer to the whisper", "target": "22" }
+      ]
+    },
+    "17": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_017",
+      "audio": "AUD_017",
+      "altText": "A corridor turning sharply right, leading towards a flickering blue light.",
+      "prose": "Around the corner, the corridor opens slightly. A flickering blue light pulses further down, casting strange shadows. The heat lessens considerably here.",
+      "choices": [
+        { "text": "Approach the blue light", "target": "23" },
+        { "text": "Retreat back towards the steam vents", "target": "11" }
+      ]
+    },
+    "18": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_018",
+      "audio": "AUD_018",
+      "altText": "The long corridor ends at a heavy basalt door etched with a single, glowing orange rune.",
+      "prose": "The straight passage terminates at a imposing basalt door. It's smooth and featureless save for a single, large rune carved into its centre, glowing faintly orange.",
+      "choices": [
+        { "text": "Examine the glowing rune", "target": "24" },
+        { "text": "Try to push the door open", "target": "25" },
+        { "text": "Return to the previous corridor", "target": "14" }
+      ]
+    },
+    "19": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_019",
+      "audio": "AUD_019",
+      "altText": "Close up on faint geometric patterns etched into a soot-covered obsidian wall.",
+      "prose": "You run your fingers over the wall patterns. Under the grime, they form complex, interlocking circuits. They feel faintly warm, like dormant machinery.",
+      "choices": [
+        { "text": "Continue north", "target": "18" },
+        { "text": "Return to the crossroads", "target": "9" }
+      ]
+    },
+    "20": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_020",
+      "audio": "AUD_020_skittering",
+      "altText": "Looking down the twisting passage. The scratching stops abruptly.",
+      "prose": "‘Hello?’ you call out. The scratching instantly stops. A tense silence hangs in the air, followed by a faint skittering sound retreating into the darkness ahead.",
+      "choices": [
+        { "text": "Advance cautiously", "target": "21" },
+        { "text": "Retreat to the crossroads", "target": "9" }
+      ]
+    },
+    "21": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_021",
+      "audio": "AUD_021",
+      "altText": "Around a bend, a small, multi-limbed automaton chips away at the wall before scurrying off.",
+      "prose": "Rounding the bend, you glimpse a small, metallic automaton, like a spider made of bronze clockwork, chipping at the wall with a sharp limb. It sees you, retracts its tool, and skitters rapidly away into a crack.",
+      "choices": [
+        { "text": "Examine where it was chipping", "target": "26" },
+        { "text": "Follow the crack it escaped into", "target": "27" },
+        { "text": "Return to the crossroads", "target": "9" }
+      ]
+    },
+    "22": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_016",
+      "audio": "AUD_022_whisper_clearer",
+      "altText": "View through a narrow gap in rubble, showing only oppressive darkness.",
+      "prose": "You strain to hear. The whisper resolves into words, ancient and sibilant: ‘...freedom... payment... the gate...’ It promises power, if you can find a way through.",
+      "choices": [
+        { "text": "Pull back, unnerved", "target": "6" },
+        { "text": "Remember the promise (no immediate effect)", "target": "6" }
+      ]
+    },
+    "23": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_023",
+      "audio": "AUD_023_humming",
+      "altText": "A large crystal pulsing with blue light, embedded in the wall. Cracks spiderweb around it.",
+      "prose": "The source of the light is a large, jagged crystal embedded in the wall, pulsing with cool, blue energy. It hums softly. Cracks mar its surface and the surrounding stone.",
+      "choices": [
+        { "text": "Touch the crystal", "target": "17" },
+        { "text": "Examine the cracks around it", "target": "17" },
+        { "text": "Leave it and return", "target": "17" }
+      ]
+    },
+    "24": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_024",
+      "audio": "AUD_024",
+      "altText": "Close up on a glowing orange rune carved into a basalt door. It resembles a stylized flame.",
+      "prose": "The rune resembles a stylized flame or crown, pulsing with gentle heat. It feels solid, deeply carved into the stone. It seems integral to the door mechanism.",
+      "choices": [
+        { "text": "Try pushing the door", "target": "25" },
+        { "text": "Trace the rune's outline", "target": "24" },
+        { "text": "Go back", "target": "14" }
+      ]
+    },
+    "25": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_018",
+      "audio": "AUD_025_scrape",
+      "altText": "Pushing futilely against the heavy basalt door.",
+      "prose": "You put your shoulder to the basalt door. It doesn't budge. Not even a tremor. It's sealed tight, either magically or mechanically.",
+      "choices": [
+        { "text": "Examine the rune instead", "target": "24" },
+        { "text": "Return the way you came", "target": "14" }
+      ]
+    },
+    "26": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_026",
+      "audio": "AUD_026",
+      "altText": "Close up on the wall where the automaton was chipping. Loose rock flakes reveal a metallic seam.",
+      "prose": "Where the automaton chipped, the obsidian flakes away easily. Beneath is a seam of dull, grey metal, perfectly smooth and cold to the touch. It seems to be part of a larger structure within the wall.",
+      "choices": [
+        { "text": "Chip away more rock", "target": "27" },
+        { "text": "Leave it and check the crack", "target": "27" },
+        { "text": "Return to the crossroads", "target": "9" }
+      ]
+    },
+    "27": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_027",
+      "audio": "AUD_027_faint_skittering",
+      "altText": "A narrow crack in the wall, too small to enter. Darkness within.",
+      "prose": "The crack is barely wide enough for your hand. Peering inside, you see only darkness and hear the faint receding skitter of the automaton. There's no way to follow.",
+      "choices": [
+        { "text": "Examine where it was chipping instead", "target": "26" },
+        { "text": "Return to the crossroads", "target": "9" }
+      ]
+    },
+    "36": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_036",
+      "audio": "AUD_036",
+      "altText": "A large chamber with a faded mural depicting star charts and a route through fiery tunnels.",
+      "prose": "You squeeze through the crack into a large, circular chamber. The air is stale. A vast, faded mural covers the far wall, depicting constellations and a complex network of tunnels marked with the same fiery rune from the door. A section of the mural flakes away, revealing a tightly rolled parchment.",
+      "prose_alt": [
+        {
+          "condition": "HAS_FLAG:MAP_FRAGMENT",
+          "text": "You are back in the mural chamber. The faded star charts offer no more secrets, and the spot where you found the map fragment is bare."
+        }
+      ],
+      "choices": [
+        {
+          "text": "Take the rolled parchment",
+          "target": "37",
+          "flagsGained": ["MAP_FRAGMENT"],
+          "hideIf": "HAS_FLAG:MAP_FRAGMENT"
+        },
+        { "text": "Study the rest of the mural", "target": "38" },
+        { "text": "Leave the chamber back through the door", "target": "14" }
+      ]
+    },
+    "37": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_037",
+      "audio": "AUD_037",
+      "altText": "Close up of the rolled parchment, showing a detailed map fragment of scorched corridors.",
+      "prose": "You carefully unroll the parchment. It's brittle but intact – a detailed map fragment showing twisting corridors marked with heat warnings and hazard symbols. This must be the Outer Halls.",
+      "flagsGained": ["MAP_FRAGMENT"],
+      "choices": [
+        { "text": "Study the rest of the mural", "target": "38" },
+        { "text": "Leave the chamber", "target": "14" }
+      ]
+    },
+    "38": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_038",
+      "audio": "AUD_038",
+      "altText": "Detail of the mural showing stylized figures worshipping a crowned flame.",
+      "prose": "The mural depicts stylized figures in robes worshipping a crowned flame – the Ember King? Strange constellations fill the background, unlike any seen from the surface.",
+      "choices": [
+        {
+          "text": "Take the map fragment",
+          "target": "37",
+          "flagsGained": ["MAP_FRAGMENT"],
+          "hideIf": "HAS_FLAG:MAP_FRAGMENT"
+        },
+        { "text": "Leave the chamber", "target": "14" }
+      ]
+    },
+    "39": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_039",
+      "audio": "AUD_039",
+      "altText": "The main corridor forks again: left is narrow and dark, right is wider but shows signs of instability.",
+      "prose": "Leaving the mural chamber, the main corridor continues only a short distance before forking again. The left path ahead is narrow and disappears into oppressive darkness. The right path is wider, but the walls show signs of heat stress and minor collapses.",
+      "choices": [
+        { "text": "Take the narrow left path", "target": "40" },
+        { "text": "Take the unstable-looking right path", "target": "41" }
+      ]
+    },
+    "40": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_040",
+      "audio": "AUD_040",
+      "altText": "A narrow, dark, but seemingly stable passage stretches ahead.",
+      "prose": "You proceed down the narrow left passage. It feels solid underfoot, though claustrophobic. It runs straight for some distance into the gloom.",
+      "choices": [
+        { "text": "Continue deeper into the narrow passage", "target": "47" },
+        { "text": "Enter the small side room", "target": "42" },
+        { "text": "Return to the fork", "target": "39" }
+      ]
+    },
+    "41": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_041",
+      "audio": "AUD_041",
+      "altText": "The wider right passage shows cracked walls and a sagging ceiling section ahead.",
+      "prose": "You take the wider right path. As suspected, the walls here are cracked, and ahead, a section of the ceiling sags dangerously low, supported by crumbling pillars. It looks hazardous.",
+      "choices": [
+        { "text": "Attempt to carefully bypass the sagging ceiling", "target": "43" },
+        { "text": "Too risky, return to the fork", "target": "39" }
+      ]
+    },
+    "42": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_042",
+      "audio": "AUD_042",
+      "altText": "The narrow passage opens into a small, dusty side room containing a metal box.",
+      "prose": "The narrow passage opens unexpectedly into a small, square side room. It's thick with dust, seemingly undisturbed for ages. In the corner rests a small, plain metal box.",
+      "choices": [
+        { "text": "Open the metal box", "target": "44" },
+        { "text": "Ignore the box and leave the room, continuing deeper", "target": "47" }
+      ]
+    },
+    "43": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_043",
+      "audio": "AUD_043_hazard_trigger",
+      "altText": "The sagging ceiling collapses violently as you try to pass beneath it.",
+      "prose": "You try to edge carefully past the crumbling pillars beneath the sagging ceiling. With a deafening groan, the entire section gives way! Tons of rock and obsidian crash down, blocking the path completely.",
+      "choices": [
+        { "text": "Dive clear just in time! (Minor consequence)", "target": "45" },
+        { "text": "Caught in the collapse! (Game Over)", "target": "262" }
+      ]
+    },
+    "44": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_044",
+      "audio": "AUD_044",
+      "altText": "Opening the metal box reveals a small, featureless metal cylinder (Minor Item 1).",
+      "prose": "The metal box is unlocked. Inside, nestled on faded velvet lining, is a small, smooth cylinder made of an unknown dark metal. It has no obvious markings or function, but feels strangely dense.",
+      "flagsGained": ["MINOR_ITEM_1"],
+      "choices": [
+        { "text": "Take the cylinder and leave the room, continuing deeper", "target": "47" }
+      ]
+    },
+    "45": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_045",
+      "audio": "AUD_045_near_miss",
+      "altText": "Diving clear of the collapsing ceiling, covered in dust.",
+      "prose": "With a desperate lunge, you throw yourself backward just as the ceiling crashes down where you stood. You land hard, covered in dust and grit, heart pounding from the near miss. The way forward is now utterly blocked.",
+      "choices": [{ "text": "The path is blocked, retreat to the fork", "target": "39" }]
+    },
+    "47": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_047",
+      "audio": "AUD_047",
+      "altText": "Continuing down the main passage (from node 40 route), noticing a narrow side passage to the east.",
+      "prose": "Continuing from the side room (or bypassing it), the narrow passage eventually widens slightly again. Ahead on the right (east) wall, you notice an even narrower opening, barely a crack.",
+      "choices": [
+        { "text": "Squeeze into the narrow side passage", "target": "48" },
+        { "text": "Keep going straight along the main passage", "target": "49" }
+      ]
+    },
+    "48": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_048",
+      "audio": "AUD_048",
+      "altText": "The narrow side passage ends in a small dead-end alcove with strange geometric markings scratched into the wall.",
+      "prose": "You squeeze into the tight side passage. It quickly opens into a tiny dead-end alcove. The only feature is a series of complex geometric markings scratched crudely into the far wall. They seem familiar, yet alien.",
+      "flagsGained": ["LORE_HINT_1"],
+      "choices": [{ "text": "Commit the markings to memory and return", "target": "47" }]
+    },
+    "49": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_049",
+      "audio": "AUD_049",
+      "altText": "The main passage opens into a small, crumbling chamber that looks like an old guard room.",
+      "prose": "Ignoring the side passage, you continue straight. The passage opens into a small, square chamber. Collapsed stone benches and rusted metal fragments suggest this was once a guard room, long abandoned to dust and decay.",
+      "choices": [
+        { "text": "Search the old guard room", "target": "50" },
+        { "text": "Continue past the room", "target": "51" }
+      ]
+    },
+    "50": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_050",
+      "audio": "AUD_050",
+      "altText": "Searching through the debris in the crumbling guard room finds nothing useful.",
+      "prose": "You spend a few moments searching through the rubble and debris in the old guard room. Aside from rusted, unidentifiable metal shards and crumbling stone, you find nothing of value or interest.",
+      "choices": [{ "text": "Leave the guard room and continue", "target": "51" }]
+    },
+    "51": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_051",
+      "audio": "AUD_051",
+      "altText": "Beyond the guard room, the corridor descends via a flight of cracked basalt stairs.",
+      "prose": "Moving past the empty guard room, the corridor ahead dips downward, descending via a straight flight of cracked and worn basalt stairs into further darkness.",
+      "choices": [
+        { "text": "Descend the basalt stairs", "target": "52" },
+        { "text": "Turn back towards the guard room", "target": "49" }
+      ]
+    },
+    "52": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_052",
+      "audio": "AUD_052",
+      "altText": "At the bottom of the stairs, a lower corridor junctions: straight ahead or left into a narrower passage.",
+      "prose": "You reach the bottom of the basalt stairs, finding yourself in a lower corridor. The main passage continues straight ahead, while a narrower passage branches off to the left.",
+      "choices": [
+        { "text": "Go straight along the lower corridor", "target": "53" },
+        { "text": "Turn left into the narrower passage", "target": "54" },
+        { "text": "Go back up the basalt stairs", "target": "51" }
+      ]
+    },
+    "53": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_053",
+      "audio": "AUD_053_ozone",
+      "altText": "Proceeding down the damp lower corridor. A faint smell of ozone is present.",
+      "prose": "You continue straight along the lower corridor. The air here is noticeably damp, and carries a faint, sharp smell, like ozone after a lightning strike.",
+      "choices": [{ "text": "Proceed further", "target": "55" }]
+    },
+    "54": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_054",
+      "audio": "AUD_054_rubble",
+      "altText": "The left passage is completely blocked by a recent-looking cave-in.",
+      "prose": "You turn left into the narrower passage. It proceeds only a few yards before being completely blocked by a pile of rubble and shattered rock that looks like a recent cave-in. Dust still hangs in the air. Impassable.",
+      "choices": [{ "text": "Return to the junction", "target": "52" }]
+    },
+    "55": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_055",
+      "audio": "AUD_055",
+      "altText": "The lower corridor ends at an ornate archway carved with flame motifs.",
+      "prose": "The damp, ozone-tinged lower corridor ends ahead at an ornate archway. Stylized flame motifs, similar to those seen elsewhere, are carved deeply into the stone frame.",
+      "choices": [
+        { "text": "Pass through the ornate archway", "target": "56" },
+        { "text": "Turn back towards the stairs junction", "target": "52" }
+      ]
+    },
+    "56": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_056",
+      "audio": "AUD_056",
+      "altText": "An ornate side room beyond the archway, containing a dry, carved basalt fountain.",
+      "prose": "Stepping through the archway, you enter a small, more ornate room than the corridors outside. Intricate carvings decorate the walls, though faded. In the center stands a beautifully carved basalt fountain, now completely dry and filled with dust.",
+      "choices": [
+        { "text": "Examine the dry fountain", "target": "57" },
+        { "text": "Examine the wall carvings", "target": "58" },
+        { "text": "Leave the ornate room", "target": "55" }
+      ]
+    },
+    "57": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_057",
+      "audio": "AUD_057",
+      "altText": "Close-up on the dry basalt fountain, showing intricate carvings and an empty basin.",
+      "prose": "You examine the fountain closely. It depicts stylized figures making offerings to a crowned flame, similar to the mural. The craftsmanship is exquisite, but the basin holds only centuries of dust and grit. No water has flowed here for a very long time.",
+      "choices": [
+        { "text": "Check the walls instead", "target": "58" },
+        { "text": "Leave the room", "target": "55" }
+      ]
+    },
+    "58": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_058",
+      "audio": "AUD_058",
+      "altText": "Examining faded frescoes on the ornate room walls, depicting volcanic landscapes under alien suns.",
+      "prose": "You turn your attention to the walls. Faded frescoes depict strange, volcanic landscapes under unfamiliar, alien suns. Stylized figures toil amongst lava flows. One section of the fresco seems loose, the plaster cracked.",
+      "choices": [
+        { "text": "Examine the fountain again", "target": "57" },
+        { "text": "Investigate the loose fresco section", "target": "59" },
+        { "text": "Leave through the archway", "target": "55" }
+      ]
+    },
+    "59": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_059",
+      "audio": "AUD_059",
+      "altText": "Pushing aside a loose fresco reveals faint seams suggesting a hidden door in the wall.",
+      "prose": "You gently push the loose section of the fresco. It crumbles slightly, revealing the bare stone wall beneath. Looking closely, you can just make out faint vertical seams in the stone, suggesting a cleverly concealed hidden door.",
+      "choices": [
+        { "text": "Search for a mechanism to open the hidden door", "target": "60" },
+        { "text": "Leave it and exit via the archway", "target": "55" }
+      ]
+    },
+    "60": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_060",
+      "audio": "AUD_060_click_scrape",
+      "altText": "Pressing a disguised stone triggers a hidden door scraping open, revealing a dark passage.",
+      "prose": "Running your fingers along the seams, you feel a slight depression in one of the carved flame motifs nearby. Pressing it firmly, there's an audible *click* followed by a low scraping sound as a section of the wall grinds inward, revealing a narrow, dark passage beyond.",
+      "choices": [
+        { "text": "Enter the secret passage", "target": "61" },
+        { "text": "Push the door closed and leave", "target": "55" }
+      ]
+    },
+    "61": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_061",
+      "audio": "AUD_061",
+      "altText": "Inside the narrow, dusty secret passage, descending steeply.",
+      "prose": "You step into the secret passage. It's narrow, barely shoulder-width, and thick with undisturbed dust that rises in choking clouds around your torch. The passage immediately begins descending steeply into blackness.",
+      "choices": [
+        { "text": "Continue down the steep secret passage", "target": "62" },
+        { "text": "Return to the ornate room", "target": "60" }
+      ]
+    },
+    "62": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_062",
+      "audio": "AUD_062",
+      "altText": "The secret passage ends abruptly at a complete cave-in of rock and earth.",
+      "prose": "After descending steeply for some distance, the secret passage ends abruptly. A complete collapse of rock and earth blocks the way forward. There's no way through this dead end.",
+      "choices": [{ "text": "Return the way you came, back up the passage", "target": "61" }]
+    },
+    "63": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_063",
+      "audio": "AUD_063",
+      "altText": "The southeast passage from the crossroads leads into a previously unexplored area.",
+      "prose": "Taking the southeast passage from the crossroads, you enter a section of the Outer Halls you haven't explored yet. The air feels slightly different here, perhaps warmer.",
+      "choices": [{ "text": "Explore this new area", "target": "64" }]
+    },
+    "64": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_064",
+      "audio": "AUD_064",
+      "altText": "Another fork (Path Choice C): left path echoes with faint drips, right path is silent.",
+      "prose": "You proceed into the unexplored area, soon reaching another fork (Path Choice C). The path leading left echoes with the faint sound of dripping water. The path leading right is eerily silent.",
+      "choices": [
+        { "text": "Go left (towards dripping sound)", "target": "65" },
+        { "text": "Go right (silent path)", "target": "66" },
+        { "text": "Turn Back towards known territory", "target": "63" }
+      ]
+    },
+    "65": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_065",
+      "audio": "AUD_065_drips",
+      "altText": "The left path opens into a small chamber dominated by a thick crystal observation window.",
+      "prose": "Following the faint dripping sounds, the left path opens into a small, square chamber. Most of the far wall is composed of a thick, slightly grimy crystal window, clearly designed as an observation point overlooking something below.",
+      "choices": [
+        { "text": "Look out through the crystal window", "target": "67" },
+        { "text": "Proceed towards the lava cavern", "target": "71" }
+      ]
+    },
+    "66": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_066",
+      "audio": "AUD_066",
+      "altText": "The silent right path enters a larger chamber resembling dilapidated barracks with collapsed bunks.",
+      "prose": "The silent right path leads into a larger, rectangular chamber that strongly resembles dilapidated barracks. Rusted metal frames are all that remain of bunks lining the walls, and overturned tables lie amongst scattered debris.",
+      "choices": [
+        { "text": "Search the dilapidated barracks", "target": "68" },
+        { "text": "Proceed towards the lava cavern", "target": "71" }
+      ]
+    },
+    "67": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_067",
+      "audio": "AUD_067_lava_rumble",
+      "altText": "View through the observation window: a vast cavern below filled with rivers of glowing lava.",
+      "prose": "You step up to the thick crystal window and peer through. Below stretches a vast, natural cavern, illuminated by the fiery glow of slowly churning lava rivers. The air behind the crystal feels noticeably warm, and a low, distant rumble echoes from the depths.",
+      "choices": [
+        { "text": "Scan the cavern below for details", "target": "69" },
+        { "text": "Step back from the window", "target": "65" }
+      ]
+    },
+    "68": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_068",
+      "audio": "AUD_068",
+      "altText": "Searching through the debris in the old barracks: collapsed bunks, rusted racks, general decay.",
+      "prose": "You carefully search through the debris in the old barracks. Rusted weapon racks lie toppled against the walls, the metal bunk frames have mostly collapsed under their own weight. It seems thoroughly looted or simply abandoned to decay long ago.",
+      "choices": [
+        { "text": "Check carefully under a collapsed bunk frame", "target": "70" },
+        { "text": "Give up searching and leave the barracks", "target": "66" }
+      ]
+    },
+    "69": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_069",
+      "audio": "AUD_069",
+      "altText": "Looking closer through the observation window, spotting a precarious stone bridge spanning the lava far below.",
+      "prose": "Scanning the vast lava cavern below, your eyes are drawn to movement against the fiery backdrop – or rather, stillness. Far below, spanning one of the wider lava rivers, is a narrow, precarious-looking stone bridge connecting to another dark tunnel entrance on the far side.",
+      "flagsGained": ["SAW_BRIDGE"],
+      "choices": [{ "text": "Note the bridge and proceed towards the lava cavern", "target": "71" }]
+    },
+    "70": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_070",
+      "audio": "AUD_070",
+      "altText": "Finding a small, heavy, untarnished metal gear (Minor Item 2) tucked under a collapsed bunk.",
+      "prose": "Poking carefully through the dusty debris under a heavy, collapsed bunk frame, your fingers close on something small and metallic. You pull out a heavy, intricately machined metal gear, surprisingly dense and untarnished by time or decay.",
+      "flagsGained": ["MINOR_ITEM_2"],
+      "choices": [{ "text": "Take the gear and proceed towards the lava cavern", "target": "71" }]
+    },
+    "71": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_071",
+      "audio": "AUD_071_heat_increase",
+      "altText": "The corridor ahead seems to open into a larger, warmer area, likely near the lava cavern.",
+      "prose": "Continuing from the junction (or having explored the observation room/barracks), the corridor proceeds. The air grows noticeably warmer again, confirming proximity to the lava viewed earlier. You sense a large open space just ahead.",
+      "choices": [{ "text": "Proceed cautiously towards the heat", "target": "72" }]
+    },
+    "72": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_072",
+      "audio": "AUD_072_lava_sounds",
+      "altText": "Emerging onto a wide, hot rock ledge overlooking the vast lava chamber seen from the window.",
+      "prose": "You emerge from the confines of the corridor onto a wide, natural rock ledge. Before you stretches the vast lava chamber previously glimpsed through the observation window. The air here is thick with intense heat, and the roar and bubble of slowly churning molten rock fills the space.",
+      "prose_alt": [
+        {
+          "condition": "HAS_FLAG:SAW_BRIDGE",
+          "text": "You emerge from the corridor onto a wide rock ledge overlooking the vast lava chamber. This is clearly the same cavern you saw earlier through the observation window. The heat and sound are much more intense down here."
+        }
+      ],
+      "choices": [
+        { "text": "Scan the immense chamber from the ledge", "target": "73" },
+        { "text": "Look along the ledge for a safe path", "target": "74" }
+      ]
+    },
+    "73": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_073",
+      "audio": "AUD_073",
+      "altText": "Scanning the lava chamber reveals another ledge far across, with the massive Molten Gate clearly visible.",
+      "prose": "You scan the immense chamber, shielding your eyes from the heat haze rising in waves from the incandescent lava rivers below. Far across the cavern, perhaps fifty paces away, you clearly see another wide rock ledge. Set into the rock face there is a massive, ornate gate radiating heat – undoubtedly the Molten Gate.",
+      "choices": [
+        { "text": "Look for a path across or around", "target": "74" },
+        { "text": "Retreat from the overwhelming heat", "target": "71" }
+      ]
+    },
+    "74": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_074",
+      "audio": "AUD_074",
+      "altText": "A narrow, crumbling path runs along the left edge of the hot lava chamber ledge towards the distant Molten Gate.",
+      "prose": "Looking along the wide ledge you stand on, a narrow path runs along the cliff face to your left, heading directly towards the distant Molten Gate. It looks dangerously precarious, crumbling in places under the intense heat.",
+      "choices": [
+        { "text": "Attempt to follow the narrow ledge path", "target": "75" },
+        { "text": "Decide it's too treacherous and retreat", "target": "71" }
+      ]
+    },
+    "75": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_075",
+      "audio": "AUD_075",
+      "altText": "Carefully traversing the narrow, crumbling ledge path high above the flowing lava.",
+      "prose": "Steeling your nerves, you carefully begin traversing the narrow ledge path. The intense heat radiating from the lava far below is almost unbearable, making the rock underfoot hot to the touch. Loose scree shifts with every careful step. Progress is slow and requires intense concentration.",
+      "choices": [
+        { "text": "Continue carefully along the crumbling path", "target": "76" },
+        { "text": "Lose your nerve and turn back", "target": "74" }
+      ]
+    },
+    "76": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_076",
+      "audio": "AUD_076_crumble",
+      "altText": "A section of the narrow ledge path ahead suddenly cracks and crumbles away into the lava below.",
+      "prose": "As you inch forward, a section of the narrow ledge just ahead suddenly cracks under the thermal stress, crumbling away with a sickening lurch! Chunks of hot rock tumble down into the incandescent lava far below, leaving a noticeable gap in the already precarious path.",
+      "choices": [
+        { "text": "Try to leap across the gap", "target": "77" },
+        { "text": "Cautiously test the stability of the edge near the gap", "target": "78" },
+        { "text": "The path is too dangerous, turn back immediately", "target": "75" }
+      ]
+    },
+    "77": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_077",
+      "audio": "AUD_077_land_scrape",
+      "altText": "Successfully landing, skidding, on the other side of the gap after a risky leap over the lava.",
+      "prose": "Judging the distance and taking a deep breath against the heat, you take a short run-up and leap across the newly formed gap. You land hard on the other side, skidding on loose gravel precariously close to the edge before regaining your footing. You made it, heart pounding against your ribs.",
+      "choices": [{ "text": "Continue along the path, shaken but determined", "target": "79" }]
+    },
+    "78": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_078",
+      "audio": "AUD_078_splash_sizzle",
+      "altText": "Testing the crumbling edge near the gap causes it to give way, tumbling the viewpoint towards the lava.",
+      "prose": "You cautiously lean forward, trying to test the stability of the ledge right near the crumbling edge of the gap. Without warning, the heat-stressed rock under your front foot gives way completely! You cry out as you lose your balance, tumbling helplessly over the precipice towards the searing molten rock below.",
+      "choices": [{ "text": "Game Over (Consumed by Lava)", "target": "260" }]
+    },
+    "79": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_079",
+      "audio": "AUD_079",
+      "altText": "The narrow ledge path widens into a more stable rock platform directly before the massive Molten Gate.",
+      "prose": "After successfully navigating the treacherous crumbling section (either by a daring leap or careful stepping), the narrow ledge path thankfully widens considerably, becoming a more stable rock platform as you finally approach the massive Molten Gate.",
+      "choices": [{ "text": "Approach the Molten Gate", "target": "80" }]
+    },
+    "80": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_080",
+      "audio": "AUD_080_gate_hum",
+      "altText": "Standing before the massive, ornate Molten Gate, which pulses with intense heat and is sealed by humming mechanisms.",
+      "prose": "You stand on the wide rock platform directly before the Molten Gate. It is truly immense, crafted from obsidian and dark, heat-stained metal, pulsing with palpable heat. Strange, complex mechanisms cover its surface, humming with latent power, keeping it sealed tight against the lava chamber.",
+      "choices": [
+        { "text": "Examine the gate's intricate locking mechanisms", "target": "81" },
+        { "text": "See if the map fragment fits the lock", "target": "82" }
+      ]
+    },
+    "81": {
+      "zone": "Act 1 - Outer Halls",
+      "image": "IMG_081",
+      "audio": "AUD_081",
+      "altText": "Close-up on the Molten Gate mechanisms: complex gears, glowing conduits, and a distinctive map-shaped slot.",
+      "prose": "You lean closer to examine the gate's locking mechanisms. Intricate gears, faintly glowing conduits, and rune-etched plates interlock in a complex, non-Euclidean pattern. Near the center, surrounded by humming components, you notice a distinctively shaped slot set into the metal. It looks specifically designed to accept something shaped like the map fragment.",
+      "choices": [
+        { "text": "Try inserting the map fragment", "target": "82" },
+        { "text": "Step back from the complex mechanisms", "target": "80" }
+      ]
+    },
+    "82": {
+      "zone": "Hub A - Molten Gate",
+      "image": "IMG_082",
+      "audio": "AUD_082_gate_opening",
+      "words": 65,
+      "altText": "The Molten Gate sliding open after inserting the map fragment, revealing dark catacombs beyond.",
+      "prose": "You approach the Molten Gate. If you found the map fragment, you realize the slot matches its shape perfectly. Inserting it, the mechanisms hum, conduits flare, and the massive gate groans open, revealing the dark, echoing Ember Catacombs beyond. If you lack the fragment, the gate remains stubbornly sealed, radiating heat.",
+      "prose_alt": [
+        {
+          "condition": "NOT HAS_FLAG:MAP_FRAGMENT",
+          "text": "You stand before the massive Molten Gate. It pulses with intense heat, sealed tight. A slot in its center remains empty. You need something that fits... perhaps a map? There seems no way forward here without it."
+        }
+      ],
+      "choices": [
+        {
+          "text": "Enter the Ember Catacombs",
+          "target": "83",
+          "hideIf": "NOT HAS_FLAG:MAP_FRAGMENT"
+        },
+        {
+          "text": "Turn back to search for the map",
+          "target": "71",
+          "hideIf": "HAS_FLAG:MAP_FRAGMENT"
+        },
+        {
+          "text": "Turn back from the open gate",
+          "target": "80",
+          "hideIf": "NOT HAS_FLAG:MAP_FRAGMENT"
+        }
+      ]
+    },
+    "83": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_083",
+      "audio": "AUD_083_echoes",
+      "altText": "Stepping into the dark, echoing Ember Catacombs as the Molten Gate grinds shut behind.",
+      "prose": "You step through the Molten Gate into the Ember Catacombs. A wave of cool, damp air washes over you, carrying the scent of wet stone and decay. Strange echoes twist and distort sounds in the oppressive darkness. Behind you, the massive gate grinds shut with echoing finality.",
+      "choices": [{ "text": "Press forward into the echoing darkness", "target": "84" }]
+    },
+    "84": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_084",
+      "audio": "AUD_084",
+      "altText": "The initial catacomb passage forks: left descends into darkness, right continues level.",
+      "prose": "The initial passage runs straight for only a short distance before splitting (Fork D). To the left, rough-hewn steps spiral down into deeper, more ominous darkness. To the right, the passage continues level, lined with carved niches.",
+      "choices": [
+        { "text": "Take the descending left path", "target": "85" },
+        { "text": "Take the level right path", "target": "86" }
+      ]
+    },
+    "85": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_085",
+      "audio": "AUD_085",
+      "altText": "A narrow, damp stairwell spiraling down into blackness.",
+      "prose": "You choose the left path, carefully descending the narrow, spiraling stairwell. The air grows colder and damper with each step, and the darkness below feels absolute. Water trickles down the curved walls.",
+      "choices": [
+        { "text": "Continue descending the spiral stairs", "target": "87" },
+        { "text": "Return to the fork above", "target": "84" }
+      ]
+    },
+    "86": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_086",
+      "audio": "AUD_086",
+      "altText": "The level corridor path lined with empty, carved niches in the walls.",
+      "prose": "You take the right path. This level corridor is about two paces wide, its stone walls carved with regularly spaced niches, like empty alcoves for statues or remains long since removed. Most are filled only with dust and shadows.",
+      "choices": [
+        { "text": "Examine the carved niches more closely", "target": "88" },
+        { "text": "Continue along the level corridor", "target": "89" }
+      ]
+    },
+    "87": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_087",
+      "audio": "AUD_087_water_lap",
+      "altText": "The bottom of the spiral stairs ending in ankle-deep, stagnant green water.",
+      "prose": "The spiraling stairs end abruptly, depositing you in ankle-deep, stagnant water that fills the passage ahead. The water is murky, greenish, and smells foul. The passage seems to continue through the flooded section.",
+      "choices": [
+        { "text": "Wade cautiously through the stagnant water", "target": "90" },
+        { "text": "Retreat back up the spiral stairs", "target": "85" }
+      ]
+    },
+    "88": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_088",
+      "audio": "AUD_088",
+      "altText": "Examining the empty niches. One contains a single, brittle bone fragment.",
+      "prose": "You run your torch along the rows of niches. Most hold only thick dust and cobwebs. In one, however, you find a single, brittle fragment of bone – perhaps humanoid, perhaps something else. It crumbles slightly at your touch.",
+      "choices": [
+        { "text": "Take the bone fragment (useless?)", "target": "86" },
+        { "text": "Ignore the niches and continue", "target": "89" }
+      ]
+    },
+    "89": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_089",
+      "audio": "AUD_089",
+      "altText": "The level corridor ahead. A section of the floor flagstones looks slightly raised and different.",
+      "prose": "Continuing along the level, niche-lined corridor, you notice a section of the flagstone floor ahead looks slightly different – perhaps newer, or slightly raised. It could be a pressure plate or some other mechanism.",
+      "choices": [
+        { "text": "Attempt to step carefully over the suspected plate", "target": "91" },
+        { "text": "Deliberately step on the plate", "target": "92" },
+        { "text": "Turn back towards the fork", "target": "86" }
+      ]
+    },
+    "90": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_090",
+      "audio": "AUD_090_wading",
+      "altText": "Wading through the cold, murky water in the flooded passage towards a dry chamber entrance.",
+      "prose": "Wading slowly through the cold, murky water, trying not to disturb whatever might lie beneath, you proceed down the flooded passage. Ahead, the water recedes, revealing the entrance to a small, dry side chamber.",
+      "choices": [{ "text": "Step out into the dry chamber", "target": "93" }]
+    },
+    "91": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_091",
+      "audio": "AUD_091",
+      "altText": "Successfully stepping past the suspicious floor plate section.",
+      "prose": "Holding your breath, you take a long, careful step over the suspicious section of flagstones. Nothing happens. You successfully bypassed whatever mechanism might have been there. The corridor continues ahead.",
+      "choices": [{ "text": "Proceed onwards", "target": "94" }]
+    },
+    "92": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_092",
+      "audio": "AUD_092_trap_click_nothing",
+      "altText": "Stepping directly onto the suspicious floor plate causes an audible click but no obvious trap.",
+      "prose": "Deciding to test it, you firmly step onto the different-looking flagstone. There's a distinct *click* sound from beneath the floor, but nothing else happens. Perhaps the trap is ancient and malfunctioning, or maybe it did something subtle you haven't noticed yet.",
+      "choices": [
+        { "text": "Proceed cautiously past the plate", "target": "94" },
+        { "text": "Turn back", "target": "86" }
+      ]
+    },
+    "93": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_093",
+      "audio": "AUD_093",
+      "altText": "Inside the small, dry chamber off the flooded passage. It's empty and dusty.",
+      "prose": "You step out of the flooded passage into the small, dry chamber. It's disappointingly empty – bare stone walls, dusty floor. It looks like it might have been a storage area or small cell, long since cleared out.",
+      "choices": [{ "text": "Return to the flooded passage", "target": "90" }]
+    },
+    "94": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_094",
+      "audio": "AUD_094",
+      "altText": "The corridor continuing past the pressure plate area.",
+      "prose": "Moving past the pressure plate (whether you triggered it or not), the level corridor continues onwards into the darkness.",
+      "choices": [{ "text": "Proceed further", "target": "95" }]
+    },
+    "95": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_095",
+      "audio": "AUD_095",
+      "altText": "The corridor continues, joining the path from the flooded section.",
+      "prose": "The corridor continues forward. You notice another passage joining from the left - presumably the path leading from the flooded section and dry chamber.",
+      "choices": [{ "text": "Continue along the main corridor", "target": "96" }]
+    },
+    "96": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_096",
+      "audio": "AUD_096",
+      "altText": "The main catacomb corridor stretching ahead.",
+      "prose": "The main catacomb corridor stretches onward, still relatively level. The air begins to feel slightly warmer again.",
+      "choices": [{ "text": "Proceed", "target": "97" }]
+    },
+    "97": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_097",
+      "audio": "AUD_097",
+      "altText": "The catacomb corridor continues, curving slightly.",
+      "prose": "The corridor continues its path deeper into the catacombs, curving slightly to the right. The echoes seem less pronounced here.",
+      "choices": [{ "text": "Follow the curve", "target": "98" }]
+    },
+    "98": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_098",
+      "audio": "AUD_098",
+      "altText": "The corridor continues, curving slightly.",
+      "prose": "The corridor continues its path deeper into the catacombs, curving slightly to the right. The echoes seem less pronounced here.",
+      "choices": [{ "text": "Follow the curve", "target": "99" }]
+    },
+    "99": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_099",
+      "audio": "AUD_099",
+      "altText": "The corridor continues, curving slightly.",
+      "prose": "The corridor continues its path deeper into the catacombs, curving slightly to the right. The echoes seem less pronounced here.",
+      "choices": [{ "text": "Follow the curve", "target": "100" }]
+    },
+    "100": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_100",
+      "audio": "AUD_100",
+      "altText": "The corridor continues, curving slightly.",
+      "prose": "The corridor continues its path deeper into the catacombs, curving slightly to the right. The echoes seem less pronounced here.",
+      "choices": [{ "text": "Follow the curve", "target": "101" }]
+    },
+    "101": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_101",
+      "audio": "AUD_101",
+      "altText": "The corridor continues, curving slightly.",
+      "prose": "The corridor continues its path deeper into the catacombs, curving slightly to the right. The echoes seem less pronounced here.",
+      "choices": [{ "text": "Follow the curve", "target": "102" }]
+    },
+    "102": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_102",
+      "audio": "AUD_102",
+      "altText": "The corridor continues, curving slightly.",
+      "prose": "The corridor continues its path deeper into the catacombs, curving slightly to the right. The echoes seem less pronounced here.",
+      "choices": [{ "text": "Follow the curve", "target": "103" }]
+    },
+    "103": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_103",
+      "audio": "AUD_103_humming_chamber",
+      "altText": "A large, dimly lit chamber dominated by a complex, humming machine of crystal and metal.",
+      "prose": "You enter a vast, echoing chamber. Dominating the center is a colossal machine, a complex lattice of dark metal, faintly glowing crystals, and thick conduits snaking across the floor. A powerful, low-frequency hum emanates from it, vibrating through the stone underfoot.",
+      "choices": [
+        { "text": "Examine the colossal machine", "target": "104" },
+        { "text": "Check the floor conduits", "target": "105" },
+        { "text": "Leave the chamber", "target": "102" }
+      ]
+    },
+    "104": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_104",
+      "audio": "AUD_104",
+      "altText": "Close-up view of the machine, showing intricate crystal matrices and dark metal panels with dormant runes.",
+      "prose": "Approaching the machine, you feel a faint warmth radiating from its metallic surfaces. Its construction is alien, intricate. Crystal matrices pulse with faint internal light, connected by heavy cabling to dark metal panels etched with diagnostic runes, most of which are currently unlit.",
+      "choices": [
+        { "text": "Look for a control or activation panel", "target": "106" },
+        { "text": "Check the floor conduits instead", "target": "105" }
+      ]
+    },
+    "105": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_105",
+      "audio": "AUD_105",
+      "altText": "View of thick, pulsating conduits snaking across the chamber floor from the central machine.",
+      "prose": "You examine the thick conduits coiling across the floor. They pulse with a faint, rhythmic energy, warm to the touch. They snake out from the central machine towards different arched passages leading out of the chamber.",
+      "choices": [
+        { "text": "Examine the machine further", "target": "104" },
+        {
+          "text": "Follow a conduit towards a narrow western passage (Passage F)",
+          "target": "107"
+        },
+        {
+          "text": "Follow a conduit towards a descending southern passage (Passage G)",
+          "target": "108"
+        }
+      ]
+    },
+    "106": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_106",
+      "audio": "AUD_106",
+      "altText": "A recessed panel on the machine featuring several large, rune-marked buttons, currently dark.",
+      "prose": "Searching the machine's complex surface, you locate a recessed panel. It features several large, rune-marked buttons made of a smooth, cool material. They seem entirely dormant, showing no light or sign of power.",
+      "choices": [
+        { "text": "Press the largest rune button", "target": "109" },
+        { "text": "Check the floor conduits instead", "target": "105" }
+      ]
+    },
+    "107": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_107",
+      "audio": "AUD_107",
+      "altText": "Looking into the dark entrance of Passage F, a narrow western corridor.",
+      "prose": "You follow one of the pulsing conduits westward across the chamber floor. It leads directly into the mouth of a narrow, unlit passage disappearing into darkness.",
+      "choices": [
+        { "text": "Enter Passage F", "target": "110" },
+        { "text": "Return to the machine chamber center", "target": "103" }
+      ]
+    },
+    "108": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_108",
+      "audio": "AUD_108",
+      "altText": "Looking into the dark entrance of Passage G, a descending southern corridor.",
+      "prose": "You trace a different conduit southward across the chamber floor. It leads into the entrance of another passage, this one seeming to slope gently downward into blackness.",
+      "choices": [
+        { "text": "Enter Passage G", "target": "111" },
+        { "text": "Return to the machine chamber center", "target": "103" }
+      ]
+    },
+    "109": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_109",
+      "audio": "AUD_109_fizzle",
+      "altText": "Pressing a dead button on the machine panel causes a faint fizzle and nothing else.",
+      "prose": "You press the largest rune-marked button firmly. A faint fizzling sound emanates from within the panel, accompanied by the smell of ozone, then silence. The machine remains unchanged. The panel is clearly unpowered or requires specific activation.",
+      "choices": [
+        { "text": "Examine the conduits", "target": "105" },
+        { "text": "Leave the chamber", "target": "102" }
+      ]
+    },
+    "110": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_110",
+      "audio": "AUD_110",
+      "altText": "Inside the narrow, dusty Passage F.",
+      "prose": "You step into Passage F. It's narrow, the walls coated in thick, undisturbed dust suggesting it hasn't been used in a very long time. The air is stale.",
+      "choices": [{ "text": "Proceed cautiously down Passage F", "target": "112" }]
+    },
+    "111": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_111",
+      "audio": "AUD_111",
+      "altText": "Inside the gently sloping Passage G.",
+      "prose": "You enter Passage G. As suspected, it slopes gently downward. The air is slightly cooler here than in the machine chamber, and less dusty than Passage F.",
+      "choices": [{ "text": "Proceed down Passage G", "target": "113" }]
+    },
+    "112": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_112",
+      "audio": "AUD_112_ambience_deep",
+      "altText": "The narrow, dusty Passage F ends abruptly at a minor collapse.",
+      "prose": "You proceed cautiously down the narrow, dust-choked Passage F. The air is utterly still and stale. After a short distance, the passage ends abruptly at a minor collapse of rock and earth. It seems this path has been blocked for a very long time. A dead end.",
+      "choices": [{ "text": "Turn back towards the machine chamber", "target": "107" }]
+    },
+    "113": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_113",
+      "audio": "AUD_113",
+      "altText": "Passage G continues sloping down, with an open doorway to a side chamber on the right.",
+      "prose": "Passage G continues its gentle descent into the catacombs. Ahead on the right wall, you notice an open doorway leading into a small side chamber.",
+      "choices": [
+        { "text": "Enter the side chamber", "target": "114" },
+        { "text": "Continue down the main passage (Passage G)", "target": "115" },
+        { "text": "Return towards the machine chamber", "target": "111" }
+      ]
+    },
+    "114": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_114",
+      "audio": "AUD_114",
+      "altText": "A small, bare side chamber containing a simple, empty basalt altar.",
+      "prose": "You step into the side chamber. It's small and starkly bare, containing only a simple altar carved from a single block of dark basalt. The altar top is empty.",
+      "choices": [
+        { "text": "Examine the altar closely", "target": "116" },
+        { "text": "Leave the chamber", "target": "113" }
+      ]
+    },
+    "115": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_115",
+      "audio": "AUD_115",
+      "altText": "Passage G continues its gentle descent into further darkness.",
+      "prose": "Ignoring the side chamber for now, you continue down the main passage. It maintains its gentle downward slope, leading deeper into the darkness.",
+      "choices": [{ "text": "Keep going", "target": "117" }]
+    },
+    "116": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_116",
+      "audio": "AUD_116",
+      "altText": "Close-up examination of the empty basalt altar reveals faint scratch marks on its surface.",
+      "prose": "You run your hand over the basalt altar. It's cold, smooth, and unnervingly empty. Looking closer, you notice faint scratch marks on the surface, as if something heavy was once placed here, or perhaps dragged away.",
+      "choices": [{ "text": "Leave the side chamber", "target": "113" }]
+    },
+    "117": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_117",
+      "audio": "AUD_117",
+      "altText": "The end of Passage G opening into a wider, torchlit corridor.",
+      "prose": "Passage G finally levels out and ends, opening into a wider corridor lit by flickering, sputtering torches set in wall sconces. This area feels different, more like the sections before the machine chamber.",
+      "choices": [
+        { "text": "Enter the torchlit corridor", "target": "118" },
+        { "text": "Go back up Passage G", "target": "113" }
+      ]
+    },
+    "118": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_118",
+      "audio": "AUD_118",
+      "altText": "Entering a wider, torchlit corridor (Junction H) running left and right.",
+      "prose": "You step out of Passage G into Junction H, a wider corridor lit by sputtering torches in ancient sconces. The passage runs both left and right into the gloom.",
+      "choices": [
+        { "text": "Go left", "target": "119" },
+        { "text": "Go right", "target": "120" },
+        { "text": "Return back up Passage G", "target": "117" }
+      ]
+    },
+    "119": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_119",
+      "audio": "AUD_119",
+      "altText": "The left path of the torchlit corridor stretches ahead, shadows dancing.",
+      "prose": "You take the left path from Junction H. The torchlit corridor continues straight, the flickering flames casting long, dancing shadows that make the walls seem to writhe.",
+      "choices": [{ "text": "Proceed left", "target": "121" }]
+    },
+    "120": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_120",
+      "audio": "AUD_120",
+      "altText": "The right path of the torchlit corridor curves gently towards a faint flickering light.",
+      "prose": "You take the right path from Junction H. This section of the corridor curves gently ahead, leading towards a faint, unsteady flickering light visible around the bend.",
+      "choices": [{ "text": "Proceed right towards the light", "target": "122" }]
+    },
+    "121": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_121",
+      "audio": "AUD_121",
+      "altText": "Proceeding down the left corridor, passing a dark, empty alcove set into the wall.",
+      "prose": "Continuing down the left corridor, you pass a simple, dark alcove set into the right-hand wall. It appears empty from a distance.",
+      "choices": [
+        { "text": "Investigate the dark alcove", "target": "123" },
+        { "text": "Continue past the alcove", "target": "131" }
+      ]
+    },
+    "122": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_122",
+      "audio": "AUD_122",
+      "altText": "The torchlit corridor curves right, revealing a large chamber entrance flickering with unsteady light.",
+      "prose": "The right path curves gently. Ahead, an archway reveals a larger chamber where an unsteady, flickering light dances on the far walls. The air grows still.",
+      "choices": [
+        { "text": "Enter the chamber ahead", "target": "125" },
+        { "text": "Turn back", "target": "118" }
+      ]
+    },
+    "123": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_123",
+      "audio": "AUD_123",
+      "altText": "Peering into the shallow, dark alcove; it contains only dust and shadows.",
+      "prose": "You pause and peer into the dark alcove. It's shallow, barely deep enough to stand in, and contains nothing but dust and the swirling shadows cast by your torch.",
+      "choices": [{ "text": "Step back into the corridor and continue", "target": "124" }]
+    },
+    "124": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_124",
+      "audio": "AUD_124",
+      "altText": "Continuing down the torchlit corridor past the empty alcove.",
+      "prose": "Leaving the empty alcove behind, you continue deeper into the torchlit corridor. The sputtering flames cast long, dancing shadows.",
+      "choices": [{ "text": "Proceed", "target": "131" }]
+    },
+    "125": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_125",
+      "audio": "AUD_125_flicker_echo",
+      "altText": "A circular chamber containing four large, unlit basalt braziers. Runes are carved above each.",
+      "prose": "You enter a wide, circular chamber. Four massive basalt braziers stand equidistant, cold and silent. The only light comes from your torch, reflecting dimly off the damp stone. Above each brazier, a large rune is deeply carved: a stylized Flame, an intricate Snowflake, a swirling vortex of Shadow, and a jagged Lightning Bolt.",
+      "choices": [
+        { "text": "Examine the braziers and runes", "target": "126" },
+        { "text": "Check the far side for exits", "target": "130" },
+        { "text": "Leave the chamber", "target": "122" }
+      ]
+    },
+    "126": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_126",
+      "audio": "AUD_126",
+      "altText": "Close-up on one of the cold basalt braziers and the rune carved above it.",
+      "prose": "You approach the braziers. They are masterfully carved from obsidian-veined basalt, large enough to contain a significant fire, yet completely cold. The runes above them seem to hum faintly, expectant. Perhaps your torch can ignite them?",
+      "choices": [
+        { "text": "Light the brazier under the Flame rune", "target": "127" },
+        { "text": "Light the brazier under the Snowflake rune", "target": "129" },
+        { "text": "Light the brazier under the Shadow rune", "target": "129" },
+        { "text": "Light the brazier under the Lightning rune", "target": "129" }
+      ]
+    },
+    "127": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_127",
+      "audio": "AUD_127_chime",
+      "altText": "The Flame brazier erupts in roaring fire. A glowing FIRE_RUNE materializes above it.",
+      "prose": "You touch your torch to the basin beneath the Flame rune. It erupts instantly with roaring, heatless fire, casting brilliant orange light across the chamber. A high, clear chime resonates through the stone, and a physical rune, glowing like forged metal, materializes in the air above the flames!",
+      "flagsGained": ["FIRE_RUNE"],
+      "choices": [{ "text": "Take the FIRE_RUNE", "target": "128" }]
+    },
+    "128": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_128",
+      "audio": "AUD_128_rune_get",
+      "altText": "Hand reaching into magical fire to grasp the glowing FIRE_RUNE.",
+      "prose": "Shielding your eyes, you reach into the harmless magical fire. Your fingers close around the FIRE_RUNE. It pulses with intense, contained heat, solid and real in your grasp. As you withdraw it, a low grinding sound echoes from the far side of the room – the stone door there is sliding open.",
+      "choices": [
+        { "text": "Proceed through the newly opened door", "target": "130" },
+        { "text": "Leave the chamber the way you came", "target": "122" }
+      ]
+    },
+    "129": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_129",
+      "audio": "AUD_129_fizzle_cold",
+      "altText": "Touching a torch to the wrong brazier causes it to emit a puff of frost/shadow before extinguishing.",
+      "prose": "You touch your torch to the basin. Instead of flame, it sputters violently, emitting a burst of unnatural cold (Snowflake/Lightning) or deepening shadow (Shadow) that chills you before instantly extinguishing itself. A low, dissonant hum echoes briefly. That wasn't the right one.",
+      "choices": [
+        { "text": "Try another brazier", "target": "126" },
+        { "text": "Give up and leave", "target": "122" }
+      ]
+    },
+    "130": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_130",
+      "audio": "AUD_130_door_check",
+      "altText": "A large, sealed stone door on the far side of the brazier chamber.",
+      "prose": "You check the far side of the room. A heavy stone door is set into the wall, perfectly sealed, no handle or hinges visible. The braziers must control it somehow.",
+      "prose_alt": [
+        {
+          "condition": "HAS_FLAG:FIRE_RUNE",
+          "text": "You stand before the now open stone doorway, leading deeper into the catacombs."
+        }
+      ],
+      "choices": [
+        {
+          "text": "Examine the braziers",
+          "target": "126",
+          "hideIf": "HAS_FLAG:FIRE_RUNE"
+        },
+        {
+          "text": "Enter the passage beyond the door",
+          "target": "133",
+          "hideIf": "NOT HAS_FLAG:FIRE_RUNE"
+        },
+        {
+          "text": "Return the way you came",
+          "target": "122"
+        }
+      ]
+    },
+    "131": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_131",
+      "audio": "AUD_131",
+      "altText": "The torchlit corridor ends abruptly at a massive collapse of rock and twisted metal conduits. A spiral-flame symbol is scratched nearby.",
+      "prose": "Further down the torchlit passage, your way is completely blocked. A massive collapse of rock and fused obsidian bricks chokes the corridor entirely. Twisted metal conduits, remnants of some ancient system, jut out like broken bones. It looks utterly impassable. Scratched crudely into the wall nearby is a symbol you haven't seen before: a spiral surrounding a flame.",
+      "flagsGained": ["LORE_HINT_2"],
+      "choices": [{ "text": "Commit the symbol to memory and return", "target": "132" }]
+    },
+    "132": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_132",
+      "audio": "AUD_132",
+      "altText": "Heading back up the torchlit corridor away from the dead-end collapse.",
+      "prose": "With the strange spiral-flame symbol noted, you turn back from the impassable collapse and head back the way you came.",
+      "choices": [{ "text": "Return towards the alcove", "target": "121" }]
+    },
+    "133": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_133",
+      "audio": "AUD_133",
+      "altText": "Stepping through the stone doorway opened by the brazier puzzle into a new passage.",
+      "prose": "You step through the heavy stone doorway revealed by solving the brazier puzzle. This passage feels different – the air is slightly less stale, and the floor seems less dusty, hinting at more recent passage or purpose.",
+      "choices": [{ "text": "Proceed down the passage", "target": "134" }]
+    },
+    "134": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_134",
+      "audio": "AUD_134",
+      "altText": "The passage ahead forks: left continues straight, right descends via rough steps.",
+      "prose": "The passage soon comes to another fork. To the left, it continues straight into darkness. To the right, a set of rough-hewn steps descends steeply.",
+      "choices": [
+        { "text": "Go left (straight path)", "target": "135" },
+        { "text": "Go right (descend rough steps)", "target": "136" }
+      ]
+    },
+    "135": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_135",
+      "audio": "AUD_135",
+      "altText": "The left passage widens slightly into what might have been a guard post, littered with rusted metal scraps.",
+      "prose": "Taking the left path, the corridor widens slightly. Rusted scraps of metal, possibly remnants of armor or primitive automatons, litter the floor. This might have once served as a crude guard post.",
+      "choices": [
+        { "text": "Sift through the rusted scraps", "target": "137" },
+        { "text": "Continue past the area", "target": "138" }
+      ]
+    },
+    "136": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_136",
+      "audio": "AUD_136_dripping",
+      "altText": "Descending rough, damp steps into a narrow tunnel. Water drips steadily.",
+      "prose": "You choose the right path, carefully descending the rough, uneven steps. They lead down into a narrow, damp tunnel. Water drips steadily from the unseen ceiling, echoing in the confined space.",
+      "choices": [
+        { "text": "Continue down the damp tunnel", "target": "139" },
+        { "text": "Return to the fork above", "target": "134" }
+      ]
+    },
+    "137": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_137",
+      "audio": "AUD_137",
+      "altText": "Sifting through useless rusted metal scraps on the floor of the old guard post.",
+      "prose": "You carefully sift through the rusted metal fragments scattered across the floor. Mostly unidentifiable junk – perhaps shattered pieces of old armor or broken automaton parts. Nothing of obvious value or use remains.",
+      "choices": [{ "text": "Continue past the guard post area", "target": "138" }]
+    },
+    "138": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_138",
+      "audio": "AUD_138",
+      "altText": "The corridor ends at an archway flickering with faint, cold spectral light. A soft rattling sound is audible.",
+      "prose": "The guard post corridor continues, ending ahead at an archway. Faint, cold spectral light flickers from within, casting distorted shadows back towards you. A soft, rhythmic rattling sound drifts out.",
+      "choices": [
+        { "text": "Enter the spectral archway", "target": "141" },
+        { "text": "Proceed deeper into the catacombs", "target": "161" },
+        { "text": "Turn back towards Junction I", "target": "134" }
+      ]
+    },
+    "139": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_139",
+      "audio": "AUD_139_dripping_louder",
+      "altText": "The damp tunnel opens into a small cavern containing a pool of dark, still water.",
+      "prose": "The damp tunnel widens slightly, opening into a small, natural-looking cavern. The air is heavy with moisture. Most of the cavern floor is taken up by a pool of perfectly still, dark water. The dripping sound is louder here.",
+      "choices": [
+        { "text": "Examine the dark pool", "target": "140" },
+        { "text": "Skirt carefully around the pool's edge", "target": "142" },
+        { "text": "Return up the damp tunnel", "target": "136" }
+      ]
+    },
+    "140": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_140",
+      "audio": "AUD_140_splash_quiet",
+      "altText": "Peering into the dark, still water of the cavern pool. A faint glint is visible deep below.",
+      "prose": "You kneel at the edge and peer into the pool. The water is unnaturally dark and icy cold, reflecting your torchlight poorly. You cannot see the bottom. However, a faint glint of reflected light suggests something small rests in the murky depths, just beyond easy reach.",
+      "choices": [
+        { "text": "Reach into the icy water for the glinting object", "target": "143" },
+        { "text": "Leave it and skirt around the pool", "target": "142" }
+      ]
+    },
+    "141": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_141",
+      "audio": "AUD_141_chains_rattling",
+      "altText": "A large, cold chamber. Spectral chains hang from above, binding a translucent, mournful spirit.",
+      "prose": "You step through the archway into a large, circular chamber, noticeably colder than the corridor. Dozens of spectral chains hang from the high ceiling, swaying gently and rattling with an ethereal chime. In the center floats a translucent, indistinct figure – a spirit, bound tightly by the thickest chains, its form radiating sorrow.",
+      "choices": [
+        { "text": "Approach the chained spirit", "target": "144" },
+        { "text": "Leave the chamber", "target": "138" }
+      ]
+    },
+    "142": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_142",
+      "audio": "AUD_142",
+      "altText": "Carefully moving around the edge of the dark pool towards a narrow passage on the far side.",
+      "prose": "Deciding against disturbing the dark water, you carefully make your way around the damp edge of the pool. On the far side of the small cavern, a narrow, fissure-like passage continues into the rock.",
+      "choices": [
+        { "text": "Enter the narrow passage", "target": "145" },
+        { "text": "Return towards the damp tunnel entrance", "target": "139" }
+      ]
+    },
+    "143": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_143",
+      "audio": "AUD_143_splash_cold",
+      "altText": "Hand plunging into the icy pool water, groping for something unseen.",
+      "prose": "Taking a deep breath, you plunge your hand into the shockingly icy water, groping blindly towards where you saw the glint. Your fingers brush against something small, smooth, and strangely warm... but an instant, numbing cold shoots up your arm. Pulling your hand back feels like tearing it away from frozen tendrils grasping at you from the depths.",
+      "choices": [
+        { "text": "Withdraw your hand quickly (Cold effect)", "target": "146" },
+        { "text": "Persist despite the intense cold", "target": "147" }
+      ]
+    },
+    "144": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_144",
+      "audio": "AUD_144_spirit_moan",
+      "altText": "Approaching the translucent spirit bound by heavy, spectral chains in the cold chamber.",
+      "prose": "You cautiously approach the center of the cold chamber. The spirit hangs limply, its translucent form barely distinct, bound by heavy spectral chains dripping with condensation that vanishes before hitting the floor. It emits a low, continuous moan that resonates deep in your bones.",
+      "choices": [
+        { "text": "Speak to the spirit", "target": "148" },
+        { "text": "Examine the chains", "target": "149" },
+        { "text": "Leave the chamber", "target": "138" }
+      ]
+    },
+    "145": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_145",
+      "audio": "AUD_145",
+      "altText": "Squeezing through a tight, narrow fissure-like passage.",
+      "prose": "You turn sideways and squeeze into the narrow passage beyond the pool cavern. It's a tight fit, the rough rock scraping against your gear as the fissure twists sharply ahead.",
+      "choices": [{ "text": "Continue squeezing through the passage", "target": "150" }]
+    },
+    "146": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_146",
+      "audio": "AUD_146",
+      "altText": "Snatching a hand back from the icy pool, shivering.",
+      "prose": "You snatch your hand back from the pool's icy grip, shivering uncontrollably for a moment. The unnatural cold lingers, making your fingers tingle painfully, but the sensation gradually fades. Whatever lurks in that pool doesn't appreciate being disturbed. You stand back at the edge.",
+      "choices": [
+        { "text": "Skirt around the pool", "target": "142" },
+        { "text": "Return up the tunnel", "target": "136" }
+      ]
+    },
+    "147": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_147",
+      "audio": "AUD_147_drain_effect",
+      "altText": "Persisting in reaching into the cold pool causes a draining effect, but retrieves a shard.",
+      "prose": "Gritting your teeth against the biting cold, you push deeper, straining to grasp the object. The unnatural chill intensifies, seeming to leech warmth directly from you, making your fingers clumsy and numb. You manage to grasp the small, warm object... but pulling it free feels like tearing your very essence, leaving you feeling weakened and chilled to the bone.",
+      "choices": [
+        { "text": "Examine what you grabbed (Obsidian Shard)", "target": "151" },
+        { "text": "Stumble away from the pool, weakened", "target": "142" }
+      ]
+    },
+    "148": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_148",
+      "audio": "AUD_148_spirit_speak",
+      "altText": "The spirit turns its hazy form towards you as you speak, its moan pausing.",
+      "prose": "You call out a simple greeting. The spirit turns its hazy form towards you, the unnerving moan pausing. It doesn't speak, its features indistinct, but it seems to focus its attention on the spectral chains binding it, particularly the large lock near its core.",
+      "choices": [
+        { "text": "Offer help / Ask about the chains", "target": "152" },
+        { "text": "Examine the chains yourself", "target": "149" },
+        { "text": "Leave", "target": "138" }
+      ]
+    },
+    "149": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_149",
+      "audio": "AUD_149",
+      "altText": "Close-up examining the heavy, ethereal lock and spectral chains binding the spirit.",
+      "prose": "You move closer to examine the spectral chains. They pulse with a faint, cold light, anchored to glowing runes carved into the floor and ceiling. One chain, thicker than the others, culminates in a heavy, complex ethereal lock humming with power, clamped directly onto the spirit's form.",
+      "choices": [
+        { "text": "Try touching the chains or lock", "target": "153" },
+        { "text": "Speak to the spirit instead", "target": "148" },
+        { "text": "Leave", "target": "138" }
+      ]
+    },
+    "150": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_150",
+      "audio": "AUD_150",
+      "altText": "Emerging from the narrow fissure into another section of torchlit corridor.",
+      "prose": "After a tight squeeze, the narrow fissure finally opens out. You emerge, slightly scraped, into another section of wider, torchlit corridor, similar to the ones you encountered earlier.",
+      "choices": [{ "text": "Enter the new corridor section", "target": "155" }]
+    },
+    "151": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_151",
+      "audio": "AUD_151",
+      "altText": "Examining a small, smooth, warm obsidian shard retrieved from the icy pool.",
+      "prose": "Despite the draining cold, you managed to retrieve the object from the pool. It's a small, perfectly smooth shard of obsidian, like volcanic glass, yet it feels strangely warm to the touch. It seems inert for now, but holds a subtle potential.",
+      "flagsGained": ["OBSIDIAN_SHARD"],
+      "choices": [
+        { "text": "Skirt around the pool's edge", "target": "142" },
+        { "text": "Return up the tunnel", "target": "136" }
+      ]
+    },
+    "152": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_152",
+      "audio": "AUD_152_spirit_gesture",
+      "altText": "The spirit gestures weakly towards the spectral lock binding its chains.",
+      "prose": "You ask about the chains, perhaps offering help. The spirit gestures weakly with a translucent limb towards the heavy lock clamping its form. It seems to convey that this lock is the source of its binding, radiating imprisonment.",
+      "choices": [
+        { "text": "Examine the lock closely", "target": "149" },
+        { "text": "Ask if it wants freedom", "target": "154" },
+        { "text": "Leave it", "target": "138" }
+      ]
+    },
+    "153": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_153",
+      "audio": "AUD_153_chain_chill",
+      "altText": "Recoiling hand after touching the intensely cold spectral chains.",
+      "prose": "You reach out tentatively towards the chains or the lock. An intense, unnatural cold bites at your fingertips instantly – far colder than the chamber air – forcing you to recoil sharply. Touching them directly feels like inviting oblivion.",
+      "choices": [
+        { "text": "Speak to the spirit instead", "target": "148" },
+        { "text": "Leave the chamber", "target": "138" }
+      ]
+    },
+    "154": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_154",
+      "audio": "AUD_154_spirit_chains",
+      "altText": "A spectral figure bound in heavy, glowing chains struggles against its bonds in a cold chamber.",
+      "prose": "Chains, etched with crackling runes, bind a translucent spirit to the far wall. It thrashes silently, spectral energy bleeding into the metal links. The cold here bites deep. A heavy, chain-wrapped key hangs near the spirit's ethereal hand, just out of reach.",
+      "prose_alt": [
+        {
+          "condition": "HAS_FLAG:CHAIN_KEY",
+          "text": "The chamber is empty now, the spectral energy faded. Only broken links remain where the spirit was bound. The oppressive cold has lessened."
+        }
+      ],
+      "choices": [
+        {
+          "text": "Examine the runic chains",
+          "target": "155",
+          "hideIf": "HAS_FLAG:CHAIN_KEY"
+        },
+        {
+          "text": "Approach the chained spirit",
+          "target": "156",
+          "hideIf": "HAS_FLAG:CHAIN_KEY"
+        },
+        {
+          "text": "Attempt to grab the key directly",
+          "target": "157",
+          "hideIf": "HAS_FLAG:CHAIN_KEY"
+        },
+        {
+          "text": "Return to the junction",
+          "target": "148"
+        }
+      ]
+    },
+    "155": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_155",
+      "audio": "AUD_155",
+      "altText": "Standing at a junction (Junction J) in a torchlit corridor after exiting the narrow passage.",
+      "prose": "You stand at a junction in the torchlit corridor (Junction J). The narrow passage you just exited is behind you. Ahead, the corridor continues left and right.",
+      "choices": [
+        { "text": "Explore the corridor to the left", "target": "158" },
+        { "text": "Explore the corridor to the right", "target": "159" },
+        { "text": "Return through the narrow passage", "target": "145" }
+      ]
+    },
+    "156": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_156",
+      "audio": "AUD_156",
+      "altText": "Attempting further communication with the spirit, which only moans and gestures at its lock.",
+      "prose": "You try to communicate further with the chained spirit, asking about its identity or purpose. It only responds with its bone-chilling moan, weakly gesturing again towards the heavy spectral lock binding its form. Its attention seems solely focused on its imprisonment.",
+      "choices": [
+        { "text": "Examine the spectral lock again", "target": "149" },
+        { "text": "Ask if it wants freedom (Requires COIN_OATH)", "target": "154" },
+        { "text": "Leave it to its fate", "target": "138" }
+      ]
+    },
+    "157": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_157",
+      "audio": "AUD_157_key_get",
+      "altText": "Taking the heavy, spectral CHAIN_KEY as the spirit dissipates.",
+      "prose": "You reach out and take the heavy, spectral CHAIN_KEY offered by the spirit. It feels unnaturally cold but solid in your grasp, humming faintly. As your fingers close around it, the spirit gives a final, sorrowful look before its translucent form dissipates entirely, leaving the spectral chains hanging limp and silent.",
+      "choices": [
+        { "text": "Examine the now-empty chamber", "target": "160" },
+        { "text": "Leave the chamber with the key", "target": "138" }
+      ]
+    },
+    "158": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_158",
+      "audio": "AUD_158",
+      "altText": "The left corridor from Junction J ends quickly in an old, extensive cave-in.",
+      "prose": "You head left from Junction J. The torchlit corridor continues for only a short distance before ending abruptly in another cave-in. This one looks older and more extensive than the others you've encountered, completely blocking the way forward.",
+      "choices": [{ "text": "Return to Junction J", "target": "155" }]
+    },
+    "159": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_159",
+      "audio": "AUD_159",
+      "altText": "The right corridor from Junction J continues onward, lit by sputtering torches.",
+      "prose": "Choosing the right path from Junction J, you proceed down the torchlit corridor. It continues steadily onward, the sputtering flames casting flickering light on the worn stone walls.",
+      "choices": [{ "text": "Proceed further right", "target": "161" }]
+    },
+    "160": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_160",
+      "audio": "AUD_160",
+      "altText": "The spirit chamber is now empty, spectral chains hanging inertly.",
+      "prose": "With the spirit gone and the CHAIN_KEY secured, you look around the now silent chamber. The spectral chains hang limp and inert, their cold light faded. The runes on the floor and ceiling are dark. There is nothing else of interest here.",
+      "choices": [
+        { "text": "Leave towards the entrance archway", "target": "138" },
+        { "text": "Search for another way forward", "target": "161" }
+      ]
+    },
+    "161": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_161",
+      "audio": "AUD_161",
+      "altText": "Another fork in the torchlit corridor: straight ahead, or rough stairs descending left.",
+      "prose": "The torchlit corridor comes to another fork (Junction K). Ahead, it continues straight and appears well-trodden. To the left, a set of rough, uneven stairs descends into damp-looking darkness.",
+      "choices": [
+        { "text": "Continue straight along the main corridor", "target": "162" },
+        { "text": "Descend the rough stairs to the left", "target": "163" },
+        { "text": "Turn back towards Junction J", "target": "159" }
+      ]
+    },
+    "162": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_162",
+      "audio": "AUD_162",
+      "altText": "The straight, well-trodden torchlit corridor stretching ahead.",
+      "prose": "You choose the straight path. This section of the corridor seems more frequently used than others – the floor is smoother, the dust less thick. Torches flicker reliably ahead.",
+      "choices": [{ "text": "Continue straight", "target": "164" }]
+    },
+    "163": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_163",
+      "audio": "AUD_163",
+      "altText": "Descending the rough, damp stairs into a lower section of the catacombs.",
+      "prose": "You take the left fork, descending the rough, damp stairs. The air grows heavier with moisture, and the temperature drops noticeably. This feels like a less-travelled path.",
+      "choices": [
+        { "text": "Continue down into the dampness", "target": "165" },
+        { "text": "Return to the fork above (Junction K)", "target": "161" }
+      ]
+    },
+    "164": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_164",
+      "audio": "AUD_164",
+      "altText": "The well-trodden corridor continues. A faint, rhythmic clanking sound is audible ahead.",
+      "prose": "The well-trodden straight path continues onward. As you proceed, you begin to hear a faint, rhythmic clanking sound echoing from further ahead. Metal on metal?",
+      "choices": [
+        { "text": "Investigate the clanking sound cautiously", "target": "166" },
+        { "text": "Turn back to the fork (Junction K)", "target": "161" }
+      ]
+    },
+    "165": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_165",
+      "audio": "AUD_165_skitter_close",
+      "altText": "A small, idle spider-like automaton near a pile of debris in a damp passage.",
+      "prose": "At the bottom of the damp stairs, the air hangs heavy with moisture. Ahead, partly obscured by a pile of rubble and debris, sits a small, spider-like automaton similar to the one you glimpsed before. Made of bronze and obsidian steel, it is currently idle, its manipulator limbs tucked in.",
+      "choices": [
+        { "text": "Approach the automaton cautiously", "target": "167" },
+        { "text": "Try to sneak past it", "target": "168" },
+        { "text": "Retreat up the stairs", "target": "163" }
+      ]
+    },
+    "166": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_166",
+      "audio": "AUD_166_clanking_louder",
+      "altText": "Approaching an open doorway from which warmth, the smell of hot metal, and clanking sounds emanate.",
+      "prose": "You follow the rhythmic clanking sound down the corridor. It grows louder, leading you to an open doorway ahead. Warmth radiates from the opening, carrying the distinct smell of hot metal and ozone.",
+      "choices": [
+        { "text": "Peer cautiously into the workshop", "target": "169" },
+        { "text": "Decide against it and turn back", "target": "164" }
+      ]
+    },
+    "167": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_167",
+      "audio": "AUD_167_automaton_activate",
+      "altText": "The small automaton whirs to life, focusing its lens-eyes and raising a sharp tool defensively.",
+      "prose": "As you get closer, the automaton whirs sharply to life. Multiple lens-eyes swivel to focus on you with unnerving speed. It raises a small, sharp-tipped tool – perhaps a drill or probe – defensively, emitting a low, warning buzz.",
+      "choices": [
+        { "text": "Back away slowly", "target": "165" },
+        { "text": "Try to communicate/gesture peacefully (Use OBSIDIAN_SHARD?)", "target": "170" },
+        { "text": "Attempt to disable it quickly", "target": "171" }
+      ]
+    },
+    "168": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_168",
+      "audio": "AUD_168_sneak_fail",
+      "altText": "Trying to sneak past the automaton, but dislodging loose stones alerts it.",
+      "prose": "Hoping to avoid confrontation, you try to creep silently past the idle automaton. Unfortunately, your foot dislodges some loose stones near the debris pile, sending them skittering across the floor. The automaton instantly snaps its multiple lenses towards the sound – towards you – and whirs defensively, raising its tool.",
+      "choices": [
+        { "text": "Freeze, then slowly back away", "target": "165" },
+        { "text": "No choice but to disable it now", "target": "171" }
+      ]
+    },
+    "169": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_169",
+      "audio": "AUD_169_workshop_ambience",
+      "altText": "Peering into a cluttered workshop. A larger automaton works at a glowing forge.",
+      "prose": "You cautiously peer around the doorway. Inside is a cramped workshop, thick with the smell of hot metal and ozone. Tools, wires, and metal scraps litter benches. In the far corner, a forge emits a fierce orange glow, illuminating a larger, more complex automaton hammering rhythmically on a piece of incandescent metal.",
+      "choices": [
+        { "text": "Enter the workshop", "target": "172" },
+        { "text": "Observe from the doorway", "target": "173" },
+        { "text": "Leave", "target": "166" }
+      ]
+    },
+    "170": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_170",
+      "audio": "AUD_170_automaton_scan",
+      "altText": "Gesturing peacefully towards the small automaton, which pauses and scans you.",
+      "prose": "You stop, holding your hands up slowly in a non-threatening gesture. The automaton pauses its buzzing, its head tilting as its lenses scan you methodically. It doesn't advance or attack, but remains poised defensively, clearly wary of your presence.",
+      "prose_alt": [
+        {
+          "condition": "HAS_FLAG:OBSIDIAN_SHARD",
+          "text": "You stop and slowly hold out the warm obsidian shard you found in the pool. The automaton's buzzing softens to a series of inquisitive clicks. It tilts its head, scanning the shard, and seems to lower its defensive tool slightly, intrigued by the object."
+        }
+      ],
+      "choices": [
+        {
+          "text": "Try offering the Obsidian Shard",
+          "target": "174",
+          "hideIf": "NOT HAS_FLAG:OBSIDIAN_SHARD"
+        },
+        { "text": "Slowly back away", "target": "165" },
+        { "text": "Attempt to bypass it while it's calm", "target": "175" }
+      ]
+    },
+    "171": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_171",
+      "audio": "AUD_171_automaton_fight",
+      "altText": "Disabling the small automaton results in sparks and a minor shock/burn.",
+      "prose": "Deciding it's too risky, you lunge at the small automaton. It reacts with surprising speed, spraying stinging sparks as you strike. You manage to disable it with a solid blow, crushing its core mechanism, but not before its tool gives you a nasty shock that makes your arm tingle painfully.",
+      "choices": [
+        { "text": "Examine the disabled automaton", "target": "176" },
+        { "text": "Continue past its remains", "target": "177" }
+      ]
+    },
+    "172": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_172",
+      "audio": "AUD_172_automaton_smith",
+      "altText": "Entering the workshop, the larger automaton at the forge turns its multi-lensed head.",
+      "prose": "You step fully into the workshop, the sound of your boots loud on the stone floor. The larger automaton at the forge ceases its hammering instantly. Its bulky frame pivots, and a multi-lensed head turns towards you with a low grinding sound. It pauses, hammer held aloft, assessing the intrusion.",
+      "choices": [
+        { "text": "Announce your presence peacefully", "target": "178" },
+        { "text": "Ready yourself for a confrontation", "target": "179" },
+        { "text": "Quickly scan the workshop for items", "target": "180" },
+        { "text": "Back out of the workshop", "target": "166" }
+      ]
+    },
+    "173": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_173",
+      "audio": "AUD_173",
+      "altText": "Observing the cluttered workshop from the doorway. The large automaton hammers at the forge.",
+      "prose": "Remaining partially hidden in the doorway, you observe the workshop. The large automaton seems completely focused on its task, rhythmically hammering a piece of glowing metal at the forge. Various tools, components, and strange devices lie scattered across workbenches lining the walls.",
+      "choices": [
+        { "text": "Enter the workshop properly", "target": "172" },
+        { "text": "Try to quickly snatch something from a nearby bench", "target": "181" },
+        { "text": "Quietly leave", "target": "166" }
+      ]
+    },
+    "174": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_174",
+      "audio": "AUD_174_automaton_accepts",
+      "altText": "The larger automaton extends a delicate manipulator arm, takes the shard, and inserts it into a slot on its chassis. It emits a satisfied series of clicks and whirs, then turns and skitters back towards the debris pile, ignoring you.",
+      "prose": "You offer the shard. The automaton extends a delicate manipulator arm, takes the shard, and inserts it into a slot on its chassis. It emits a satisfied series of clicks and whirs, then turns and skitters back towards the debris pile, ignoring you.",
+      "flagsLost": ["OBSIDIAN_SHARD"],
+      "choices": [
+        { "text": "Examine the debris pile it returned to", "target": "182" },
+        { "text": "Continue past the now-passive automaton", "target": "177" },
+        { "text": "Retreat up the stairs", "target": "163" }
+      ]
+    },
+    "175": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_175",
+      "audio": "AUD_175_sneak_success",
+      "altText": "While the automaton remains warily still (perhaps distracted by the shard), you manage to slip past it deeper into the damp area.",
+      "prose": "Placeholder prose.",
+      "choices": [{ "text": "Proceed further into the damp passage", "target": "177" }]
+    },
+    "176": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_176",
+      "audio": "AUD_176",
+      "altText": "The disabled automaton is a mess of bent metal and sparking wires. Searching the nearby debris reveals nothing of interest.",
+      "prose": "Placeholder prose.",
+      "choices": [{ "text": "Continue past", "target": "177" }]
+    },
+    "177": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_177",
+      "audio": "AUD_177",
+      "altText": "The narrow passage continuing beyond the defeated horror.",
+      "prose": "Stepping past the remains of the horror, the narrow passage continues its descent, though perhaps less steeply now.",
+      "choices": [{ "text": "Proceed further", "target": "183" }]
+    },
+    "178": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_178",
+      "audio": "AUD_178_automaton_response",
+      "altText": "The large automaton stops hammering and turns fully towards you. A series of synthesized tones emits from a speaker grille - incomprehensible, but not immediately hostile.",
+      "prose": "Placeholder prose.",
+      "choices": [
+        { "text": "Ask about this place / its purpose", "target": "180" },
+        {
+          "text": "Offer the Gear from the barracks",
+          "target": "178B",
+          "hideIf": "NOT HAS_FLAG:MINOR_ITEM_2"
+        },
+        {
+          "text": "Offer the Tarnished Gear from the debris",
+          "target": "178C",
+          "hideIf": "NOT HAS_FLAG:TARNISHED_GEAR"
+        },
+        { "text": "Look around the workshop more closely", "target": "180" },
+        { "text": "Slowly back out towards the entrance corridor", "target": "166" },
+        { "text": "Leave workshop towards the main exit passage", "target": "196" }
+      ]
+    },
+    "178B": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_178B",
+      "audio": "AUD_178B_scan",
+      "altText": "Offering the gear from the barracks to the large automaton, which scans it impassively.",
+      "prose": "You hold out the heavy metal gear you found in the barracks. The large automaton pauses, its lenses focusing on the object. It extends a manipulator, takes the gear, scans it briefly with an internal light, then simply sets it aside on a nearby workbench without any apparent reaction before turning its attention back to you.",
+      "flagsLost": ["MINOR_ITEM_2"],
+      "choices": [
+        { "text": "Ask about this place / its purpose", "target": "180" },
+        { "text": "Look around the workshop more closely", "target": "180" },
+        { "text": "Slowly back out towards the entrance corridor", "target": "166" },
+        { "text": "Leave workshop towards the main exit passage", "target": "196" }
+      ]
+    },
+    "178C": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_178C",
+      "audio": "AUD_178C_interest",
+      "altText": "Offering the tarnished gear from the debris to the large automaton, which takes it with a series of clicks.",
+      "prose": "You present the small, tarnished gear found near the other automaton's debris pile. The large automaton tilts its head, emitting a series of soft, inquisitive clicks. It takes the gear carefully, examines it with focused lenses, and then slots it into a small, previously unseen receptacle on its chassis. It emits a low, satisfied hum before turning back to you, perhaps slightly less wary.",
+      "flagsLost": ["TARNISHED_GEAR"],
+      "choices": [
+        { "text": "Ask about this place / its purpose", "target": "180" },
+        { "text": "Look around the workshop more closely", "target": "180" },
+        { "text": "Slowly back out towards the entrance corridor", "target": "166" },
+        { "text": "Leave workshop towards the main exit passage", "target": "196" }
+      ]
+    },
+    "179": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_179",
+      "audio": "AUD_179_automaton_threat_response",
+      "altText": "The automaton interprets your stance as hostile. It drops its hammer with a clang and raises manipulator arms fitted with various tools - clamps, cutters, heat emitters.",
+      "prose": "Placeholder prose.",
+      "choices": [
+        { "text": "Attack the smith automaton", "target": "258" },
+        { "text": "Try to de-escalate / back down", "target": "178" },
+        { "text": "Flee the workshop", "target": "166" }
+      ]
+    },
+    "180": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_180",
+      "audio": "AUD_180",
+      "altText": "While the automaton watches you, you quickly scan the benches. Mostly scrap and tools, but a strange crystalline lens sits on one bench, and a side alcove seems to hold finished items.",
+      "prose": "Placeholder prose.",
+      "choices": [
+        { "text": "Examine the crystalline lens", "target": "186" },
+        { "text": "Check the alcove with finished items", "target": "187" },
+        { "text": "Address the automaton", "target": "178" },
+        { "text": "Leave the workshop towards the main exit passage", "target": "196" }
+      ]
+    },
+    "181": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_181",
+      "audio": "AUD_181_theft_fail",
+      "altText": "You try to quickly snatch something from a bench near the door. The large automaton reacts instantly, moving with surprising speed to block your path, letting out a harsh series of warning tones.",
+      "prose": "Placeholder prose.",
+      "choices": [
+        { "text": "Enter the workshop properly", "target": "172" },
+        { "text": "Flee", "target": "166" }
+      ]
+    },
+    "182": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_182",
+      "audio": "AUD_182",
+      "altText": "Examining the debris pile where the small automaton returned. Mostly rock and dirt, but partially hidden is a small, tarnished gear.",
+      "prose": "You examine the pile of rubble and debris where the small automaton settled after accepting (or ignoring) the shard. Mostly just rock fragments and dirt, but poking out from beneath a twisted piece of metal, you spot a small, tarnished gear.",
+      "choices": [
+        { "text": "Take the tarnished gear", "target": "188" },
+        { "text": "Leave the debris and continue past", "target": "177" }
+      ]
+    },
+    "183": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_183",
+      "audio": "AUD_183",
+      "altText": "The damp passage continues straight, the air feeling slightly warmer ahead.",
+      "prose": "Continuing past the automaton/debris area (or its remains), the damp passage runs straight for a short distance. The air ahead feels slightly warmer and drier, hinting at a larger space beyond.",
+      "choices": [{ "text": "Proceed towards the warmer air", "target": "196" }]
+    },
+    "186": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_186",
+      "audio": "AUD_186",
+      "altText": "Examining a finely crafted crystalline lens sitting on the workshop bench.",
+      "prose": "You pick up the crystalline lens from the workbench. It's cool, smooth, and precisely crafted. Holding it up to the forge light, you notice faint, swirling energy patterns seem trapped within its depths. It feels strangely significant.",
+      "flagsGained": ["CRYSTAL_LENS"],
+      "choices": [
+        { "text": "Check the alcove with finished items", "target": "187" },
+        { "text": "Address the automaton", "target": "178" },
+        { "text": "Leave the workshop", "target": "166" },
+        { "text": "Slowly back out towards the entrance corridor", "target": "166" },
+        { "text": "Leave workshop towards the main exit passage", "target": "196" }
+      ]
+    },
+    "187": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_187_Alcove",
+      "audio": "AUD_187_Alcove",
+      "altText": "Looking into a side alcove in the workshop containing a pedestal with a sword hilt.",
+      "prose": "You investigate the side alcove. Unlike the cluttered benches, this space is clean, containing only a simple stone pedestal. Resting upon it is an ornate sword hilt, humming faintly with contained heat. It looks identical to the one depicted being forged by the automaton.",
+      "prose_alt": [
+        {
+          "condition": "HAS_FLAG:BLAZING_SWORD",
+          "text": "You look into the side alcove again. The pedestal where the Blazing Sword hilt rested is now empty."
+        }
+      ],
+      "choices": [
+        {
+          "text": "Touch the hilt with the FIRE_RUNE",
+          "target": "187B",
+          "hideIf": "HAS_FLAG:BLAZING_SWORD"
+        },
+        {
+          "text": "Examine the hilt (No Rune)",
+          "target": "187C",
+          "hideIf": "HAS_FLAG:BLAZING_SWORD"
+        },
+        { "text": "Step back into the main workshop", "target": "180" }
+      ]
+    },
+    "187B": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_187B_Ignite",
+      "audio": "AUD_187B_Ignite",
+      "altText": "Touching the FIRE_RUNE to the hilt causes a blade of pure flame to ignite with a roar.",
+      "prose": "You bring the pulsing FIRE_RUNE close to the waiting hilt. As they connect, there is a blinding flash and a satisfying roar as a blade of pure, incandescent flame springs into existence! The Blazing Sword feels light but immensely powerful in your grasp.",
+      "flagsGained": ["BLAZING_SWORD"],
+      "choices": [{ "text": "Admire your new weapon", "target": "195" }]
+    },
+    "187C": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_187C_Examine",
+      "audio": "AUD_187C_Examine",
+      "altText": "Examining the finely crafted but inert sword hilt on the pedestal.",
+      "prose": "You examine the hilt closely. The craftsmanship is superb, inlaid with obsidian and strange circuitry. It radiates a faint warmth but is clearly inert. It requires a potent energy source – something intensely fiery – to ignite its blade.",
+      "choices": [{ "text": "Step back into the main workshop", "target": "180" }]
+    },
+    "188": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_188",
+      "audio": "AUD_188",
+      "altText": "Pocketing the small, tarnished gear found in the debris.",
+      "prose": "You retrieve the small, tarnished gear from the debris. It feels cool and slightly gritty to the touch. Its teeth are worn, but it seems like it might fit into some larger mechanism.",
+      "flagsGained": ["TARNISHED_GEAR"],
+      "choices": [{ "text": "Continue past the debris pile", "target": "177" }]
+    },
+    "195": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_195",
+      "audio": "AUD_195",
+      "altText": "Standing in the workshop holding the ignited Blazing Sword. The large automaton watches impassively.",
+      "prose": "Wielding the Blazing Sword, its fiery blade illuminating the cluttered workshop, you stand your ground. The large automaton at the forge watches you, its multi-lensed head tilted. It makes no hostile move, perhaps recognizing the power you now hold, or simply recalculating threat parameters.",
+      "choices": [
+        {
+          "text": "Examine the crystalline lens (if not taken)",
+          "target": "186",
+          "hideIf": "HAS_FLAG:CRYSTAL_LENS"
+        },
+        { "text": "Address the automaton", "target": "178" },
+        { "text": "Leave the workshop with your sword", "target": "166" },
+        { "text": "Slowly back out towards the entrance corridor", "target": "166" },
+        { "text": "Leave workshop towards the main exit passage", "target": "196" }
+      ]
+    },
+    "196": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_196",
+      "audio": "AUD_196",
+      "altText": "The passage widens and dries, revealing a massive, heavily reinforced door set into the rock ahead.",
+      "prose": "The passage ahead widens considerably and the floor becomes dry stone. Set into the rock face before you is a massive, heavily reinforced door made of dark metal plates bolted together. It looks incredibly solid.",
+      "choices": [{ "text": "Approach the reinforced door", "target": "197" }]
+    },
+    "197": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_197",
+      "audio": "AUD_197",
+      "altText": "Standing before the massive reinforced door, examining its two distinct locks: one fiery, one spectral.",
+      "prose": "You stand before the immense reinforced door. It radiates a sense of finality. Two distinct, complex locking mechanisms are visible: one glows with an inner heat, resembling the FIRE_RUNE; the other shimmers with a cold, spectral energy, reminiscent of the CHAIN_KEY.",
+      "choices": [
+        { "text": "Examine the fiery lock closer", "target": "198" },
+        { "text": "Examine the spectral lock closer", "target": "199" },
+        {
+          "text": "Use the FIRE_RUNE and CHAIN_KEY to open the door",
+          "target": "203",
+          "hideIf": "NOT HAS_FLAG:FIRE_RUNE"
+        },
+        {
+          "text": "Use the FIRE_RUNE and CHAIN_KEY to open the door",
+          "target": "203",
+          "hideIf": "NOT HAS_FLAG:CHAIN_KEY"
+        },
+        {
+          "text": "Attempt to use the CHAIN_KEY (Missing Fire Rune)",
+          "target": "202",
+          "hideIf": "HAS_FLAG:FIRE_RUNE"
+        },
+        {
+          "text": "Attempt to use the CHAIN_KEY (Missing Fire Rune)",
+          "target": "202",
+          "hideIf": "NOT HAS_FLAG:CHAIN_KEY"
+        },
+        {
+          "text": "Attempt to use the FIRE_RUNE (Missing Chain Key)",
+          "target": "202",
+          "hideIf": "HAS_FLAG:CHAIN_KEY"
+        },
+        {
+          "text": "Attempt to use the FIRE_RUNE (Missing Chain Key)",
+          "target": "202",
+          "hideIf": "NOT HAS_FLAG:FIRE_RUNE"
+        },
+        {
+          "text": "Try the locks (Missing both keys)",
+          "target": "201",
+          "hideIf": "HAS_FLAG:FIRE_RUNE"
+        },
+        {
+          "text": "Try the locks (Missing both keys)",
+          "target": "201",
+          "hideIf": "HAS_FLAG:CHAIN_KEY"
+        },
+        { "text": "Step back from the door", "target": "196" }
+      ]
+    },
+    "198": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_198",
+      "audio": "AUD_198",
+      "altText": "Close-up on the fiery lock mechanism on the reinforced door, pulsing with heat.",
+      "prose": "You examine the fiery lock. It pulses with tangible heat, the mechanism clearly designed to accept the unique shape and energy signature of the FIRE_RUNE. Without it, this lock seems impassable.",
+      "choices": [
+        { "text": "Examine the spectral lock", "target": "199" },
+        { "text": "Try the door (Requires both keys)", "target": "203" },
+        { "text": "Step back from the door", "target": "196" }
+      ]
+    },
+    "199": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_199",
+      "audio": "AUD_199",
+      "altText": "Close-up on the spectral lock mechanism, shimmering with cold energy designed for the CHAIN_KEY.",
+      "prose": "You examine the spectral lock. It shimmers with a palpable coldness, the ethereal tumblers designed to fit the spectral bindings of the CHAIN_KEY. Its energy resists any mundane attempt to open it.",
+      "choices": [
+        { "text": "Examine the fiery lock", "target": "198" },
+        { "text": "Try the door (Requires both keys)", "target": "203" },
+        { "text": "Step back from the door", "target": "196" }
+      ]
+    },
+    "201": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_201",
+      "audio": "AUD_201",
+      "altText": "Acknowledging the need for both keys to open the Hub B door.",
+      "prose": "The door remains sealed. It seems both the FIRE_RUNE and the CHAIN_KEY are required to unlock this path forward.",
+      "choices": [{ "text": "Step back from the door", "target": "196" }]
+    },
+    "202": {
+      "zone": "Act 2 - Ember Catacombs",
+      "image": "IMG_202",
+      "audio": "AUD_202",
+      "altText": "Considering the impassable Hub B door without the correct keys.",
+      "prose": "Without the FIRE_RUNE and the CHAIN_KEY, this formidable door blocks your progress completely. You must possess both to continue.",
+      "choices": [{ "text": "Turn back and search elsewhere", "target": "196" }]
+    },
+    "203": {
+      "zone": "Hub B - Gauntlet Entrance",
+      "image": "IMG_203_gauntlet_entrance",
+      "audio": "AUD_203_heavy_door_bridge",
+      "altText": "Standing before a narrow stone bridge arching over a vast, dark abyss. Wind howls.",
+      "prose": "With a final CLANG, the massive door grinds open. Before you lies the Gauntlet: a narrow, ancient stone bridge arching over a terrifyingly deep abyss. Howling wind whips through the chasm, carrying faint, unsettling whispers. The air is cold, charged with unseen energy.",
+      "prose_alt": [
+        {
+          "condition": "HAS_FLAG:BLAZING_SWORD",
+          "text": "Your Blazing Sword hums, its light pushing back the oppressive darkness of the abyss slightly."
+        }
+      ],
+      "choices": [
+        { "text": "Step onto the Gauntlet bridge", "target": "204" },
+        { "text": "Reconsider and step back", "target": "196" }
+      ]
+    },
+    "204": {
+      "zone": "Gauntlet - Bridge",
+      "image": "IMG_204",
+      "audio": "AUD_204_abyss_wind",
+      "altText": "Standing on the narrow stone bridge spanning a vast, dark abyss. Howling wind buffets you.",
+      "prose": "You take a tentative step onto the narrow bridge. It feels ancient, the stone worn smooth. A chilling wind howls up from the oppressive darkness of the abyss below, buffeting you and threatening your balance. Far ahead, across the terrifying void, you can barely make out the dark opening of the passage continuing on the other side.",
+      "choices": [
+        { "text": "Proceed cautiously across the bridge", "target": "205" },
+        { "text": "Turn back through the Hub B door", "target": "203" }
+      ]
+    },
+    "205": {
+      "zone": "Gauntlet - Bridge",
+      "image": "IMG_205",
+      "audio": "AUD_205",
+      "altText": "Looking down at the ancient, cracked flagstones of the bridge mid-span.",
+      "prose": "You inch forward, eyes fixed on the cracked flagstones underfoot. The abyss yawns hungrily on either side. Halfway across, you reach a section where the stonework looks alarmingly unstable, riddled with deep cracks.",
+      "choices": [
+        { "text": "Test the unstable section lightly", "target": "206" },
+        { "text": "Try to jump over the unstable section", "target": "207" }
+      ]
+    },
+    "206": {
+      "zone": "Gauntlet - Bridge",
+      "image": "IMG_206",
+      "audio": "AUD_206_bridge_crumble_minor",
+      "altText": "A foot testing loose flagstones on the bridge, causing minor crumbling.",
+      "prose": "You lightly tap the unstable flagstones with your foot. A few pebbles dislodge and fall silently into the abyss. It might hold, but it doesn't inspire confidence.",
+      "choices": [
+        { "text": "Risk crossing the weak section carefully", "target": "208" },
+        { "text": "Attempt to jump it instead", "target": "207" }
+      ]
+    },
+    "207": {
+      "zone": "Gauntlet - Bridge",
+      "image": "IMG_207",
+      "audio": "AUD_207_jump_land",
+      "altText": "Mid-air perspective, leaping over a crumbling section of the bridge above the abyss.",
+      "prose": "Trusting your agility over the crumbling stone, you take a short run-up and leap over the treacherous section. For a heart-stopping moment, you hang over the abyss before landing solidly on the far side. A wise precaution.",
+      "choices": [{ "text": "Continue towards the end of the bridge", "target": "209" }]
+    },
+    "208": {
+      "zone": "Gauntlet - Bridge",
+      "image": "IMG_208",
+      "audio": "AUD_208_bridge_groan",
+      "altText": "Carefully stepping over deeply cracked flagstones on the bridge; they shift slightly.",
+      "prose": "Holding your breath, you distribute your weight and step gingerly across the unstable flagstones. The bridge groans ominously beneath you, and loose stones shift underfoot, but miraculously it holds. You hurry onto the slightly more stable section just beyond, heart pounding.",
+      "choices": [{ "text": "Continue towards the end of the bridge", "target": "209" }]
+    },
+    "209": {
+      "zone": "Gauntlet - Bridge Exit",
+      "image": "IMG_209",
+      "audio": "AUD_209",
+      "altText": "Reaching the end of the bridge, looking into the dark passage ahead.",
+      "prose": "You reach the far side of the abyss, stepping off the bridge onto solid ground with relief. The passage ahead is dark and descends steeply.",
+      "choices": [
+        { "text": "Enter the descending passage", "target": "210" },
+        { "text": "Look back across the bridge", "target": "204" }
+      ]
+    },
+    "210": {
+      "zone": "Gauntlet - Descending Passage",
+      "image": "IMG_210",
+      "audio": "AUD_210_scraping_echo",
+      "altText": "A steep, claustrophobic passage descending into darkness. Faint, sharp scraping sounds echo from below.",
+      "prose": "The passage descends sharply into blackness. It's narrow and claustrophobic, the rock pressing close. A faint but sharp scraping sound echoes disturbingly from the unseen depths below, growing steadily louder.",
+      "choices": [
+        { "text": "Descend cautiously towards the sound", "target": "211" },
+        {
+          "text": "Try using the Crystal Lens",
+          "target": "212",
+          "hideIf": "NOT HAS_FLAG:CRYSTAL_LENS"
+        }
+      ]
+    },
+    "211": {
+      "zone": "Gauntlet - Descending Passage",
+      "image": "IMG_211",
+      "audio": "AUD_211",
+      "altText": "Descending the dark, steep passage.",
+      "prose": "You proceed down the steep, dark passage. The scraping sound gets slightly louder, seeming to come from around a bend below.",
+      "choices": [{ "text": "Continue downwards", "target": "213" }]
+    },
+    "212": {
+      "zone": "Gauntlet - Descending Passage",
+      "image": "IMG_212",
+      "audio": "AUD_212_lens_reveal",
+      "altText": "Looking through the Crystal Lens down the passage, revealing faint energy trails.",
+      "prose": "You raise the Crystal Lens you found in the workshop. Looking through it, the darkness reveals faint, shimmering energy trails along the floor and walls – residue of something passing this way recently?",
+      "choices": [
+        { "text": "Follow the energy trails down", "target": "211" },
+        { "text": "Put the lens away and descend normally", "target": "211" }
+      ]
+    },
+    "213": {
+      "zone": "Gauntlet - Scrabbling Horror",
+      "image": "IMG_213",
+      "audio": "AUD_213_horror_reveal",
+      "altText": "A grotesque creature of fused metal and bone scrabbles rapidly up the narrow passage towards you.",
+      "prose": "Rounding a tight bend, the source of the scraping becomes horrifyingly clear. A grotesque creature, a nightmarish fusion of jagged metal shards and blackened bone, scrabbles rapidly towards you up the narrow passage. Its many limbs end in needle-sharp points, gouging the rock as it comes, its empty sockets fixed on you.",
+      "choices": [
+        { "text": "Stand your ground and fight!", "target": "214" },
+        { "text": "Attempt to retreat back up the passage", "target": "215" }
+      ]
+    },
+    "214": {
+      "zone": "Gauntlet - Scrabbling Horror",
+      "image": "IMG_214",
+      "audio": "AUD_214_fight_horror",
+      "altText": "Confronting the scrabbling horror in the tight passage. If Blazing Sword, it hisses at the flame.",
+      "prose": "There's no room to maneuver. You ready yourself as the horror lunges, its sharp limbs slashing wildly in the confined space. You must defend yourself or be torn apart!",
+      "prose_alt": [
+        {
+          "condition": "HAS_FLAG:BLAZING_SWORD",
+          "text": "You ignite the Blazing Sword just as the horror lunges. The creature lets out a horrifying shriek and recoils momentarily from the intense flame, its advance faltering. This gives you a crucial, if brief, advantage."
+        }
+      ],
+      "choices": [
+        {
+          "text": "Fight defensively, look for weakness (Easier with Sword)",
+          "target": "216"
+        },
+        { "text": "Attack aggressively", "target": "217B" }
+      ]
+    },
+    "215": {
+      "zone": "Gauntlet - Scrabbling Horror",
+      "image": "IMG_215",
+      "audio": "AUD_215_retreat_fail",
+      "altText": "Trying to retreat up the steep passage, but the horror is too fast.",
+      "prose": "You try to scramble back up the steep passage, but the horror moves with unnatural speed, blocking your retreat with its thrashing limbs.",
+      "choices": [{ "text": "You must fight!", "target": "214" }]
+    },
+    "216": {
+      "zone": "Gauntlet - Scrabbling Horror",
+      "image": "IMG_216",
+      "audio": "AUD_216_horror_defeated",
+      "altText": "The defeated horror collapsing into inert scrap metal and shattered bone after its crystal core is destroyed.",
+      "prose": "Fighting defensively in the tight confines (perhaps aided by the Blazing Sword keeping it at bay), you evade its wild strikes and spot a cracked, faintly pulsing crystal embedded deep within the creature's fused torso. Timing your move perfectly, a well-aimed strike shatters it! The horror convulses violently, then collapses into a heap of inert scrap and bone shards with a final, rattling sigh.",
+      "choices": [
+        { "text": "Examine the remains", "target": "218" },
+        { "text": "Continue past the remains", "target": "219" }
+      ]
+    },
+    "217B": {
+      "zone": "Endings - Game Over",
+      "image": "IMG_217B_horror_kill",
+      "audio": "AUD_217_horror_kill",
+      "altText": "Being overwhelmed and impaled by the scrabbling horror's sharp limbs in the narrow passage.",
+      "prose": "You attack aggressively, but the creature's wild thrashing in the confined space is too unpredictable. A needle-sharp limb slips past your guard, impaling you fatally. Your quest ends here, another victim of the Gauntlet's horrors.",
+      "choices": [{ "text": "Face the Gauntlet again?", "target": "1", "flagsReset": true }]
+    },
+    "218": {
+      "zone": "Gauntlet - Scrabbling Horror",
+      "image": "IMG_218",
+      "audio": "AUD_218",
+      "altText": "Sifting through the remains of the defeated horror.",
+      "prose": "You cautiously examine the remains. Mostly just jagged metal and bone. You find fragments of the shattered crystal, but they are dull and useless now.",
+      "choices": [{ "text": "Continue down the passage", "target": "219" }]
+    },
+    "219": {
+      "zone": "Gauntlet - Passage Continues",
+      "image": "IMG_219",
+      "audio": "AUD_219",
+      "altText": "The narrow passage continuing beyond the defeated horror.",
+      "prose": "Stepping past the remains of the horror, the narrow passage continues its descent, though perhaps less steeply now.",
+      "choices": [{ "text": "Proceed further", "target": "220" }]
+    },
+    "220": {
+      "zone": "Gauntlet - Pressure Plates",
+      "image": "IMG_220",
+      "audio": "AUD_220",
+      "altText": "The passage floor widens slightly, covered in a grid of slightly raised pressure plates.",
+      "prose": "The narrow passage widens slightly into a small chamber. Ahead, the floor is entirely covered in a grid of slightly raised tiles – pressure plates, perfectly fitted and spanning the whole area. There's no way around; crossing looks exceptionally perilous.",
+      "prose_alt": [
+        {
+          "condition": "HAS_FLAG:LORE_HINT_1",
+          "text": "The narrow passage widens slightly into a small chamber. Ahead, the floor is entirely covered in a grid of slightly raised pressure plates. Looking closely, you recognize the faint geometric patterns etched onto some tiles – they match the strange markings you saw in that dead-end alcove earlier! Perhaps that offers some clue?"
+        }
+      ],
+      "choices": [
+        { "text": "Attempt to carefully step on specific plates", "target": "221" },
+        {
+          "text": "Use the Crystal Lens to scan the plates",
+          "target": "222",
+          "hideIf": "NOT HAS_FLAG:CRYSTAL_LENS"
+        },
+        { "text": "Try to trigger one plate from a distance", "target": "223" }
+      ]
+    },
+    "221": {
+      "zone": "Gauntlet - Pressure Plates",
+      "image": "IMG_221",
+      "audio": "AUD_221_trap_trigger_darts",
+      "altText": "Stepping incorrectly on a pressure plate triggers poison darts shooting from hidden wall apertures.",
+      "prose": "You try to deduce a pattern, stepping carefully onto a tile that looks safe. Click! Instantly, small apertures hidden in the walls hiss open, firing volleys of small, dark darts. You twist aside, avoiding most, but a sharp pain lances your arm as one finds its mark. Poison?",
+      "choices": [
+        { "text": "Press on across the plates (Poisoned!)?", "target": "224" },
+        { "text": "Try to retreat back before the plates", "target": "219" }
+      ]
+    },
+    "222": {
+      "zone": "Gauntlet - Pressure Plates",
+      "image": "IMG_222",
+      "audio": "AUD_222_lens_reveal_safe_path",
+      "altText": "Using the Crystal Lens reveals faint glowing lines tracing a safe path across the pressure plate grid.",
+      "prose": "You raise the Crystal Lens and look through it at the treacherous floor. Faint, shimmering energy lines spring into view, tracing a specific, winding path across the pressure plate grid, clearly highlighting the safe tiles to step on.",
+      "choices": [
+        { "text": "Follow the safe path precisely", "target": "224" },
+        { "text": "Ignore the lens and try stepping carefully", "target": "221" }
+      ]
+    },
+    "223": {
+      "zone": "Gauntlet - Pressure Plates",
+      "image": "IMG_223",
+      "audio": "AUD_223_plate_trigger_distance",
+      "altText": "Tossing a rock onto a pressure plate, triggering a dart trap harmlessly.",
+      "prose": "You find a loose rock and toss it onto a nearby plate. Click! A dart fires harmlessly from the wall, embedding itself in the stone opposite. Triggering them all seems tedious and potentially dangerous if other traps exist.",
+      "choices": [
+        { "text": "Attempt to carefully step between plates", "target": "221" },
+        {
+          "text": "Use the Crystal Lens to scan",
+          "target": "222",
+          "hideIf": "NOT HAS_FLAG:CRYSTAL_LENS"
+        }
+      ]
+    },
+    "224": {
+      "zone": "Gauntlet - Past Pressure Plates",
+      "image": "IMG_224",
+      "audio": "AUD_224",
+      "altText": "Safely standing on the passage floor beyond the pressure plate trap.",
+      "prose": "You successfully navigate the deadly pressure plate grid (whether by luck, skill, or the lens's guidance, perhaps nursing a poisoned dart wound). You step onto solid, untiled floor on the far side with relief. The passage ahead continues downward.",
+      "choices": [{ "text": "Proceed into the passage", "target": "225" }]
+    },
+    "225": {
+      "zone": "Gauntlet - Alcove Choice",
+      "image": "IMG_225",
+      "audio": "AUD_225",
+      "altText": "A narrow passage with a small alcove set into one wall.",
+      "prose": "The passage continues its descent. Ahead, you notice a small, dark alcove set into the left wall.",
+      "choices": [
+        { "text": "Investigate the alcove", "target": "226" },
+        { "text": "Ignore the alcove and continue down", "target": "227" }
+      ]
+    },
+    "226": {
+      "zone": "Gauntlet - Blazing Sword Alcove",
+      "image": "IMG_226",
+      "audio": "AUD_226_sword_hum",
+      "altText": "Inside a small alcove, a sword hilt rests on a stone pedestal, humming with heat.",
+      "prose": "You peer into the alcove. It's small and bare except for a simple stone pedestal. Resting upon it is a sword hilt, identical to the one in the workshop, humming faintly with heat.",
+      "prose_alt": [
+        {
+          "condition": "HAS_FLAG:BLAZING_SWORD",
+          "text": "You peer into the alcove again. The pedestal where the Blazing Sword hilt rested is now empty."
+        }
+      ],
+      "choices": [
+        {
+          "text": "Touch the hilt with the FIRE_RUNE",
+          "target": "228",
+          "flagsGained": ["BLAZING_SWORD"],
+          "hideIf": "HAS_FLAG:BLAZING_SWORD"
+        },
+        {
+          "text": "Examine the hilt (No Rune)",
+          "target": "229",
+          "hideIf": "HAS_FLAG:BLAZING_SWORD"
+        },
+        {
+          "text": "Leave the alcove",
+          "target": "225"
+        }
+      ]
+    },
+    "227": {
+      "zone": "Gauntlet - Descending Further",
+      "image": "IMG_227",
+      "audio": "AUD_227",
+      "altText": "The narrow passage continues descending into deeper darkness.",
+      "prose": "You ignore the alcove and continue down the narrow, descending passage. It twists, and the air grows noticeably colder.",
+      "choices": [{ "text": "Proceed into the cold", "target": "230" }]
+    },
+    "228": {
+      "zone": "Gauntlet - Blazing Sword Alcove",
+      "image": "IMG_228",
+      "audio": "AUD_228_sword_get_gauntlet",
+      "altText": "Igniting the Blazing Sword in the alcove.",
+      "prose": "You touch the FIRE_RUNE to the hilt. With a satisfying roar, a blade of pure flame springs to life! The Blazing Sword feels powerful in your grasp.",
+      "choices": [{ "text": "Leave the alcove with your prize", "target": "225" }]
+    },
+    "229": {
+      "zone": "Gauntlet - Blazing Sword Alcove",
+      "image": "IMG_229",
+      "audio": "AUD_229",
+      "altText": "Examining the inert sword hilt in the alcove.",
+      "prose": "You examine the hilt. It's finely crafted but inert, though warm. It clearly needs a potent energy source – something fiery – to function.",
+      "choices": [{ "text": "Leave the alcove", "target": "225" }]
+    },
+    "230": {
+      "zone": "Gauntlet - Ice Passage",
+      "image": "IMG_230",
+      "audio": "AUD_230_ice_cracking",
+      "altText": "A section of the passage coated in thick, dangerously slick ice. Frost patterns climb the walls.",
+      "prose": "The passage takes another turn, and the air becomes bitingly cold. Ahead, the floor is coated in a thick layer of unnaturally smooth, slick ice, like a frozen river. Frost patterns climb the walls, sparkling in your torchlight. Your breath plumes in the frigid air.",
+      "choices": [
+        { "text": "Attempt to cross the treacherous ice", "target": "231" },
+        {
+          "text": "Use the Blazing Sword to melt a path",
+          "target": "232",
+          "hideIf": "NOT HAS_FLAG:BLAZING_SWORD"
+        }
+      ]
+    },
+    "231": {
+      "zone": "Gauntlet - Ice Passage",
+      "image": "IMG_231",
+      "audio": "AUD_231_slip_fall",
+      "altText": "Slipping spectacularly and falling hard on the slick, icy passage floor.",
+      "prose": "You try to edge slowly across the ice, seeking purchase, but your boots find none on the unnaturally slick surface. You slip spectacularly, crashing down hard onto the frozen floor. You slide uncontrollably for a painful moment before skidding to a stop, bruised, cold, and perhaps losing your torch momentarily.",
+      "choices": [
+        { "text": "Pick yourself up and try again (very cautiously)", "target": "233" },
+        {
+          "text": "Try melting the ice with the Blazing Sword",
+          "target": "232",
+          "hideIf": "NOT HAS_FLAG:BLAZING_SWORD"
+        }
+      ]
+    },
+    "232": {
+      "zone": "Gauntlet - Ice Passage",
+      "image": "IMG_232",
+      "audio": "AUD_232_melt_ice",
+      "altText": "Using the Blazing Sword melts a steaming, safe path across the icy floor.",
+      "prose": "You draw and ignite the Blazing Sword. Bringing the fiery blade near the ground, its intense heat easily melts the treacherous ice before you, creating a narrow, steaming path of wet stone across the frozen section.",
+      "choices": [{ "text": "Proceed carefully across the melted path", "target": "233" }]
+    },
+    "233": {
+      "zone": "Gauntlet - Past Ice Passage",
+      "image": "IMG_233",
+      "audio": "AUD_233",
+      "altText": "The passage continues beyond the icy section, still cold but the floor is clear rock.",
+      "prose": "You move past the hazardous icy section (perhaps nursing bruises from a fall, or watching the melted path hiss and steam behind you). The passage continues onwards, still bitingly cold, but the floor is reassuringly solid rock again.",
+      "choices": [{ "text": "Proceed deeper into the cold", "target": "234" }]
+    },
+    "234": {
+      "zone": "Gauntlet - Final Chamber Approach",
+      "image": "IMG_234",
+      "audio": "AUD_234_deep_hum",
+      "altText": "Looking towards a faint, pulsing red light at the end of the cold passage. A deep humming sound is audible.",
+      "prose": "The icy passage finally begins to level out, opening slightly. Ahead, you see a faint, pulsing red light illuminating swirling motes of frost in the air. A deep, resonant hum, like massive machinery operating under immense strain, vibrates through the floor.",
+      "choices": [
+        { "text": "Approach the light and source of the hum", "target": "242" },
+        { "text": "Listen intently before proceeding", "target": "236" }
+      ]
+    },
+    "235": {
+      "zone": "Gauntlet - Before Final Chamber",
+      "image": "IMG_235",
+      "audio": "AUD_235",
+      "altText": "Hesitating at the threshold of the final chamber, looking back down the Gauntlet passage.",
+      "prose": "You pause at the threshold of whatever lies ahead, the deep hum vibrating in your chest. Looking back, the arduous path of the Gauntlet stretches into darkness. Retreat is still possible, but abandoning the quest now, so close to the end, feels like a betrayal of your oath.",
+      "choices": [
+        { "text": "Steel yourself and enter the final chamber", "target": "242" },
+        { "text": "Retrace your steps back across the Gauntlet", "target": "209" },
+        { "text": "Search desperately for another way out (Escape Ending)", "target": "254" }
+      ]
+    },
+    "236": {
+      "zone": "Gauntlet - Listening",
+      "image": "IMG_236",
+      "audio": "AUD_236_listening_hum",
+      "altText": "Listening intently at the entrance to the final chamber.",
+      "prose": "You pause, listening. The deep hum is constant, rhythmic. There are no other sounds – no guards, no creatures. Just the thrum of immense power ahead.",
+      "choices": [{ "text": "Enter the chamber", "target": "242" }]
+    },
+    "237": {
+      "zone": "Endings - Central Machine",
+      "image": "IMG_237",
+      "audio": "AUD_237_machine_detail",
+      "altText": "Close up on the complex, humming central machine. Heat radiates from it.",
+      "prose": "You approach the central machine. It's a dizzying array of interlocking gears, glowing conduits, and crystal matrices. Intense heat radiates from it. Several access panels are visible, marked with complex runes.",
+      "choices": [
+        { "text": "Try opening an access panel", "target": "240" },
+        { "text": "Look for a way up to the sarcophagus", "target": "238" },
+        { "text": "Step back to the main chamber view", "target": "242" }
+      ]
+    },
+    "238": {
+      "zone": "Gauntlet - Sarcophagus Access",
+      "image": "IMG_238",
+      "audio": "AUD_238",
+      "altText": "Looking up at the sarcophagus platform. No obvious stairs or ladder.",
+      "prose": "You look for a way up to the sarcophagus platform. There are no stairs or ladders. Access seems controlled by the central machine, or perhaps requires bypassing it somehow.",
+      "choices": [
+        { "text": "Examine the machine instead", "target": "237" },
+        { "text": "Scan the chamber walls again", "target": "239" },
+        { "text": "Return to the main chamber view", "target": "242" }
+      ]
+    },
+    "239": {
+      "zone": "Gauntlet - Chamber Walls",
+      "image": "IMG_239",
+      "audio": "AUD_239",
+      "altText": "Scanning the walls of the final chamber. They are smooth obsidian, featureless.",
+      "prose": "You scan the vast chamber walls. They are smooth, dark obsidian, likely reinforcing the chamber against the machine's power. You see no other exits or features of note.",
+      "choices": [
+        { "text": "Focus on the central machine", "target": "237" },
+        { "text": "Try to find access to the sarcophagus", "target": "238" },
+        { "text": "Return to the main chamber view", "target": "242" }
+      ]
+    },
+    "240": {
+      "zone": "Gauntlet - Machine Access Panel",
+      "image": "IMG_240",
+      "audio": "AUD_240_panel_locked",
+      "altText": "Trying to open a rune-marked access panel on the central machine.",
+      "prose": "You try to open one of the access panels. It's locked tight, sealed by the complex runes. Without the correct knowledge or tools, forcing it seems impossible and likely dangerous.",
+      "prose_alt": [
+        {
+          "condition": "HAS_FLAG:BLAZING_SWORD",
+          "text": "You examine an access panel... The Blazing Sword offers no help here; its power is destructive, not subtle."
+        }
+      ],
+      "choices": [
+        { "text": "Search for another way (Sarcophagus access?)", "target": "238" },
+        { "text": "Step back to the main chamber view", "target": "242" }
+      ]
+    },
+    "242": {
+      "zone": "Gauntlet - Final Chamber Heart",
+      "image": "IMG_242",
+      "audio": "AUD_242_climactic_sting",
+      "altText": "Standing in the vast final chamber before the colossal machine and suspended sarcophagus.",
+      "prose": "You step fully into the final chamber, the source of the hum. It is vast, cylindrical, and dominated by the colossal, pulsing crimson machine at its center. High above, suspended by crackling energy tethers, hangs the immense basalt sarcophagus of the Ember King. This is it – the heart of the crypt. Your final action here will determine everything.",
+      "choices": [
+        { "text": "Examine the colossal machine", "target": "237" },
+        { "text": "Look for a way to the sarcophagus platform", "target": "238" },
+        { "text": "Decide your approach (Leads to Ending logic)", "target": "243" },
+        { "text": "Hesitate, take a moment to reconsider", "target": "235" }
+      ]
+    },
+    "243": {
+      "zone": "Endings - Final Confrontation",
+      "image": "IMG_243",
+      "audio": "AUD_243_decision_point",
+      "altText": "Standing before the colossal, thrumming machine and the massive sarcophagus suspended above.",
+      "prose": "You step into the vast, cylindrical heart of the crypt. The colossal machine pulses with crimson energy, its thrum vibrating the very air. Above, suspended by crackling energy tethers, hangs the immense basalt sarcophagus of the Ember King. The air crackles with power. This is it. What is your final move?",
+      "choices": [
+        {
+          "text": "Attempt to overload the machine directly (Attack!)",
+          "target": "244"
+        },
+        {
+          "text": "Try to find a control interface on the machine",
+          "target": "245"
+        },
+        {
+          "text": "Focus on reaching the sarcophagus platform",
+          "target": "246"
+        }
+      ]
+    },
+    "244": {
+      "zone": "Endings - Reckless Attack",
+      "image": "IMG_244",
+      "audio": "AUD_244_machine_attack_fail",
+      "altText": "A violent discharge of crimson energy erupts from the machine as you attack it.",
+      "prose": "You strike out at the colossal machine, perhaps with the Blazing Sword's fire or a desperate blow with another tool. The conduits overload instantly! With a blinding flash, an arc of raw crimson energy lashes out, engulfing you. Reckless force is useless against such power.",
+      "choices": [{ "text": "Game Over (Consumed by Energy)", "target": "250" }]
+    },
+    "245": {
+      "zone": "Endings - Finding Control Interface",
+      "image": "IMG_245",
+      "audio": "AUD_245_finding_interface",
+      "altText": "Searching the central machine and finding a hidden interface panel.",
+      "prose": "Ignoring the raw power, you carefully scan the machine's surface, searching for a specific control point rather than the generic access panels. Your fingers trace the patterns, feeling for seams...",
+      "prose_alt": [
+        {
+          "condition": "HAS_FLAG:DATA_CYLINDER",
+          "text": "Recalling the data cylinder's markings, you recognize a specific sequence of glowing runes near a primary coolant valve. Pressing them in the correct order, a hidden interface panel slides open with a pneumatic hiss, revealing complex, glowing controls."
+        },
+        {
+          "condition": "HAS_FLAG:PARTIAL_SCHEMATIC",
+          "text": "Recalling the burnt schematic's details, you recognize a specific sequence of glowing runes near a primary coolant valve. Pressing them in the correct order, a hidden interface panel slides open with a pneumatic hiss, revealing complex, glowing controls."
+        }
+      ],
+      "choices": [
+        {
+          "text": "Attempt to use the controls (Requires Knowledge)",
+          "target": "247"
+        },
+        {
+          "text": "Attempt to use the controls anyway (No Knowledge)",
+          "target": "255"
+        },
+        {
+          "text": "Give up and try reaching the sarcophagus",
+          "target": "246"
+        },
+        {
+          "text": "Attack the machine in frustration",
+          "target": "244"
+        }
+      ]
+    },
+    "246": {
+      "zone": "Endings - Reaching Sarcophagus",
+      "image": "IMG_246",
+      "audio": "AUD_246_sarcophagus_approach_fail",
+      "altText": "Trying to climb the hot, smooth machine or jump the wide gap to the sarcophagus platform, unsuccessfully.",
+      "prose": "Seeing no obvious path, you contemplate climbing the humming machine or attempting the long jump to the platform. The heat radiating from the machine is intense, the surfaces too smooth for purchase, and the crackling energy tethers suggest the gap is lethally wide. Direct physical access seems impossible.",
+      "choices": [
+        { "text": "Look for machine controls instead", "target": "245" },
+        { "text": "Attack the machine recklessly", "target": "244" }
+      ]
+    },
+    "247": {
+      "zone": "Endings - Using Machine Controls",
+      "image": "IMG_247",
+      "audio": "AUD_247_controls_success",
+      "altText": "Manipulating the glowing alien controls on the hidden interface panel found on the machine.",
+      "prose": "The interface pulses with intricate light patterns and alien glyphs. Drawing on the knowledge gleaned from the schematic or data cylinder, you carefully manipulate the controls, sensing power flows reroute and containment sequences initiate. The machine's deep hum changes pitch, stabilizing into a less threatening thrum.",
+      "choices": [
+        { "text": "Initiate full containment shutdown", "target": "248" },
+        { "text": "Try accessing the sarcophagus platform via controls", "target": "249" }
+      ]
+    },
+    "248": {
+      "zone": "Endings - Machine Shutdown Sequence",
+      "image": "IMG_248",
+      "audio": "AUD_248_machine_power_down",
+      "altText": "The colossal central machine powering down, its intense red glow fading to inert darkness.",
+      "prose": "You activate the final shutdown sequence. The crimson glow within the machine's conduits dims rapidly, the deafening hum fades to a low, almost silent thrum, and the oppressive heat subsides. The colossal machine enters a dormant state. The primary threat within the crypt is contained.",
+      "choices": [{ "text": "Confirm the Ember King is sealed (Victory!)", "target": "400" }]
+    },
+    "249": {
+      "zone": "Endings - Lowering Sarcophagus",
+      "image": "IMG_249",
+      "audio": "AUD_249_platform_descends",
+      "altText": "The massive basalt sarcophagus platform slowly descending from above via the machine controls.",
+      "prose": "Searching the now-accessible control interface, you identify commands linked to the sarcophagus platform. With a deep groan of stressed metal, the platform holding the Ember King's massive coffin begins its slow descent, bringing the ancient resting place within reach.",
+      "choices": [{ "text": "Approach the lowered sarcophagus", "target": "251" }]
+    },
+    "250": {
+      "zone": "Endings - Game Over",
+      "image": "IMG_250",
+      "audio": "AUD_250_game_over_energy",
+      "altText": "Viewpoint dissolving into overwhelming white or red energy from the machine.",
+      "prose": "Blinded by the searing energy discharge, your quest ends here, consumed instantly by the very power you sought to control or foolishly provoked. The Ember King remains undisturbed, his volatile prison secure... for now.",
+      "choices": [{ "text": "Start again?", "target": "1", "flagsReset": true }]
+    },
+    "251": {
+      "zone": "Endings - Approaching Sarcophagus",
+      "image": "IMG_251",
+      "audio": "AUD_251_sarcophagus_close",
+      "altText": "Standing before the immense, lowered basalt sarcophagus, sealed with obsidian steel bands.",
+      "prose": "The platform settles onto the chamber floor with a soft, final thud. You stand before the immense basalt sarcophagus. It is impossibly ancient, carved with forgotten cosmic symbols and sealed with heavy bands of dull obsidian steel. What secrets, or nightmares, lie within?",
+      "choices": [
+        { "text": "Attempt to pry open the sarcophagus", "target": "252" },
+        { "text": "Use the machine controls to shut down power instead", "target": "248" }
+      ]
+    },
+    "252": {
+      "zone": "Endings - Opening Sarcophagus",
+      "image": "IMG_252",
+      "audio": "AUD_252_sarcophagus_open_bad",
+      "altText": "Prying open the sarcophagus lid releases a blinding cloud of dark energy or the King's skeletal hand reaches out.",
+      "prose": "Driven by a fatal mix of curiosity and ambition, you manage to break the ancient seals and pry open the heavy lid of the sarcophagus. A blast of soul-freezing air erupts, followed by a swirling vortex of chaotic dark energy... or perhaps the skeletal, crowned hand of the King himself reaches out! Either way, you have unleashed something truly terrible upon the world.",
+      "choices": [{ "text": "Game Over (Released the King - DOOM!)", "target": "253" }]
+    },
+    "253": {
+      "zone": "Endings - Game Over",
+      "image": "IMG_253_ending_released",
+      "audio": "AUD_253_game_over_king",
+      "words": 60,
+      "altText": "Viewpoint consumed by swirling dark energy and cosmic horror erupting from the open sarcophagus.",
+      "prose": "The malevolent power unleashed from the sarcophagus annihilates you instantly. Your selfish ambition has doomed more than just yourself. The Ember King, an entity of cosmic dread and fiery wrath, is free once more. The world above will soon burn. Your quest ends in the worst possible failure.",
+      "choices": [{ "text": "A new Torchbearer must rise...", "target": "1", "flagsReset": true }]
+    },
+    "254": {
+      "zone": "Endings - Escaped, But...",
+      "image": "IMG_254_ending_escape_incomplete",
+      "audio": "AUD_254_ending_neutral",
+      "words": 75,
+      "altText": "View from a hidden crypt exit, looking back into darkness. The machine's red hum pulses faintly from below.",
+      "prose": "Desperate, you find and trigger a hidden release mechanism or stumble into a forgotten escape passage leading upwards. You emerge, blinking, into blessed sunlight, having escaped the Crypt! Yet, deep below, the great machine still hums, its containment sequence incomplete... You fulfilled the Torchbearer's oath, but failed to truly neutralize the threat. The Ember King remains sealed for now, but vulnerable. A hollow victory? Only time will tell.",
+      "choices": [
+        { "text": "Reflect on the uncertain future...", "target": "1", "flagsReset": true }
+      ]
+    },
+    "255": {
+      "zone": "Endings - Game Over (Control Failure)",
+      "image": "IMG_255_ending_control_fail",
+      "audio": "AUD_255_ending_bad",
+      "words": 65,
+      "altText": "The machine control interface sparking violently before overloading and engulfing the viewpoint in energy.",
+      "prose": "You found the hidden controls, but lacked the crucial knowledge from the schematics or data cylinder. Your uninformed button-mashing only destabilizes the machine further! Alarms shriek as conduits flare. With a blinding flash and a concussive blast of raw energy, the control interface overloads, taking you with it into oblivion. Ignorance proves fatal when dealing with cosmic powers.",
+      "choices": [{ "text": "Seek crucial knowledge again?", "target": "1", "flagsReset": true }]
+    },
+    "258": {
+      "zone": "Endings - Game Over (Generic Bad 2)",
+      "image": "IMG_258_ending_bad",
+      "audio": "AUD_258_ending_placeholder",
+      "altText": "Viewpoint showing a fatal error, misstep, or triggered trap.",
+      "prose": "A moment's carelessness, a triggered mechanism unseen, a final gamble that didn't pay off. The ancient defenses of the crypt claim another victim. Your journey ends abruptly in darkness and pain.",
+      "choices": [{ "text": "Try once more?", "target": "1", "flagsReset": true }]
+    },
+    "260": {
+      "zone": "Endings - Game Over",
+      "image": "IMG_260_ending_magma",
+      "audio": "AUD_260_game_over_lava",
+      "words": 50,
+      "altText": "Viewpoint sinking into bubbling, incandescent lava as everything turns orange.",
+      "prose": "A misstep on the treacherous paths, a fall from a crumbling ledge... The intense heat gives way to searing agony as you are consumed by the molten rock. Your quest ends here, becoming just another fleeting cinder in the fiery heart of the crypt. The Ember King remains sealed... for now.",
+      "choices": [{ "text": "Face the heat again?", "target": "1", "flagsReset": true }]
+    },
+    "262": {
+      "zone": "Endings - Game Over (Trapped)",
+      "image": "IMG_262_ending_trapped",
+      "audio": "AUD_262_game_over_trapped",
+      "altText": "Viewpoint trapped behind a sudden collapsed passage or irrevocably sealed stone door.",
+      "prose": "A grinding sound, a sudden tremor... and the way back is sealed. Whether by a triggered trap, a structural collapse, or a one-way door, you are entombed within the crypt's depths with no hope of escape. Your quest ends in silent darkness.",
+      "choices": [{ "text": "Find another way (Restart)?", "target": "1", "flagsReset": true }]
+    },
+    "400": {
+      "zone": "Endings - True Win",
+      "image": "IMG_400_ending_win",
+      "audio": "AUD_400_ending_win_fanfare",
+      "words": 75,
+      "altText": "Standing triumphantly before the now dormant central machine, sarcophagus secure. Light spills from a newly opened escape passage.",
+      "prose": "With the great machine dormant and the Ember King safely contained within his ancient sarcophagus, a profound calm settles over the chamber. The oppressive energy dissipates like morning mist. Across the room, a section of the obsidian wall grinds open, revealing a hidden passage spiraling upwards towards faint, natural light. You have succeeded! The Ember King is sealed, your oath fulfilled, and your path to escape is clear.",
+      "isWin": true,
+      "choices": [{ "text": "Ascend to the surface (VICTORY!)", "target": "1", "flagsReset": true }]
+    }
+  },
+  "endingBuckets": {
+    "WIN_TRUE": ["400"],
+    "WIN_ESCAPE_INCOMPLETE": ["254"],
+    "LOSE_KING_RELEASED": ["253"],
+    "LOSE_MACHINE": ["250", "255"],
+    "LOSE_GAUNTLET_HORROR": ["217B"],
+    "LOSE_ENVIRONMENT_LAVA": ["260"],
+    "LOSE_ENVIRONMENT_COLLAPSE": ["262"],
+    "LOSE_LOST": [],
+    "LOSE_TRAPPED": ["262"],
+    "LOSE_GENERIC": ["258"]
+  }
+}
