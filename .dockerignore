@@ -13,14 +13,10 @@ yarn-error.log*
 README.md
 .DS_Store
 keys/
-# Build/Test artifacts
 test-results/
 playwright-report/
 screenshots/
 .eslintcache
 *.tsbuildinfo
 .swc/
-# Local config/tools
 .husky/
-.sentryclirc
-litefs.yml

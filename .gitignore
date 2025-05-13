@@ -171,5 +171,3 @@ test/e2e/auth/*.storageState.json
 # local env files
 .pnp.*
 .yarn/
-
-keys/
