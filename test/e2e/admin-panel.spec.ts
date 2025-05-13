@@ -4,8 +4,22 @@ test.describe('Admin Panel Basic Navigation', () => {
   test.setTimeout(5000);
   test.use({ storageState: 'test/e2e/auth/admin.storageState.json' });
 
-  test.beforeEach(async ({ page }: { page: Page }) => {
+  test.beforeEach(async ({ page }) => {
     await page.goto('/admin');
+
+    const currentURL = page.url();
+    const expectedAdminPath = '/admin'; // The path we expect to be on
+
+    // If the current URL doesn't end with /admin, it means we were likely redirected.
+    if (!currentURL.endsWith(expectedAdminPath)) {
+      throw new Error(
+        `Failed to load /admin page. Expected URL to end with '${expectedAdminPath}' but got ${currentURL}. ` +
+          'This likely means authentication failed or the stored auth state (test/e2e/auth/admin.storageState.json) is stale or invalid. ' +
+          "Please regenerate the auth state file by following the 'E2E Test Authentication Setup' section in README.md."
+      );
+    }
+
+    // If not redirected, then check for the admin page heading.
     await expect(page.locator('h1')).toContainText(/acto admin/i, { timeout: 2000 });
   });
 

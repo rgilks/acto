@@ -353,7 +353,7 @@ _(This section is relevant if testing features requiring login, like the admin p
 
 Certain Playwright end-to-end tests (especially those involving `/admin` access or user-specific behavior) require pre-generated authentication state to simulate logged-in users.
 
-These state files (`test/e2e/auth/*.storageState.json`) contain session information and are **not** committed to Git.
+These state files (`test/e2e/auth/*.storageState.json`) contain session information and are **not** committed to Git (see `.gitignore`).
 
 **Prerequisites:**
 
@@ -361,7 +361,7 @@ These state files (`test/e2e/auth/*.storageState.json`) contain session informat
 - The `ADMIN_EMAILS` variable is set in your `.env.local` with the email of your designated admin test user.
 - You have access to both an admin test account and a non-admin test account for one of the configured OAuth providers.
 
-**To generate the state files locally:**
+**To generate/update the state files locally (Manual Process):**
 
 1.  **Ensure Files Exist:** If they don't already exist, create empty files named exactly:
     - `test/e2e/auth/admin.storageState.json`
@@ -370,33 +370,50 @@ These state files (`test/e2e/auth/*.storageState.json`) contain session informat
     ```bash
     npm run dev
     ```
-3.  **Login as Admin:** Navigate to `http://localhost:3000` and log in as the **admin** user.
-4.  **Get Admin Cookie:** Open browser dev tools, go to Application/Storage > Cookies for `localhost`. Find the session cookie (e.g., `next-auth.session-token` or potentially `authjs.session-token` - **verify the exact name**) and copy its **value**.
-5.  **Update `admin.storageState.json`:** Paste the copied token value, replacing the placeholder `YOUR_ADMIN_TOKEN_VALUE_HERE`. Ensure the `name` property matches the actual cookie name you found.
+3.  **Login as Admin:** Navigate to `http://localhost:3000` and log in as the **admin** user through one of the configured OAuth providers.
+4.  **Get Admin Cookie:** Open browser dev tools (usually right-click -> Inspect -> Application/Storage tab).
+    - Find Cookies for `http://localhost:3000`.
+    - Locate the session cookie (e.g., `next-auth.session-token` or potentially `authjs.session-token` - **verify the exact name**).
+    - Copy its **value**.
+5.  **Update `admin.storageState.json`:** Open the file and update the `cookies` array. It should look like this (replace placeholders):
     ```json
     {
       "cookies": [
         {
-          "name": "next-auth.session-token", // VERIFY THIS COOKIE NAME IN YOUR BROWSER
-          "value": "YOUR_ADMIN_TOKEN_VALUE_HERE",
+          "name": "next-auth.session-token", // VERIFY THIS COOKIE NAME
+          "value": "YOUR_ADMIN_TOKEN_VALUE_HERE", // PASTE THE COPIED VALUE
           "domain": "localhost",
           "path": "/",
-          "expires": -1, // Or the actual expiration timestamp if not -1
+          "expires": -1, // Or the actual expiration Unix timestamp (in seconds) if not -1
           "httpOnly": true,
-          "secure": false,
-          "sameSite": "Lax" // Verify sameSite if necessary
+          "secure": false, // Usually false for localhost
+          "sameSite": "Lax" // Verify if different, e.g., "None" or "Strict"
         }
       ],
-      "origins": []
+      "origins": [
+        {
+          "origin": "http://localhost:3000",
+          "localStorage": [] // Add any relevant localStorage items if needed by tests
+        }
+      ]
     }
     ```
-6.  **Log Out & Login as Non-Admin:** Log out, then log in as a regular **non-admin** user.
+    **Important**: Ensure the `name`, `domain`, `path`, and `value` are correct. The `expires` field is often `-1` for session cookies (expires when browser closes) or a Unix timestamp (in seconds) for persistent cookies.
+6.  **Log Out & Login as Non-Admin:** Log out from the application, then log in as a regular **non-admin** user.
 7.  **Get Non-Admin Cookie:** Repeat step 4 for the non-admin user, verifying the cookie name and copying its value.
-8.  **Update `nonAdmin.storageState.json`:** Paste the non-admin token value, replacing the placeholder, using the same JSON structure and verifying the cookie name.
+8.  **Update `nonAdmin.storageState.json`:** Paste the non-admin token value and cookie details into this file, using the same JSON structure as above.
 
-**Verification:** `npm run test:e2e` should now pass tests requiring authentication.
+**Troubleshooting E2E Auth Failures:**
 
-**Troubleshooting:** Double-check cookie names, values, domain (`localhost`), path (`/`), and ensure the JSON structure is valid.
+- **Symptom**: Tests for authenticated areas (like `/admin`) fail because the page redirects to the homepage or login page. You might see errors where the test expects content from the admin page (e.g., an "acto admin" heading) but finds content from the homepage (e.g., the main "acto" heading).
+- **Cause**: The `*.storageState.json` files (especially the cookie `value`) are likely stale, invalid, or expired.
+- **Solution**: Carefully repeat the "To generate/update the state files locally" steps above to refresh the cookie values.
+  - Double-check the cookie **name** and **value** are accurately copied.
+  - Ensure the **domain** is `localhost` and **path** is `/`.
+  - If your OAuth provider has short session times, you might need to regenerate these files more frequently.
+- **Test Modification**: The `test/e2e/admin-panel.spec.ts` includes a check that attempts to provide a more specific error if it detects a redirect from `/admin`, guiding you to this section.
+
+**Verification:** After updating the state files, run `npm run test:e2e` (or `npm run check` which includes E2E tests). Tests requiring authentication should now pass.
 
 ## Database
 
