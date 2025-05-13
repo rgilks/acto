@@ -9,7 +9,7 @@ import {
   ArrowPathIcon,
   ArrowsPointingOutIcon,
   ArrowsPointingInIcon,
-  PauseIcon,
+  PlayIcon,
 } from '@heroicons/react/24/solid';
 import ScenarioSelector from './ScenarioSelector';
 import useTTSPlayer from '@/hooks/useTTSPlayer';
@@ -865,10 +865,10 @@ const StoryStory = () => {
                   </div>
                 )}
 
-                {/* Centered Pause icon - Show only if explicitly paused by user or on initial load with audio */}
+                {/* Centered Play icon - Show only if explicitly paused by user */}
                 {userPaused && (
                   <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-                    <PauseIcon className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 text-white/75" />
+                    <PlayIcon className="h-16 w-16 sm:h-20 sm:w-20 md:h-24 md:w-24 text-white/75" />
                   </div>
                 )}
 

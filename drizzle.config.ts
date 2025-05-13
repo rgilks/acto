@@ -5,7 +5,7 @@ export default {
   out: './lib/db/migrations',
   dialect: 'sqlite',
   dbCredentials: {
-    url: './acto.sqlite',
+    url: './data/acto.sqlite',
   },
   verbose: true,
   strict: true,
