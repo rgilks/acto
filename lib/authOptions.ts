@@ -5,6 +5,8 @@ import Discord from 'next-auth/providers/discord';
 import { JWT } from 'next-auth/jwt';
 import { Session } from 'next-auth';
 import db from './db';
+import { users } from './db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 import { AdapterUser } from 'next-auth/adapters';
 import { z } from 'zod';
 import type { NextAuthOptions } from 'next-auth';
@@ -139,31 +141,42 @@ export const authOptions: NextAuthOptions = {
   },
   pages: {},
   callbacks: {
-    signIn: ({ user, account }: { user: User | AdapterUser; account: Account | null }) => {
+    signIn: async ({ user, account }: { user: User | AdapterUser; account: Account | null }) => {
       // --- Store/Update user data in DB ---
-      try {
-        db.prepare(
-          `
-            INSERT INTO users (provider_id, provider, name, email, image, last_login, language)
-            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
-            ON CONFLICT(provider_id, provider)
-            DO UPDATE SET name = ?, email = ?, image = ?, last_login = CURRENT_TIMESTAMP
-          `
-        ).run(
-          user.id,
-          account?.provider,
-          user.name || null,
-          user.email || null,
-          user.image || null,
-          'en',
-          user.name || null,
-          user.email || null,
-          user.image || null
+      if (!account || !user.id) {
+        console.error(
+          '[AUTH SignIn] Account or user.id missing, cannot proceed with DB operation.'
         );
+        return false; // Or handle as appropriate
+      }
+
+      try {
+        const now = sql`strftime('%s', 'now')`; // Use SQL function for current time consistent with schema defaults
+
+        await db
+          .insert(users)
+          .values({
+            providerId: user.id,
+            provider: account.provider,
+            name: user.name || null,
+            email: user.email || null,
+            image: user.image || null,
+            // firstLogin is handled by default on insert if not specified or updated below
+            lastLogin: now,
+            language: 'en', // Assuming 'en' as default language on new sign-in or update
+          })
+          .onConflictDoUpdate({
+            target: [users.providerId, users.provider],
+            set: {
+              name: user.name || null,
+              email: user.email || null,
+              image: user.image || null,
+              lastLogin: now,
+            },
+          });
       } catch (error) {
-        console.error('[AUTH] Error storing user data:', error);
-        // Optionally, decide if the sign-in should fail if the DB operation fails
-        // return false;
+        console.error('[AUTH] Error storing user data with Drizzle:', error);
+        // return false; // Optionally fail sign-in on DB error
       }
       // --- End Store/Update user data in DB ---
 
@@ -227,15 +240,12 @@ export const authOptions: NextAuthOptions = {
 
         try {
           const userRecord = db
-            .prepare('SELECT id FROM users WHERE provider_id = ? AND provider = ?')
-            .get(user.id, account.provider);
+            .select({ id: users.id })
+            .from(users)
+            .where(and(eq(users.providerId, user.id), eq(users.provider, account.provider)))
+            .get();
 
-          if (
-            userRecord &&
-            typeof userRecord === 'object' &&
-            'id' in userRecord &&
-            typeof userRecord.id === 'number'
-          ) {
+          if (userRecord && typeof userRecord.id === 'number') {
             token.dbId = userRecord.id;
           } else {
             console.error(
@@ -244,7 +254,7 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (error) {
           console.error(
-            '[AUTH JWT Callback] CRITICAL: DB error fetching user ID for token:',
+            '[AUTH JWT Callback] CRITICAL: DB error fetching user ID for token with Drizzle:',
             error
           );
         }

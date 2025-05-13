@@ -1,4 +1,6 @@
 import db from './db';
+import * as schema from './db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 import { getSession } from '@/app/auth'; // Assuming this returns { user: { id: string, dbId?: number } } | null
 
 // --- Define Rate Limit Configurations ---
@@ -6,8 +8,7 @@ type ApiType = 'text' | 'image' | 'tts';
 
 interface RateLimitConfig {
   requests: number;
-  // durationSeconds is no longer used for daily limit logic, but kept for structure
-  durationSeconds: number;
+  durationSeconds: number; // Kept for structure, daily logic relies on date comparison
 }
 
 // Production limits (DAILY)
@@ -24,7 +25,7 @@ export type RateLimitResult = {
   success: boolean;
   limit: number;
   remaining: number;
-  reset: number; // Timestamp in milliseconds when the limit *would* reset (start of next day UTC)
+  reset: number; // Timestamp in milliseconds (start of next day UTC)
   errorType?: RateLimitErrorType | undefined;
   errorMessage?: string | undefined;
 };
@@ -44,7 +45,7 @@ const getStartOfNextDayUTC = (timestamp: number): number => {
   return date.getTime();
 };
 
-// --- Rate Limit Check Function (using SQLite) ---
+// --- Rate Limit Check Function (using Drizzle ORM) ---
 
 const checkRateLimit = async (
   apiType: ApiType,
@@ -54,122 +55,121 @@ const checkRateLimit = async (
   const userId = session?.user.dbId;
 
   if (!userId) {
-    console.warn(`[RateLimitSQLite] Blocked unauthenticated request to ${apiType}`);
+    console.warn(`[RateLimitDrizzle] Blocked unauthenticated request to ${apiType}`);
     return {
       success: false,
       limit: config.requests,
       remaining: 0,
-      reset: 0, // No specific reset time for auth error
+      reset: 0,
       errorType: 'AuthenticationRequired',
       errorMessage: 'Authentication required.',
     };
   }
 
-  console.log(`[RateLimitSQLite] Checking DAILY ${apiType} limit for user DB ID ${userId}`);
+  console.log(`[RateLimitDrizzle] Checking DAILY ${apiType} limit for user DB ID ${userId}`);
 
-  const now = Date.now();
-  const startOfCurrentDay = getStartOfDayUTC(now);
-  let actualResetTime = getStartOfNextDayUTC(now); // Default reset is next day
+  const nowMs = Date.now();
+  const startOfCurrentDayMs = getStartOfDayUTC(nowMs);
+  let actualResetTimeMs = getStartOfNextDayUTC(nowMs);
 
   try {
-    const result = db.transaction((currentUserId: number, currentApiType: ApiType) => {
-      const stmtSelect = db.prepare(`
-        SELECT request_count, window_start_time
-        FROM rate_limits_user
-        WHERE user_id = ? AND api_type = ?
-      `);
-      const stmtInsert = db.prepare(`
-        INSERT INTO rate_limits_user (user_id, api_type, window_start_time, request_count)
-        VALUES (?, ?, ?, 1)
-        ON CONFLICT(user_id, api_type) DO NOTHING;
-      `);
-      const stmtUpdateReset = db.prepare(`
-        UPDATE rate_limits_user
-        SET request_count = 1, window_start_time = ?
-        WHERE user_id = ? AND api_type = ?;
-      `);
-      const stmtUpdateIncrement = db.prepare(`
-        UPDATE rate_limits_user
-        SET request_count = request_count + 1
-        WHERE user_id = ? AND api_type = ?;
-      `);
+    const result = db.transaction((tx) => {
+      const record = tx
+        .select({
+          requestCount: schema.rateLimitsUser.requestCount,
+          windowStartTime: schema.rateLimitsUser.windowStartTime,
+        })
+        .from(schema.rateLimitsUser)
+        .where(
+          and(eq(schema.rateLimitsUser.userId, userId), eq(schema.rateLimitsUser.apiType, apiType))
+        )
+        .get();
 
-      let row = stmtSelect.get(currentUserId, currentApiType) as
-        | { request_count: number; window_start_time: number }
-        | undefined;
-
-      // Handle initial request for user/apiType combination
-      if (!row) {
-        stmtInsert.run(currentUserId, currentApiType, now);
-        row = stmtSelect.get(currentUserId, currentApiType) as
-          | { request_count: number; window_start_time: number }
-          | undefined;
-        if (!row) {
-          throw new Error('Failed to insert or retrieve rate limit record after initial check.');
-        }
+      if (!record) {
+        tx.insert(schema.rateLimitsUser)
+          .values({
+            userId: userId,
+            apiType: apiType,
+            windowStartTime: new Date(nowMs),
+            requestCount: 1,
+          })
+          .run();
+        return { success: true, remaining: config.requests - 1 };
       }
 
-      const lastRequestTime = row.window_start_time; // Renamed for clarity
-      const requestCount = row.request_count;
-      const startOfLastRequestDay = getStartOfDayUTC(lastRequestTime);
+      const lastRequestTimeMs = record.windowStartTime.getTime();
+      const requestCount = record.requestCount;
+      const startOfLastRequestDayMs = getStartOfDayUTC(lastRequestTimeMs);
 
-      // Check if last request was from a previous day
-      if (startOfLastRequestDay < startOfCurrentDay) {
-        // Reset the count and update the timestamp to now
-        stmtUpdateReset.run(now, currentUserId, currentApiType);
-        actualResetTime = getStartOfNextDayUTC(now); // Reset is start of next day
+      if (startOfLastRequestDayMs < startOfCurrentDayMs) {
+        tx.update(schema.rateLimitsUser)
+          .set({
+            requestCount: 1,
+            windowStartTime: new Date(nowMs),
+          })
+          .where(
+            and(
+              eq(schema.rateLimitsUser.userId, userId),
+              eq(schema.rateLimitsUser.apiType, apiType)
+            )
+          )
+          .run();
+        actualResetTimeMs = getStartOfNextDayUTC(nowMs);
         return { success: true, remaining: config.requests - 1 };
       } else {
-        // Request is from the current day
-        actualResetTime = getStartOfNextDayUTC(now); // Reset is still start of next day
+        actualResetTimeMs = getStartOfNextDayUTC(nowMs);
         if (requestCount < config.requests) {
-          // Increment count, keep same start time (timestamp not updated on increment)
-          stmtUpdateIncrement.run(currentUserId, currentApiType);
+          tx.update(schema.rateLimitsUser)
+            .set({ requestCount: sql`${schema.rateLimitsUser.requestCount} + 1` })
+            .where(
+              and(
+                eq(schema.rateLimitsUser.userId, userId),
+                eq(schema.rateLimitsUser.apiType, apiType)
+              )
+            )
+            .run();
           return { success: true, remaining: config.requests - (requestCount + 1) };
         } else {
-          // Limit reached for today
           return { success: false, remaining: 0 };
         }
       }
-    })(userId, apiType) as { success: boolean; remaining: number };
+    });
 
     console.log(
-      `[RateLimitSQLite] DAILY ${apiType} check for user ${userId}: success=${result.success}, remaining=${result.remaining}`
+      `[RateLimitDrizzle] DAILY ${apiType} check for user ${userId}: success=${result.success}, remaining=${result.remaining}`
     );
 
     if (!result.success) {
       console.warn(
-        `[RateLimitSQLite] User ${userId} exceeded DAILY ${apiType} limit. Limit resets at ${new Date(actualResetTime).toISOString()} (UTC)`
+        `[RateLimitDrizzle] User ${userId} exceeded DAILY ${apiType} limit. Limit resets at ${new Date(actualResetTimeMs).toISOString()} (UTC)`
       );
       return {
         success: false,
         limit: config.requests,
         remaining: 0,
-        reset: actualResetTime,
+        reset: actualResetTimeMs,
         errorType: 'RateLimitExceeded',
         errorMessage: `Daily rate limit exceeded for ${apiType}.`,
       };
     }
 
-    // On success, the reset time refers to the start of the next day
     return {
       ...result,
       limit: config.requests,
-      reset: actualResetTime,
+      reset: actualResetTimeMs,
       errorType: undefined,
       errorMessage: undefined,
     };
   } catch (error) {
     console.error(
-      `[RateLimitSQLite] Error checking DAILY ${apiType} limit for user ${userId}:`,
+      `[RateLimitDrizzle] Error checking DAILY ${apiType} limit for user ${userId}:`,
       error
     );
-    // Fail CLOSED: Deny request if rate limiter fails unexpectedly
     return {
       success: false,
       limit: config.requests,
-      remaining: 0, // Assume limit reached if we can't check
-      reset: now,
+      remaining: 0,
+      reset: nowMs,
       errorType: 'InternalError',
       errorMessage: 'Rate limit check failed due to an internal error.',
     };

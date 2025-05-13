@@ -1,90 +1,82 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+import * as schema from './db/schema';
 
 const DB_DIR = process.env.NODE_ENV === 'production' ? '/data' : path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DB_DIR, 'acto.sqlite');
 
-const isBuildPhase =
-  process.env.NODE_ENV === 'production' && process.env.NEXT_PHASE === 'phase-production-build';
+const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
 
-let db: Database.Database | null = null;
-let dbProxyInstance: Database.Database | null = null;
-let isInitialized = false;
+let betterSqliteInstance: Database.Database | null = null;
+let drizzleInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
-function initializeDatabase(): Database.Database {
-  if (db && dbProxyInstance && isInitialized) {
-    return dbProxyInstance;
+function initializeDatabase(): ReturnType<typeof drizzle<typeof schema>> {
+  if (drizzleInstance) {
+    return drizzleInstance;
   }
 
-  console.log('[DB] Starting database initialization...');
+  console.log('[DB] Starting database initialization (Drizzle)...');
 
   try {
-    if (isBuildPhase || !fs.existsSync(process.cwd())) {
-      db = new Database(':memory:');
-      console.log('[DB] Using in-memory database for build phase');
+    if (isBuildPhase) {
+      console.log('[DB] Using in-memory database for build phase (Drizzle).');
+      betterSqliteInstance = new Database(':memory:');
     } else {
       if (!fs.existsSync(DB_DIR)) {
         fs.mkdirSync(DB_DIR, { recursive: true });
         console.log(`[DB] Created database directory at ${DB_DIR}`);
       }
-      db = new Database(DB_PATH);
-      console.log(`[DB] Connected to database at ${DB_PATH}`);
+      console.log(`[DB] Connecting to database at ${DB_PATH} (Drizzle)...`);
+      betterSqliteInstance = new Database(DB_PATH);
     }
 
-    db.pragma('foreign_keys = ON');
-    console.log('[DB] Enabled foreign key constraints');
-    db.pragma('journal_mode = WAL');
+    betterSqliteInstance.pragma('journal_mode = WAL');
     console.log('[DB] Set journal mode to WAL');
+    betterSqliteInstance.pragma('foreign_keys = ON');
+    console.log('[DB] Enabled foreign key constraints');
 
-    console.log('[DB] Initializing/verifying database schema...');
-    db.exec(`      
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        provider_id TEXT NOT NULL,
-        provider TEXT NOT NULL,
-        name TEXT,
-        email TEXT,
-        image TEXT,
-        first_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        language TEXT DEFAULT 'en',
-        UNIQUE(provider_id, provider)
-      );
+    drizzleInstance = drizzle(betterSqliteInstance, {
+      schema,
+      logger: process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test',
+    });
 
-      -- New user and API-specific rate limit table
-      CREATE TABLE IF NOT EXISTS rate_limits_user (
-        user_id INTEGER NOT NULL,
-        api_type TEXT NOT NULL, -- e.g., 'text', 'image', 'tts'
-        window_start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        request_count INTEGER NOT NULL DEFAULT 1,
-        PRIMARY KEY (user_id, api_type),
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      );
+    // Run migrations
+    // In a typical setup, you wouldn't run migrations directly in the app like this on every init,
+    // but rather via a separate script (e.g., npm run db:migrate).
+    // For an existing DB that you're now managing with Drizzle, this is a bit different.
+    // If your tables ALREADY exist with the correct structure, migrations might not do much initially
+    // or might try to re-create. Drizzle Kit generate will compare schema.ts to the DB.
+    if (!isBuildPhase && process.env.NODE_ENV !== 'test') {
+      console.log('[DB] Checking for and applying Drizzle migrations...');
+      migrate(drizzleInstance, { migrationsFolder: path.join(process.cwd(), 'lib/db/migrations') });
+      console.log('[DB] Drizzle migrations check complete.');
+    } else if (process.env.NODE_ENV === 'test') {
+      console.log('[DB] Skipping Drizzle migrations for test environment.');
+    } else {
+      console.log('[DB] Skipping Drizzle migrations for in-memory build phase database.');
+      // For in-memory, you might need to ensure schema exists if you don't run migrations.
+      // However, Drizzle queries will work against the schema definition directly.
+      // If you need the tables to actually exist for some build step that uses the in-memory DB,
+      // you might need a way to create them based on schema.ts (e.g. a small utility).
+      // For now, assuming build phase doesn't require data access that needs migrations.
+    }
 
-      CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login DESC);
-      CREATE INDEX IF NOT EXISTS idx_rate_limits_user_window ON rate_limits_user(user_id, api_type, window_start_time DESC);
-    `);
-
-    console.log('[DB] Schema initialization/verification complete');
-
-    dbProxyInstance = db;
-
-    isInitialized = true;
-    console.log('[DB] Database initialized successfully.');
-    return dbProxyInstance;
+    console.log('[DB] Database initialized successfully with Drizzle.');
+    return drizzleInstance;
   } catch (error) {
-    console.error('[DB] Database initialization error:', error);
+    console.error('[DB] Drizzle Database initialization error:', error);
     if (process.env.NODE_ENV === 'production' && !isBuildPhase) {
-      console.warn('[DB] CRITICAL: Falling back to in-memory database due to error!');
-      db = new Database(':memory:');
-      dbProxyInstance = db;
-      isInitialized = true;
-      return dbProxyInstance;
+      console.warn('[DB] CRITICAL: Falling back to in-memory database due to error (Drizzle)!');
+      betterSqliteInstance = new Database(':memory:');
+      drizzleInstance = drizzle(betterSqliteInstance, { schema, logger: true });
+      return drizzleInstance;
     }
     throw error;
   }
 }
 
-const initializedDbInstance = initializeDatabase();
-export default initializedDbInstance;
+const db = initializeDatabase();
+export default db;

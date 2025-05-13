@@ -1,60 +1,75 @@
 import { describe, it, expect, beforeEach, afterEach, vi, Mock } from 'vitest';
 import { getTableNames, getTableData } from './actions';
-import db from '@/lib/db';
+import db from '@/lib/db'; // This will now be the Drizzle instance
+import * as schema from '@/lib/db/schema'; // Import schema for table references
 import { getServerSession } from 'next-auth';
-
-// Define mocks for the *methods* returned by db.prepare
-const mockDbGet = vi.fn();
-const mockDbAll = vi.fn();
+import { SQL, desc } from 'drizzle-orm'; // Import SQL and desc for type checking and usage in test
 
 vi.mock('next-auth', () => ({
   getServerSession: vi.fn(),
-}));
-
-vi.mock('next/router', () => ({
-  useRouter: vi.fn(() => ({
-    events: {
-      on: vi.fn(),
-      off: vi.fn(),
-    },
-  })),
 }));
 
 vi.mock('@/lib/authOptions', () => ({
   authOptions: {},
 }));
 
-// Mock the entire db module
-vi.mock('@/lib/db');
+// Mock the Drizzle db instance and its methods
+vi.mock('@/lib/db', async (importOriginal) => {
+  const actualDb = await importOriginal<typeof import('@/lib/db')>();
+  return {
+    ...actualDb,
+    default: {
+      // Mock specific Drizzle methods used in actions.ts
+      all: vi.fn(),
+      get: vi.fn(),
+      select: vi.fn().mockReturnThis(), // For fluent API: .select().from()...
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockReturnThis(),
+      offset: vi.fn().mockReturnThis(),
+      $dynamic: vi.fn().mockReturnThis(), // Mock $dynamic
+      // Mock transaction to just run the callback
+      transaction: vi.fn(), // Simpler mock for transaction initially
+      // Keep other potential db properties/methods if any, or mock them as needed
+      // For instance, if run, prepare, etc. are somehow still accessed directly (they shouldn't be for Drizzle select/insert/update)
+    },
+  };
+});
 
 const mockGetServerSession = getServerSession as Mock;
-const originalEnv = process.env;
+const dbMock = db as unknown as {
+  all: Mock;
+  get: Mock;
+  select: Mock;
+  from: Mock;
+  where: Mock;
+  orderBy: Mock;
+  limit: Mock;
+  offset: Mock;
+  $dynamic: Mock;
+  transaction: Mock<(cb: (tx: any) => any) => any>;
+};
 
-describe('Admin actions', () => {
+const originalEnv = { ...process.env };
+
+describe('Admin actions with Drizzle', () => {
   beforeEach(() => {
-    // Clear all mocks before each test
     vi.clearAllMocks();
-
-    // Reset specific mock implementations/return values for db methods
-    mockDbGet.mockReset();
-    mockDbAll.mockReset();
-
-    // Mock db.prepare to return an object containing our method mocks
-    (db.prepare as Mock).mockReturnValue({
-      get: mockDbGet,
-      all: mockDbAll,
-      // run: vi.fn(), // Add if needed elsewhere
-    });
-
-    // Mock db.transaction to simply execute the callback passed to it
-    (db.transaction as Mock).mockImplementation((cb) => cb());
-
-    // Set default admin email for most tests
     process.env = { ...originalEnv, ADMIN_EMAILS: 'admin@example.com' };
 
-    // Set default return values (can be overridden per test)
-    mockDbGet.mockReturnValue({ totalRows: 0 }); // Default for COUNT
-    mockDbAll.mockReturnValue([]); // Default for SELECT
+    // Configure chainable mocks
+    dbMock.select.mockReturnThis();
+    dbMock.from.mockReturnThis();
+    dbMock.where.mockReturnThis();
+    dbMock.orderBy.mockReturnThis();
+    dbMock.limit.mockReturnThis();
+    dbMock.offset.mockReturnThis();
+    dbMock.$dynamic.mockReturnThis();
+
+    // Mock transaction to execute the callback with the dbMock itself as tx context
+    // This assumes methods like .select, .get, .all are available on the tx object via dbMock
+    dbMock.transaction.mockImplementation((cb: (txDb: typeof dbMock) => any) => cb(dbMock));
   });
 
   afterEach(() => {
@@ -99,38 +114,39 @@ describe('Admin actions', () => {
       expect(result).toEqual({ error: 'Unauthorized' });
     });
 
-    it('should return table names if user is admin', async () => {
+    it('should return filtered table names if user is admin', async () => {
       mockGetServerSession.mockResolvedValue({ user: { email: 'admin@example.com' } });
-      const mockTableNames = [{ name: 'users' }, { name: 'rate_limits_user' }];
-      // Specific mock for this test case
-      mockDbAll.mockReturnValueOnce(mockTableNames);
+      const mockRawTableNames = [
+        { name: 'users' },
+        { name: 'rate_limits_user' },
+        { name: 'some_other_table' },
+      ];
+      dbMock.all.mockReturnValueOnce(mockRawTableNames);
 
       const result = await getTableNames();
 
       expect(result).toEqual({ data: ['users', 'rate_limits_user'] });
-      expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining('sqlite_master'));
-      expect(mockDbAll).toHaveBeenCalledTimes(1);
+      expect(dbMock.all).toHaveBeenCalledTimes(1);
+      // Check that it was called with a Drizzle SQL object containing the specific query string
+      expect(dbMock.all).toHaveBeenCalledWith(expect.any(SQL));
     });
 
     it('should handle database error when fetching table names', async () => {
       mockGetServerSession.mockResolvedValue({ user: { email: 'admin@example.com' } });
       const dbError = new Error('DB connection failed');
-      // Make the mock for .all() throw an error
-      mockDbAll.mockImplementationOnce(() => {
+      dbMock.all.mockImplementationOnce(() => {
         throw dbError;
       });
 
       const result = await getTableNames();
 
-      expect(result).toEqual({ data: [] }); // Expect empty array on error
-      expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining('sqlite_master'));
-      expect(mockDbAll).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ data: [] });
+      expect(dbMock.all).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('getTableData function', () => {
     beforeEach(() => {
-      // Ensure admin session for these tests
       mockGetServerSession.mockResolvedValue({ user: { email: 'admin@example.com' } });
     });
 
@@ -138,25 +154,28 @@ describe('Admin actions', () => {
       mockGetServerSession.mockResolvedValue({ user: { email: 'notadmin@example.com' } });
       const result = await getTableData('users');
       expect(result).toEqual({ error: 'Unauthorized' });
-      expect(db.prepare).not.toHaveBeenCalled();
-      expect(db.transaction).not.toHaveBeenCalled();
+      expect(dbMock.transaction).not.toHaveBeenCalled();
     });
 
     it('should return "Invalid or disallowed table name" error for disallowed table', async () => {
       const result = await getTableData('disallowed_table');
       expect(result).toEqual({ error: 'Invalid or disallowed table name' });
-      expect(db.prepare).not.toHaveBeenCalled();
-      expect(db.transaction).not.toHaveBeenCalled();
+      expect(dbMock.transaction).not.toHaveBeenCalled();
     });
 
-    // --- Commenting out tests that rely on complex transaction/prepare interaction ---
-    // These tests were failing due to mocking issues. Leaving them commented out for now.
-    /*
     it('should return data for allowed table "users"', async () => {
       const mockUserData = [{ id: 1, email: 'user1@example.com' }];
       const mockTotalRows = 15;
-      mockDbGet.mockReturnValueOnce({ totalRows: mockTotalRows }); // For COUNT(*)
-      mockDbAll.mockReturnValueOnce(mockUserData); // For SELECT *
+
+      // Mock for count: db.select({ totalRows: sql<number>`count(*)` }).from(tableSchema).get();
+      // The chain is: dbMock.select().from().get()
+      dbMock.from.mockReturnThis(); // Ensure from is chainable before get
+      dbMock.get.mockReturnValueOnce({ totalRows: mockTotalRows });
+
+      // Mock for data: selectBuilder.limit(safeLimit).offset(offset).all();
+      // The chain from selectBuilder is: dbMock.$dynamic().limit().offset().all()
+      dbMock.offset.mockReturnThis(); // Ensure offset is chainable before all
+      dbMock.all.mockReturnValueOnce(mockUserData);
 
       const result = await getTableData('users', 1, 5);
 
@@ -168,19 +187,29 @@ describe('Admin actions', () => {
           limit: 5,
         },
       });
-      expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining('COUNT(*) as totalRows FROM "users"'));
-      expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM "users" ORDER BY last_login DESC LIMIT ? OFFSET ?'));
-      expect(mockDbGet).toHaveBeenCalledTimes(1);
-      expect(mockDbAll).toHaveBeenCalledTimes(1);
-      expect(mockDbAll).toHaveBeenCalledWith(5, 0);
-      expect(db.transaction).toHaveBeenCalledTimes(1);
+      expect(dbMock.transaction).toHaveBeenCalledTimes(1);
+      expect(dbMock.select).toHaveBeenCalledWith({ totalRows: expect.any(SQL) });
+      expect(dbMock.from).toHaveBeenCalledWith(schema.users);
+      expect(dbMock.get).toHaveBeenCalledTimes(1);
+
+      expect(dbMock.select).toHaveBeenCalledWith(); // For data query
+      expect(dbMock.from).toHaveBeenCalledWith(schema.users);
+      expect(dbMock.$dynamic).toHaveBeenCalledTimes(1);
+      expect(dbMock.orderBy).toHaveBeenCalledWith(desc(schema.users.lastLogin));
+      expect(dbMock.limit).toHaveBeenCalledWith(5);
+      expect(dbMock.offset).toHaveBeenCalledWith(0);
+      expect(dbMock.all).toHaveBeenCalledTimes(1); // This is for the data itself
     });
 
     it('should return data for allowed table "rate_limits_user"', async () => {
-       const mockRateLimitData = [{ id: 10, count: 5 }];
-       const mockTotalRows = 8;
-       mockDbGet.mockReturnValueOnce({ totalRows: mockTotalRows }); // For COUNT(*)
-       mockDbAll.mockReturnValueOnce(mockRateLimitData); // For SELECT *
+      const mockRateLimitData = [{ userId: 1, apiType: 'text' }];
+      const mockTotalRows = 8;
+
+      dbMock.from.mockReturnThis();
+      dbMock.get.mockReturnValueOnce({ totalRows: mockTotalRows });
+
+      dbMock.offset.mockReturnThis();
+      dbMock.all.mockReturnValueOnce(mockRateLimitData);
 
       const result = await getTableData('rate_limits_user', 2, 10);
 
@@ -192,52 +221,51 @@ describe('Admin actions', () => {
           limit: 10,
         },
       });
-       expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining('COUNT(*) as totalRows FROM "rate_limits_user"'));
-       expect(db.prepare).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM "rate_limits_user" ORDER BY ROWID DESC LIMIT ? OFFSET ?'));
-       expect(mockDbGet).toHaveBeenCalledTimes(1);
-       expect(mockDbAll).toHaveBeenCalledTimes(1);
-       expect(mockDbAll).toHaveBeenCalledWith(10, 10);
-       expect(db.transaction).toHaveBeenCalledTimes(1);
+      expect(dbMock.transaction).toHaveBeenCalledTimes(1);
+      expect(dbMock.select).toHaveBeenCalledWith({ totalRows: expect.any(SQL) });
+      expect(dbMock.from).toHaveBeenCalledWith(schema.rateLimitsUser);
+      expect(dbMock.get).toHaveBeenCalledTimes(1);
+
+      expect(dbMock.select).toHaveBeenCalledWith();
+      expect(dbMock.from).toHaveBeenCalledWith(schema.rateLimitsUser);
+      expect(dbMock.$dynamic).toHaveBeenCalledTimes(1);
+      expect(dbMock.orderBy).toHaveBeenCalledWith(
+        desc(schema.rateLimitsUser.userId),
+        desc(schema.rateLimitsUser.apiType)
+      );
+      expect(dbMock.limit).toHaveBeenCalledWith(10);
+      expect(dbMock.offset).toHaveBeenCalledWith(10);
+      expect(dbMock.all).toHaveBeenCalledTimes(1);
     });
-
-    it('should handle pagination parameters correctly (clamping and calculation)', async () => {
-      mockDbGet.mockReturnValue({ totalRows: 50 }); // Ensure totalRows is available
-      mockDbAll.mockReturnValue([{ id: 1 }]); // Ensure data is available
-
-      // Test page clamping (page 0 -> page 1)
-      await getTableData('users', 0, 5);
-      expect(mockDbAll).toHaveBeenLastCalledWith(5, 0); // offset (1-1)*5 = 0
-
-      // Test limit clamping (limit 200 -> limit 100) and offset calculation
-      await getTableData('users', 3, 200);
-      expect(mockDbAll).toHaveBeenLastCalledWith(100, 200); // limit 100, offset (3-1)*100 = 200
-    });
-    */
-    // --- End of commented out tests ---
 
     it('should handle database error during transaction (e.g., COUNT fails)', async () => {
-      const dbError = new Error('Transaction failed');
-      // Make the mock for .get() throw an error (simulates COUNT failure)
-      mockDbGet.mockImplementationOnce(() => {
-        throw dbError;
+      const dbError = new Error('Transaction failed during count');
+      dbMock.select.mockImplementationOnce(() => {
+        // This select is for the count query
+        const chainedMock = {
+          from: vi.fn().mockReturnThis(),
+          get: vi.fn().mockImplementationOnce(() => {
+            throw dbError;
+          }),
+        };
+        return chainedMock as any;
       });
 
       const result = await getTableData('users');
       expect(result).toEqual({ error: 'Failed to fetch table data' });
-      expect(db.transaction).toHaveBeenCalledTimes(1);
+      expect(dbMock.transaction).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle database error during transaction (e.g., SELECT fails)', async () => {
-      const dbError = new Error('SELECT failed');
-      // Set up COUNT to succeed but SELECT to fail
-      mockDbGet.mockReturnValueOnce({ totalRows: 10 });
-      mockDbAll.mockImplementationOnce(() => {
+    it('should handle database error during transaction (e.g., SELECT data fails)', async () => {
+      const dbError = new Error('Transaction failed during data select');
+      dbMock.get.mockReturnValueOnce({ totalRows: 10 }); // Count succeeds
+      dbMock.all.mockImplementationOnce(() => {
         throw dbError;
-      });
+      }); // Data fetch fails
 
       const result = await getTableData('users');
       expect(result).toEqual({ error: 'Failed to fetch table data' });
-      expect(db.transaction).toHaveBeenCalledTimes(1);
+      expect(dbMock.transaction).toHaveBeenCalledTimes(1);
     });
   });
 });

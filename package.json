@@ -16,6 +16,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:quick": "vitest related --run --passWithNoTests",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
     "nuke": "rm -rf node_modules package-lock.json .next .next-validation",
     "test:e2e": "npx playwright test --reporter=list",
     "init:dev": "npx husky install && npx playwright install"
@@ -26,6 +29,7 @@
     "@google/genai": "^0.9.0",
     "@heroicons/react": "^2.2.0",
     "better-sqlite3": "^11.9.1",
+    "drizzle-orm": "^0.32.1",
     "immer": "^10.1.1",
     "jszip": "^3.10.1",
     "next": "15.2.4",
@@ -69,7 +73,8 @@
     "typescript-eslint": "^8.30.1",
     "vitest": "^3.1.2",
     "vitest-dom": "^0.1.1",
-    "wait-on": "^7.2.0"
+    "wait-on": "^7.2.0",
+    "drizzle-kit": "^0.24.1"
   },
   "overrides": {
     "@types/react": "19.0.12",
